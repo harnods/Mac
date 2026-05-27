@@ -18,8 +18,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="border-b bg-background sticky top-0 z-30">
         <div className="w-full px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
-            <Link href="/inventory" className="font-semibold tracking-tight">
-              Machitori
+            <Link href="/inventory" className="text-2xl font-bold tracking-tight leading-none">
+              Mac
             </Link>
             <nav className="flex items-center gap-1 text-sm">
               <InventoryNav />
