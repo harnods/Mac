@@ -1,0 +1,109 @@
+import Link from "next/link";
+import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus } from "lucide-react";
+import { PurchaseRequestRow } from "@/components/purchasing/purchase-request-row";
+import { PurchaseRequestsFilter } from "@/components/purchasing/purchase-requests-filter";
+import type { PurchaseRequestStatus, Updater } from "@/lib/supabase/types";
+
+export const dynamic = "force-dynamic";
+
+type RequestRow = {
+  id: string;
+  status: PurchaseRequestStatus;
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+  creator: Updater | null;
+  purchase_request_items: { id: string }[];
+};
+
+export default async function PurchaseRequestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string }>;
+}) {
+  const { q = "", status } = await searchParams;
+  const profile = await getCurrentProfile();
+  const supabase = await createClient();
+
+  let query = supabase
+    .from("purchase_requests")
+    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), purchase_request_items(id)")
+    .order("created_at", { ascending: false });
+
+  if (q.trim()) query = query.ilike("note", `%${q.trim()}%`);
+  if (status && ["draft", "pending", "approved", "rejected"].includes(status))
+    query = query.eq("status", status);
+
+  const { data } = await query;
+  const list = (data ?? []) as unknown as RequestRow[];
+  const isAdmin = profile?.role === "admin";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Purchase Requests</h1>
+        <Button asChild>
+          <Link href="/purchasing/requests/new">
+            <Plus className="size-4" /> New request
+          </Link>
+        </Button>
+      </div>
+
+      <Suspense fallback={null}>
+        <PurchaseRequestsFilter />
+      </Suspense>
+
+      {list.length === 0 ? (
+        <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
+          No purchase requests yet.{" "}
+          <Link href="/purchasing/requests/new" className="underline">
+            Create one
+          </Link>
+          .
+        </div>
+      ) : (
+        <div className="border table-outer rounded-lg overflow-hidden">
+          <Table className="table-fixed w-full">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-28">ID</TableHead>
+                <TableHead className="w-28">Status</TableHead>
+                <TableHead className="w-20">Items</TableHead>
+                <TableHead className="w-56">Note</TableHead>
+                <TableHead className="w-44">Created</TableHead>
+                <TableHead />
+                <TableHead className="w-12" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.map((r) => (
+                <PurchaseRequestRow
+                  key={r.id}
+                  id={r.id}
+                  status={r.status}
+                  itemCount={r.purchase_request_items.length}
+                  note={r.note}
+                  creator={r.creator}
+                  createdAt={r.created_at}
+                  isAdmin={isAdmin}
+                  isOwn={r.created_by === profile?.id}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
