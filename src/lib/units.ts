@@ -36,8 +36,9 @@ export function convert(value: number, from: UnitCode, to: UnitCode): number | n
 }
 
 export function formatNum(value: number): string {
-  const rounded = Math.round(value * 10000) / 10000;
-  return rounded.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  // Indonesian formatting: "." for thousands, "," for decimals.
+  // Rounded to 2 decimal places (trailing zeros dropped).
+  return value.toLocaleString("id-ID", { maximumFractionDigits: 2 });
 }
 
 export function formatQty(value: number, unit: UnitCode): string {
