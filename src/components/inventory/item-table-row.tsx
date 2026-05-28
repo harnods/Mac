@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TableCell } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
-import { compatibleUnits, convert, formatNum } from "@/lib/units";
+import { compatibleUnits, convert, upConversionTarget, formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, updaterName } from "@/lib/format";
@@ -171,8 +171,7 @@ export function ItemTableRow({
 
 /** On-hand cell button with optional conversion tooltip */
 function OnHandButton({ value, unit, onClick }: { value: number; unit: string; onClick: () => void }) {
-  const allUnits = compatibleUnits(unit as UnitCode);
-  const otherUnit = allUnits.find((u) => u !== unit) as UnitCode | undefined;
+  const otherUnit = upConversionTarget(unit as UnitCode);
   const converted = otherUnit != null ? convert(value, unit as UnitCode, otherUnit) : null;
 
   const btn = (

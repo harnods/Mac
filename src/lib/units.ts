@@ -27,6 +27,22 @@ export function compatibleUnits(unit: UnitCode): UnitCode[] {
   return Object.keys(g.members);
 }
 
+/**
+ * Returns the next larger unit to convert *up* to (e.g. g → kg, ml → l),
+ * or null if the unit is already the largest in its group (kg, l) or has
+ * no conversions. Used to decide whether to show a conversion tooltip.
+ */
+export function upConversionTarget(unit: UnitCode): UnitCode | null {
+  const g = findGroup(unit);
+  if (!g) return null;
+  const current = g.members[unit];
+  if (current == null) return null;
+  const larger = Object.entries(g.members)
+    .filter(([, factor]) => factor > current)
+    .sort((a, b) => a[1] - b[1])[0];
+  return larger ? (larger[0] as UnitCode) : null;
+}
+
 export function convert(value: number, from: UnitCode, to: UnitCode): number | null {
   if (from === to) return value;
   const g = findGroup(from);
