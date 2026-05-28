@@ -101,7 +101,7 @@ export default async function ItemTypePage({
         </div>
       ) : (
         <>
-          <div className="border table-outer rounded-lg overflow-hidden hidden md:block">
+          <div className="border table-outer rounded-lg overflow-x-auto hidden md:block">
             <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>

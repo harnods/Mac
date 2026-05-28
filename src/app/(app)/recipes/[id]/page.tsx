@@ -36,7 +36,7 @@ export default async function RecipeDetailPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
             <Link href="/recipes"><ArrowLeft className="size-4" /></Link>

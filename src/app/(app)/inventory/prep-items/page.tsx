@@ -85,7 +85,7 @@ export default async function PrepItemsPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-hidden">
+        <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>

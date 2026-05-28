@@ -67,7 +67,7 @@ export default async function PrepItemDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
             <Link href="/inventory/prep-items"><ArrowLeft className="size-4" /></Link>
@@ -101,7 +101,7 @@ export default async function PrepItemDetailPage({
         {orders.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No prep orders yet.</p>
         ) : (
-          <div className="border table-outer rounded-lg overflow-hidden">
+          <div className="border table-outer rounded-lg overflow-x-auto">
             <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>

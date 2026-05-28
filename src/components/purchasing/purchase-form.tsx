@@ -203,7 +203,7 @@ export function PurchaseForm({
 
       {/* PR picker + Transaction date */}
       <div className="max-w-2xl space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>From purchase request (optional)</Label>
             <Button

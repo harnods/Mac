@@ -58,7 +58,7 @@ export default async function SalesEntryDetailPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
           <Link href="/sales">
             <ArrowLeft className="size-4" />
@@ -98,7 +98,7 @@ export default async function SalesEntryDetailPage({
         {entry.sales_entry_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No products recorded.</p>
         ) : (
-          <div className="border table-outer rounded-lg overflow-hidden">
+          <div className="border table-outer rounded-lg overflow-x-auto">
             <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>

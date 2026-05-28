@@ -251,7 +251,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
     <div className="space-y-6">
       <div className="max-w-lg space-y-4">
         {/* Date + Recipe */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="prep-date">Date</Label>
             <Input
@@ -345,7 +345,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Ingredient picker */}
                   <div className="space-y-1.5">
                     <Label>Ingredient</Label>

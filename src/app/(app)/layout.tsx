@@ -8,6 +8,7 @@ import { StockNav } from "@/components/stock-nav";
 import { PurchasingNav } from "@/components/purchasing-nav";
 import { PrepOrdersNav } from "@/components/prep-orders-nav";
 import { SalesNav } from "@/components/sales-nav";
+import { MainNavMobile } from "@/components/main-nav-mobile";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -18,10 +19,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <header className="border-b bg-background sticky top-0 z-30">
         <div className="w-full px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
+            <div className="md:hidden">
+              <MainNavMobile />
+            </div>
             <Link href="/inventory" className="text-2xl font-bold tracking-tight leading-none">
               Mac
             </Link>
-            <nav className="flex items-center gap-1 text-sm">
+            <nav className="hidden md:flex items-center gap-1 text-sm">
               <InventoryNav />
               <RecipeNav />
               <PrepOrdersNav />

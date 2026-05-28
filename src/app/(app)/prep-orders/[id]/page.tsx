@@ -80,7 +80,7 @@ export default async function PrepOrderDetailPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2">
             <Link href="/prep-orders">
@@ -165,7 +165,7 @@ export default async function PrepOrderDetailPage({
         {order.prep_order_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No ingredients.</p>
         ) : (
-          <div className="border table-outer rounded-lg overflow-hidden">
+          <div className="border table-outer rounded-lg overflow-x-auto">
             <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>

@@ -104,7 +104,7 @@ export default async function ItemDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
             <Link href={`/inventory/${itemType}`}><ArrowLeft className="size-4" /></Link>
@@ -162,7 +162,7 @@ export default async function ItemDetailPage({
           {setItems.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">No products in this set.</p>
           ) : (
-            <div className="border table-outer rounded-lg overflow-hidden">
+            <div className="border table-outer rounded-lg overflow-x-auto">
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
@@ -202,7 +202,7 @@ export default async function ItemDetailPage({
             No transactions recorded yet.
           </div>
         ) : (
-          <div className="border table-outer rounded-lg overflow-hidden">
+          <div className="border table-outer rounded-lg overflow-x-auto">
             <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>

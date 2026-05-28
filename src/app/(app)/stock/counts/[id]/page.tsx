@@ -73,7 +73,7 @@ export default async function StockCountDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
           <Link href="/stock/counts">
             <ArrowLeft className="size-4" />
@@ -119,7 +119,7 @@ export default async function StockCountDetailPage({
           No items in this count.
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-hidden">
+        <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>

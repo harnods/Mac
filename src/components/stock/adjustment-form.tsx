@@ -188,7 +188,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
   return (
     <form onSubmit={submit} className="space-y-6">
       {/* Header fields */}
-      <div className="max-w-lg grid grid-cols-2 gap-4">
+      <div className="max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="adj-date">Date</Label>
           <Input

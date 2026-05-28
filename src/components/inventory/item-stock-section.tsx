@@ -36,7 +36,7 @@ export function ItemStockSection({
   return (
     <div className="space-y-6">
       {stockMode !== 'none' && (
-        <div className={`grid gap-6 ${stockMode === 'full' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+        <div className={`grid gap-6 ${stockMode === 'full' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'}`}>
           {stockMode === 'full' && (
             <>
               <div>

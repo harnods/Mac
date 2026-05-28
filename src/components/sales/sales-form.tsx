@@ -82,7 +82,7 @@ export function SalesForm({ products }: { products: Product[] }) {
     <div className="space-y-6">
       {/* Header fields */}
       <div className="max-w-lg space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="entry-date">Date</Label>
             <Input
