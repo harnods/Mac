@@ -68,7 +68,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Mac</CardTitle>
-          <CardDescription>Sign in to the cafe management system.</CardDescription>
+          <CardDescription>Welcome back</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Suspense fallback={null}>
