@@ -68,7 +68,7 @@ export type RecipeItem = {
 };
 
 export type RecipeItemWithItem = RecipeItem & {
-  item: Pick<Item, "id" | "name" | "unit"> | null;
+  item: Pick<Item, "id" | "name" | "unit" | "deleted_at"> | null;
 };
 
 export type PurchaseRequestStatus = 'draft' | 'pending' | 'approved' | 'rejected';

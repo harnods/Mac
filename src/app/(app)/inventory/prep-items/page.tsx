@@ -52,7 +52,7 @@ export default async function PrepItemsPage({
   }
 
   const { data: items } = await itemsQuery;
-  const list = (items ?? []) as PrepItemRow[];
+  const list = (items ?? []) as unknown as PrepItemRow[];
 
   return (
     <div className="space-y-4">

@@ -59,7 +59,7 @@ export default async function PrepItemDetailPage({
 
   if (error || !itemData) notFound();
 
-  const item = itemData as { id: string; name: string; unit: string; on_hand: number; reserved: number; is_sellable: boolean; updated_at: string; updater: Updater | null };
+  const item = itemData as unknown as { id: string; name: string; unit: string; on_hand: number; reserved: number; is_sellable: boolean; updated_at: string; updater: Updater | null };
   const orders = (ordersData ?? []) as PrepOrder[];
 
   const available = Number(item.on_hand) - Number(item.reserved);

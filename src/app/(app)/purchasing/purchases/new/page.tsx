@@ -47,7 +47,7 @@ export default async function NewPurchasePage() {
     }[];
   };
 
-  const approvedRequests = (requests ?? []).map((r: RawPR) => {
+  const approvedRequests = ((requests ?? []) as unknown as RawPR[]).map((r: RawPR) => {
     // Build a map of item_id → requested unit so we can normalize purchased qty
     const requestedUnitMap: Record<string, string> = {};
     for (const it of r.purchase_request_items) {

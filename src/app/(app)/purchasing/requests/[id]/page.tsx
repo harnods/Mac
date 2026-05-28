@@ -36,7 +36,7 @@ type RequestDetail = {
     id: string;
     qty: number;
     unit: string;
-    item: { id: string; name: string; unit: string; on_hand: number; reserved: number } | null;
+    item: { id: string; name: string; unit: string; on_hand: number; reserved: number; deleted_at: string | null } | null;
   }[];
   purchases: { id: string; transaction_date: string; created_at: string }[];
 };

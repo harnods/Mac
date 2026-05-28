@@ -96,7 +96,7 @@ export default async function ItemDetailPage({
   const item = data as ItemWithCategory & { product_kind?: string; status?: string };
   const isAdmin = profile?.role === "admin";
   const ledger = (ledgerData ?? []) as LedgerRow[];
-  const setItems = (setItemsData ?? []) as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
+  const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
 
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);

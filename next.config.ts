@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevHosts: ["machitori.local"],
+  allowedDevOrigins: ["machitori.local"],
 };
 
 export default nextConfig;
