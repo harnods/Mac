@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Machitori — Machimoto Cafe System",
-  description: "Inventory management for Machimoto cafe.",
+  title: "Mac — Cafe Management System",
+  description: "Inventory and operations management for cafes.",
 };
 
 export default function RootLayout({
