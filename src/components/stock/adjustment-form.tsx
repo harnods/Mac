@@ -7,6 +7,7 @@ import { Trash2, Check, ChevronsUpDown, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { compatibleUnits } from "@/lib/units";
+import { compatibleUnits, parseDecimal } from "@/lib/units";
 import { createStockAdjustment } from "@/app/actions/stock";
 import {
   DndContext,
@@ -172,7 +173,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
         adjustment_date: date,
         items: validRows.map((r) => ({
           item_id: r.item_id!,
-          qty: Number(r.qty),
+          qty: parseDecimal(r.qty),
           unit: r.unit!,
         })),
       });
@@ -424,10 +425,10 @@ function AdjustmentRowField({
       </TableCell>
 
       <TableCell>
-        <Input
-          type="number" inputMode="decimal" min="0" step="any"
+        <DecimalInput
+          min="0" step="any"
           value={row.qty}
-          onChange={(e) => onQtyChange(e.target.value)}
+          onValueChange={(v) => onQtyChange(v)}
           className="w-full"
         />
       </TableCell>

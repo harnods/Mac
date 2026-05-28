@@ -7,6 +7,7 @@ import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -26,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { compatibleUnits, formatNum } from "@/lib/units";
+import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
 import { createSalesEntry } from "@/app/actions/sales";
 
 type Product = { id: string; name: string; unit: string };
@@ -64,7 +65,7 @@ export function SalesForm({ products }: { products: Product[] }) {
         notes: notes || undefined,
         items: validRows.map((r) => ({
           product_id: r.product_id!,
-          qty: Number(r.qty),
+          qty: parseDecimal(r.qty),
           unit: r.unit!,
         })),
       });
@@ -218,10 +219,10 @@ function SalesRowField({
       </TableCell>
 
       <TableCell>
-        <Input
-          type="number" inputMode="decimal" min="0" step="any"
+        <DecimalInput
+          min="0" step="any"
           value={row.qty}
-          onChange={(e) => onQtyChange(e.target.value)}
+          onValueChange={(v) => onQtyChange(v)}
           className="w-full"
         />
       </TableCell>

@@ -7,6 +7,7 @@ import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Command,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CategoryCombobox } from "./category-combobox";
+import { parseDecimal } from "@/lib/units";
 import { createProductItem, updateProductItem } from "@/app/actions/inventory";
 import { createUnit } from "@/app/actions/units";
 import type { Item } from "@/lib/supabase/types";
@@ -272,12 +274,12 @@ export function ProductForm({
                         <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">prep</span>
                       )}
                     </span>
-                    <Input
-                      type="number"
+                    <DecimalInput
+                      integer
                       min="1"
                       step="1"
-                      value={entry.qty}
-                      onChange={(e) => updateSetProductQty(p.id, Number(e.target.value) || 1)}
+                      value={String(entry.qty)}
+                      onValueChange={(v) => updateSetProductQty(p.id, parseDecimal(v) || 1)}
                       className="w-16 h-7 text-sm text-center"
                     />
                     <button

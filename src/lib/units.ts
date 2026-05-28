@@ -51,6 +51,31 @@ export function convert(value: number, from: UnitCode, to: UnitCode): number | n
   return inBase / g.members[to];
 }
 
+/**
+ * Parses a user-entered decimal string, accepting both "." and "," as the
+ * decimal separator (e.g. "2.5" and "2,5" both → 2.5). Also tolerates
+ * thousands separators when both separators are present ("1.000,5" → 1000.5,
+ * "1,000.5" → 1000.5). Returns NaN for empty/invalid input.
+ */
+export function parseDecimal(input: string | number | null | undefined): number {
+  if (input == null) return NaN;
+  if (typeof input === "number") return input;
+  let t = input.trim().replace(/\s/g, "");
+  if (!t) return NaN;
+  const lastDot = t.lastIndexOf(".");
+  const lastComma = t.lastIndexOf(",");
+  if (lastDot >= 0 && lastComma >= 0) {
+    // Both present → the later one is the decimal separator
+    const decSep = lastDot > lastComma ? "." : ",";
+    const thouSep = decSep === "." ? "," : ".";
+    t = t.split(thouSep).join("").replace(decSep, ".");
+  } else {
+    // Only one kind (or none) → treat comma as decimal point
+    t = t.replace(",", ".");
+  }
+  return parseFloat(t);
+}
+
 export function formatNum(value: number): string {
   // Indonesian formatting: "." for thousands, "," for decimals.
   // Rounded to 2 decimal places (trailing zeros dropped).

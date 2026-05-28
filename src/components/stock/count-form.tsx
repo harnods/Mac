@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatNum } from "@/lib/units";
+import { formatNum, parseDecimal } from "@/lib/units";
 import { createStockCount } from "@/app/actions/stock";
 
 type Item = { id: string; name: string; unit: string; type: string; on_hand: number };
@@ -72,7 +73,7 @@ export function CountForm({ items }: { items: Item[] }) {
         items: rows.map((r) => ({
           item_id: r.item_id,
           qty_system: r.qty_system,
-          qty_counted: r.qty_counted !== "" ? Number(r.qty_counted) : null,
+          qty_counted: r.qty_counted !== "" ? parseDecimal(r.qty_counted) : null,
           unit: r.unit,
         })),
         complete,
@@ -132,7 +133,7 @@ export function CountForm({ items }: { items: Item[] }) {
             </TableHeader>
             <TableBody>
               {rows.map((row) => {
-                const counted = row.qty_counted !== "" ? Number(row.qty_counted) : null;
+                const counted = row.qty_counted !== "" ? parseDecimal(row.qty_counted) : null;
                 const discrepancy = counted != null ? counted - row.qty_system : null;
                 return (
                   <TableRow key={row.item_id}>
@@ -142,14 +143,12 @@ export function CountForm({ items }: { items: Item[] }) {
                       {formatNum(row.qty_system)}
                     </TableCell>
                     <TableCell>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
+                      <DecimalInput
                         min="0"
                         step="any"
                         placeholder="—"
                         value={row.qty_counted}
-                        onChange={(e) => updateCounted(row.item_id, e.target.value)}
+                        onValueChange={(v) => updateCounted(row.item_id, v)}
                         className="w-full text-center"
                       />
                     </TableCell>

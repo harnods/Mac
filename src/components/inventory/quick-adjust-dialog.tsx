@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { compatibleUnits, formatNum } from "@/lib/units";
+import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
 import { createStockAdjustment } from "@/app/actions/stock";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -69,7 +69,7 @@ export function QuickAdjustDialog({ open, onOpenChange, itemId, itemName, itemUn
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!qty || Number(qty) <= 0) { toast.error("Enter a valid quantity"); return; }
+    if (!qty || parseDecimal(qty) <= 0) { toast.error("Enter a valid quantity"); return; }
     if (!reason) { toast.error("Select a reason"); return; }
 
     start(async () => {
@@ -77,7 +77,7 @@ export function QuickAdjustDialog({ open, onOpenChange, itemId, itemName, itemUn
         direction,
         reason,
         adjustment_date: today(),
-        items: [{ item_id: itemId, qty: Number(qty), unit }],
+        items: [{ item_id: itemId, qty: parseDecimal(qty), unit }],
       });
 
       if (!res.ok) { toast.error(res.error); return; }
@@ -127,15 +127,13 @@ export function QuickAdjustDialog({ open, onOpenChange, itemId, itemName, itemUn
           <div className="flex gap-2">
             <div className="space-y-2 flex-1">
               <Label htmlFor="qa-qty">Quantity</Label>
-              <Input
+              <DecimalInput
                 id="qa-qty"
-                type="number"
-                inputMode="decimal"
                 min="0"
                 step="any"
                 placeholder="0"
                 value={qty}
-                onChange={(e) => setQty(e.target.value)}
+                onValueChange={(v) => setQty(v)}
                 autoFocus
               />
             </div>

@@ -7,6 +7,7 @@ import { Plus, Trash2, Check, ChevronsUpDown, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
   Command,
@@ -17,7 +18,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { compatibleUnits } from "@/lib/units";
+import { compatibleUnits, parseDecimal } from "@/lib/units";
 import { UNITS } from "@/lib/units";
 import { createRecipe, updateRecipe } from "@/app/actions/recipes";
 import { createUnit } from "@/app/actions/units";
@@ -244,11 +245,11 @@ export function RecipeForm({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const weightNum = parseFloat(weightPerPcs);
+    const weightNum = parseDecimal(weightPerPcs);
     const payload = {
       name,
       product_id: productId ?? null,
-      yield_qty: Number(yieldQty),
+      yield_qty: parseDecimal(yieldQty),
       unit: recipeType === "wip" ? yieldUnit : null,
       weight_per_pcs: !isNaN(weightNum) && weightNum > 0 ? weightNum : null,
       weight_unit: !isNaN(weightNum) && weightNum > 0 ? weightUnit : null,
@@ -391,13 +392,12 @@ export function RecipeForm({
         <div className="space-y-2">
           <Label>Yield per prep</Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="number"
+            <DecimalInput
               min="0.001"
               step="any"
               required
               value={yieldQty}
-              onChange={(e) => setYieldQty(e.target.value)}
+              onValueChange={(v) => setYieldQty(v)}
               className="w-28"
             />
             {recipeType === "wip" ? (
@@ -482,12 +482,11 @@ export function RecipeForm({
             <span className="text-muted-foreground font-normal text-xs">(optional)</span>
           </Label>
           <div className="flex items-center gap-2">
-            <Input
-              type="number"
+            <DecimalInput
               min="0.001"
               step="any"
               value={weightPerPcs}
-              onChange={(e) => setWeightPerPcs(e.target.value)}
+              onValueChange={(v) => setWeightPerPcs(v)}
               placeholder="e.g. 150"
               className="w-28"
             />
@@ -751,14 +750,12 @@ function IngredientRowField({
         </PopoverContent>
       </Popover>
 
-      <Input
-        type="number"
-        inputMode="decimal"
+      <DecimalInput
         min="0"
         step="any"
         required
         value={row.quantity}
-        onChange={(e) => onQtyChange(e.target.value)}
+        onValueChange={(v) => onQtyChange(v)}
         className="w-24 shrink-0"
       />
 

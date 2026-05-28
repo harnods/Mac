@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Trash2, Check, ChevronsUpDown, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -368,13 +368,11 @@ function RequestRowField({
         </Popover>
 
         {/* Qty */}
-        <Input
-          type="number"
-          inputMode="decimal"
+        <DecimalInput
           min="0"
           step="any"
           value={row.qty}
-          onChange={(e) => onQtyChange(e.target.value)}
+          onValueChange={(v) => onQtyChange(v)}
           className="w-24 shrink-0"
         />
 

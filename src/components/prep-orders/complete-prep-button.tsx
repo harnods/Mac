@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { formatNum } from "@/lib/units";
+import { formatNum, parseDecimal } from "@/lib/units";
 import { completePrepOrder } from "@/app/actions/prep-orders";
 
 type Props = {
@@ -31,7 +31,7 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
   const [reason, setReason] = useState("");
   const [pending, start] = useTransition();
 
-  const actual = parseFloat(actualQty);
+  const actual = parseDecimal(actualQty);
   const validActual = !isNaN(actual) && actual > 0;
   const variance = validActual ? actual - targetQty : null;
   const hasVariance = variance !== null && variance !== 0;
@@ -77,14 +77,13 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
             <div className="space-y-1.5">
               <Label htmlFor="actual-qty">Actual yield</Label>
               <div className="flex items-center gap-2">
-                <Input
+                <DecimalInput
                   id="actual-qty"
-                  type="number"
                   min="0.001"
                   step="any"
                   placeholder={String(targetQty)}
                   value={actualQty}
-                  onChange={(e) => setActualQty(e.target.value)}
+                  onValueChange={(v) => setActualQty(v)}
                   className="w-32"
                   autoFocus
                 />

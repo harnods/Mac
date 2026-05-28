@@ -7,6 +7,7 @@ import { Check, ChevronsUpDown, CheckCircle2, AlertTriangle, MoreHorizontal } fr
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -26,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { convert, formatNum, compatibleUnits } from "@/lib/units";
+import { convert, formatNum, compatibleUnits, parseDecimal } from "@/lib/units";
 import { createPrepOrder } from "@/app/actions/prep-orders";
 import type { RecipeForPrep } from "@/app/(app)/prep-orders/new/page";
 import type { UnitCode } from "@/lib/supabase/types";
@@ -92,7 +93,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
 
   const selectedRecipe = recipes.find((r) => r.id === selectedRecipeId) ?? null;
 
-  const batches = parseFloat(batchCount);
+  const batches = parseDecimal(batchCount);
   const validBatches = !isNaN(batches) && batches > 0;
 
   // Build ingredient rows
@@ -135,7 +136,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
 
   // ── Ingredient-mode calculation ─────────────────────────────────────────────
   const calcIngredientRow = computedRows.find((r) => r.item_id === calcIngredientId) ?? null;
-  const calcQtyNum = parseFloat(calcQty);
+  const calcQtyNum = parseDecimal(calcQty);
   const validCalcQty = !isNaN(calcQtyNum) && calcQtyNum > 0;
 
   // Reset calc unit when ingredient changes
@@ -327,13 +328,12 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
               <div className="space-y-1.5">
                 <Label htmlFor="batch-count">Preps</Label>
                 <div className="flex items-center gap-2">
-                  <Input
+                  <DecimalInput
                     id="batch-count"
-                    type="number"
                     min="1"
                     step="1"
                     value={batchCount}
-                    onChange={(e) => setBatchCount(e.target.value)}
+                    onValueChange={(v) => setBatchCount(v)}
                     className="w-32"
                   />
                   {validBatches && (
@@ -385,12 +385,11 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
                   <div className="space-y-1.5">
                     <Label>Qty</Label>
                     <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
+                      <DecimalInput
                         min="0"
                         step="any"
                         value={calcQty}
-                        onChange={(e) => setCalcQty(e.target.value)}
+                        onValueChange={(v) => setCalcQty(v)}
                         disabled={!calcIngredientRow}
                         className="w-24"
                       />

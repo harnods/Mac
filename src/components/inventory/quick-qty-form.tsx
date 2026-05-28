@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { updateItem } from "@/app/actions/inventory";
 import type { UnitCode } from "@/lib/supabase/types";
@@ -44,40 +44,34 @@ export function QuickQtyForm({
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="on-hand">On hand ({unit})</Label>
-            <Input
+            <DecimalInput
               id="on-hand"
-              type="number"
-              inputMode="decimal"
               min="0"
               step="any"
               value={onHandVal}
-              onChange={(e) => setOnHandVal(e.target.value)}
+              onValueChange={(v) => setOnHandVal(v)}
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="reserved">Reserved ({unit})</Label>
-            <Input
+            <DecimalInput
               id="reserved"
-              type="number"
-              inputMode="decimal"
               min="0"
               step="any"
               value={reservedVal}
-              onChange={(e) => setReservedVal(e.target.value)}
+              onValueChange={(v) => setReservedVal(v)}
             />
           </div>
         </div>
       ) : (
         <div className="space-y-2">
           <Label htmlFor="on-hand">Available ({unit})</Label>
-          <Input
+          <DecimalInput
             id="on-hand"
-            type="number"
-            inputMode="decimal"
             min="0"
             step="any"
             value={onHandVal}
-            onChange={(e) => setOnHandVal(e.target.value)}
+            onValueChange={(v) => setOnHandVal(v)}
           />
         </div>
       )}

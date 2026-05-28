@@ -7,6 +7,7 @@ import { Plus, Trash2, Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,7 +34,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
-import { compatibleUnits, formatNum } from "@/lib/units";
+import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
 import { formatId, formatDate } from "@/lib/format";
 import { createPurchase } from "@/app/actions/purchasing";
 
@@ -173,11 +174,11 @@ export function PurchaseForm({
       purchase_request_ids: prIds.length > 0 ? prIds : undefined,
       transaction_date: transactionDate,
       items: validRows.map((r) => {
-        const qty = Number(r.qty_purchased);
-        const costVal = r.cost ? Number(r.cost) : null;
+        const qty = parseDecimal(r.qty_purchased);
+        const costVal = r.cost ? parseDecimal(r.cost) : null;
         return {
           item_id: r.item_id!,
-          qty_requested: r.qty_requested ? Number(r.qty_requested) : null,
+          qty_requested: r.qty_requested ? parseDecimal(r.qty_requested) : null,
           requested_unit: r.requested_unit ?? null,
           qty_purchased: qty,
           unit: r.unit!,
@@ -477,7 +478,7 @@ function PurchaseRowField({
   const showRowNote =
     row.qty_requested !== null &&
     row.qty_purchased !== "" &&
-    (Number(row.qty_purchased) !== Number(row.qty_requested) || row.unit !== row.requested_unit);
+    (parseDecimal(row.qty_purchased) !== parseDecimal(row.qty_requested) || row.unit !== row.requested_unit);
 
   return (
     <>
@@ -539,10 +540,10 @@ function PurchaseRowField({
 
         {/* Qty purchased */}
         <TableCell>
-          <Input
-            type="number" inputMode="decimal" min="0" step="any"
+          <DecimalInput
+            min="0" step="any"
             value={row.qty_purchased}
-            onChange={(e) => onQtyPurchasedChange(e.target.value)}
+            onValueChange={(v) => onQtyPurchasedChange(v)}
             className="w-full"
           />
         </TableCell>
@@ -578,11 +579,11 @@ function PurchaseRowField({
         {/* Cost input + mode toggle */}
         <TableCell>
           <div className="flex items-center gap-1">
-            <Input
-              type="number" inputMode="decimal" min="0" step="any"
+            <DecimalInput
+              min="0" step="any"
               placeholder="0"
               value={row.cost}
-              onChange={(e) => onCostChange(e.target.value)}
+              onValueChange={(v) => onCostChange(v)}
               className="flex-1 min-w-0"
             />
             <button
