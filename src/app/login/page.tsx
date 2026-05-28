@@ -67,7 +67,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Machitori</CardTitle>
+          <CardTitle className="text-2xl">Mac</CardTitle>
           <CardDescription>Sign in to Machimoto cafe system.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
