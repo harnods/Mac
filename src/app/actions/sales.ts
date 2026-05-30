@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { convert } from "@/lib/units";
 
 type ActionResult = { ok: true; id: string } | { ok: false; error: string };
@@ -22,7 +23,8 @@ const createSalesEntrySchema = z.object({
 
 export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.SALES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = createSalesEntrySchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };

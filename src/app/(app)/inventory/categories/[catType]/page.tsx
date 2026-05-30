@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { CategoryManager } from "@/components/inventory/category-manager";
 import { AddCategoryButton } from "@/components/inventory/add-category-button";
 import { CategoriesFilter } from "@/components/inventory/categories-filter";
@@ -35,7 +36,7 @@ export default async function CategoryTypePage({
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
 
   const { data } = await query;
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.INVENTORY_WRITE);
 
   return (
     <div className="space-y-4">

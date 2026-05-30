@@ -11,6 +11,8 @@ export type Profile = {
   created_at: string;
 };
 
+export type ProfileWithPermissions = Profile & { permissions: string[] };
+
 export type Updater = Pick<Profile, "full_name" | "email">;
 
 export type Category = {

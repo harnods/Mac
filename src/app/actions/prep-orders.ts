@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { convert } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -27,7 +28,8 @@ const createPrepOrderSchema = z.object({
 
 export async function createPrepOrder(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PREP_ORDERS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = createPrepOrderSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -73,7 +75,8 @@ export async function createPrepOrder(raw: unknown): Promise<ActionResult> {
 
 export async function completePrepOrder(id: string, actualQty: number, varianceReason?: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PREP_ORDERS_COMPLETE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 
@@ -177,7 +180,8 @@ export async function completePrepOrder(id: string, actualQty: number, varianceR
 
 export async function cancelPrepOrder(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PREP_ORDERS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 

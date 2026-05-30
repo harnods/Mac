@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { SalesForm } from "@/components/sales/sales-form";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function NewSalesEntryPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/sales");
+  if (!can(profile, P.SALES_WRITE)) redirect("/sales");
 
   const supabase = await createClient();
 

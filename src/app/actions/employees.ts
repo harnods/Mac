@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { randomBytes } from "crypto";
 import type { Department, JobPosition, EmploymentStatus, JobLevel, Employee } from "@/lib/supabase/types";
 
@@ -63,7 +64,7 @@ function toNull<T>(val: T | "" | undefined | null): T | null {
 export async function createEmployee(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = employeeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -97,7 +98,8 @@ export async function createEmployee(input: unknown): Promise<ActionResult> {
 
 export async function updateEmployee(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = employeeSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -132,7 +134,8 @@ export async function updateEmployee(id: string, input: unknown): Promise<Action
 
 export async function deleteEmployee(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -157,7 +160,7 @@ export type EmployeeFormData = {
 
 export async function getEmployeeFormData(employeeId?: string): Promise<EmployeeFormData | null> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return null;
+  if (!can(profile, P.EMPLOYEES_WRITE)) return null;
 
   const supabase = await createClient();
 
@@ -197,7 +200,8 @@ export async function getEmployeeFormData(employeeId?: string): Promise<Employee
 
 export async function createDepartment(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = masterNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -216,7 +220,8 @@ export async function createDepartment(input: unknown): Promise<ActionResult> {
 
 export async function updateDepartment(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = masterNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -234,7 +239,8 @@ export async function updateDepartment(id: string, input: unknown): Promise<Acti
 
 export async function deleteDepartment(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { count } = await supabase
@@ -257,7 +263,8 @@ export async function deleteDepartment(id: string): Promise<ActionResult> {
 
 export async function createJobPosition(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = masterNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -276,7 +283,8 @@ export async function createJobPosition(input: unknown): Promise<ActionResult> {
 
 export async function updateJobPosition(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = masterNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -294,7 +302,8 @@ export async function updateJobPosition(id: string, input: unknown): Promise<Act
 
 export async function deleteJobPosition(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { count } = await supabase
@@ -317,7 +326,8 @@ export async function deleteJobPosition(id: string): Promise<ActionResult> {
 
 export async function createEmploymentStatus(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = masterNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -336,7 +346,8 @@ export async function createEmploymentStatus(input: unknown): Promise<ActionResu
 
 export async function updateEmploymentStatus(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = masterNameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -354,7 +365,8 @@ export async function updateEmploymentStatus(id: string, input: unknown): Promis
 
 export async function deleteEmploymentStatus(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { count } = await supabase
@@ -377,7 +389,8 @@ export async function deleteEmploymentStatus(id: string): Promise<ActionResult> 
 
 export async function createJobLevel(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = jobLevelSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -396,7 +409,8 @@ export async function createJobLevel(input: unknown): Promise<ActionResult> {
 
 export async function updateJobLevel(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = jobLevelSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -414,7 +428,8 @@ export async function updateJobLevel(id: string, input: unknown): Promise<Action
 
 export async function deleteJobLevel(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { count } = await supabase
@@ -440,7 +455,8 @@ export async function grantEmployeeAccess(
   input: { email: string; role: "admin" | "staff" },
 ): Promise<AccessResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_ACCESS)) return { ok: false, error: "No permission" };
 
   const { email, role } = input;
   if (!email?.trim()) return { ok: false, error: "Email is required to grant access" };
@@ -492,7 +508,8 @@ export async function grantEmployeeAccess(
 
 export async function revokeEmployeeAccess(employeeId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_ACCESS)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const admin = serviceClient();

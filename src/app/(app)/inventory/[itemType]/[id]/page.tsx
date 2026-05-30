@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -94,7 +95,7 @@ export default async function ItemDetailPage({
 
   if (error || !data) notFound();
   const item = data as ItemWithCategory & { product_kind?: string; status?: string };
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.INVENTORY_WRITE);
   const ledger = (ledgerData ?? []) as LedgerRow[];
   const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
 

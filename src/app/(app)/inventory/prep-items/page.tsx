@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -37,7 +38,7 @@ export default async function PrepItemsPage({
 }) {
   const { q = "" } = await searchParams;
   const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.INVENTORY_WRITE);
   const supabase = await createClient();
 
   let itemsQuery = supabase

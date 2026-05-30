@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,7 +41,7 @@ export default async function StockAdjustmentsPage({
 }) {
   const { q = "", direction } = await searchParams;
   const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.STOCK_WRITE);
   const supabase = await createClient();
 
   let query = supabase
@@ -51,15 +52,10 @@ export default async function StockAdjustmentsPage({
   if (direction === "in" || direction === "out") {
     query = query.eq("direction", direction);
   }
-  if (q.trim()) {
-    query = query.ilike("reason", `%${q.trim()}%`);
-  }
 
   const { data } = await query;
   const list = (data ?? []) as unknown as AdjustmentRecord[];
 
-  // Client-side filter by item name if q is set (reason filter already applied server-side,
-  // additionally filter by item name for broader search)
   const filtered = q.trim()
     ? list.filter(
         (a) =>

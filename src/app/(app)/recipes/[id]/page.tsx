@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { formatNum } from "@/lib/units";
@@ -32,7 +33,7 @@ export default async function RecipeDetailPage({
   if (error || !data) notFound();
   const recipe = data as RecipeWithItems & { unit?: string | null; weight_per_pcs?: number | null; weight_unit?: string | null; product: { id: string; name: string; unit: string; type: string } | null };
   const isWip = recipe.product?.type === "prep_item";
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.RECIPES_WRITE);
 
   return (
     <div className="space-y-4">

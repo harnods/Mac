@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PurchaseForm } from "@/components/purchasing/purchase-form";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function NewPurchasePage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/purchasing/purchases");
+  if (!can(profile, P.PURCHASING_PURCHASE)) redirect("/purchasing/purchases");
 
   const supabase = await createClient();
 

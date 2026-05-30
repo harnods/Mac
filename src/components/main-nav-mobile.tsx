@@ -94,6 +94,11 @@ export function MainNavMobile() {
         <DropdownMenuItem asChild>
           <Link href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Settings</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

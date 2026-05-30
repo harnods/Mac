@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { RecipeForm } from "@/components/recipes/recipe-form";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function NewRecipePage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/recipes");
+  if (!can(profile, P.RECIPES_WRITE)) redirect("/recipes");
 
   const supabase = await createClient();
   const [{ data: items }, { data: products }, { data: unitsData }] = await Promise.all([

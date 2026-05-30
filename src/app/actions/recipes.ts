@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 
 const recipeItemSchema = z.object({
   item_id: z.string().uuid(),
@@ -25,7 +26,8 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function createRecipe(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Unauthorized" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = recipeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -53,7 +55,8 @@ export async function createRecipe(raw: unknown): Promise<ActionResult> {
 
 export async function updateRecipe(id: string, raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Unauthorized" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = recipeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -83,7 +86,8 @@ export async function updateRecipe(id: string, raw: unknown): Promise<ActionResu
 
 export async function deleteRecipe(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Unauthorized" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase.from("recipes").delete().eq("id", id);

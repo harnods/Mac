@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -47,7 +48,7 @@ export default async function PurchaseRequestsPage({
 
   const { data } = await query;
   const list = (data ?? []) as unknown as RequestRow[];
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.PURCHASING_APPROVE);
 
   return (
     <div className="space-y-4">

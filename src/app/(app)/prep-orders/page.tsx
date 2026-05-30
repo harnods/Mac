@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -45,44 +46,20 @@ export default async function PrepOrdersPage({
 }) {
   const { q = "" } = await searchParams;
   const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.PREP_ORDERS_WRITE);
   const supabase = await createClient();
+
+  // Use !inner join when searching by product name so PostgREST can push the filter to the join
+  const productJoin = q.trim()
+    ? "product:items!product_id!inner(id,name)"
+    : "product:items!product_id(id,name)";
 
   let query = supabase
     .from("prep_orders")
-    .select(
-      "id, status, target_qty, qty_to_prep, unit, planned_date, product:items!product_id(id,name), creator:profiles!created_by(full_name,email)"
-    )
+    .select(`id, status, target_qty, qty_to_prep, unit, planned_date, ${productJoin}, creator:profiles!created_by(full_name,email)`)
     .order("planned_date", { ascending: false });
 
-  // Filter by product name via a two-step lookup
-  if (q.trim()) {
-    const { data: matchedItems } = await supabase
-      .from("items")
-      .select("id")
-      .ilike("name", `%${q.trim()}%`);
-
-    const ids = (matchedItems ?? []).map((i) => i.id);
-    if (ids.length === 0) {
-      return (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-2xl font-semibold tracking-tight">Prep orders</h1>
-            {isAdmin && (
-              <Button asChild>
-                <Link href="/prep-orders/new"><Plus className="size-4" /> New prep order</Link>
-              </Button>
-            )}
-          </div>
-          <Suspense fallback={null}><PrepOrdersFilter /></Suspense>
-          <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
-            No prep orders match your search.
-          </div>
-        </div>
-      );
-    }
-    query = query.in("product_id", ids);
-  }
+  if (q.trim()) query = query.ilike("items.name", `%${q.trim()}%`);
 
   const { data } = await query;
   const list = (data ?? []) as unknown as PrepOrderRecord[];

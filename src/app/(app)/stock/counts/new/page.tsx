@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { CountForm } from "@/components/stock/count-form";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function NewStockCountPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/stock/counts");
+  if (!can(profile, P.STOCK_WRITE)) redirect("/stock/counts");
 
   const supabase = await createClient();
 

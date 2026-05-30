@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import {
   Table,
   TableBody,
@@ -30,7 +31,7 @@ export default async function UnitsPage({
 }) {
   const { q = "" } = await searchParams;
   const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.INVENTORY_WRITE);
   const supabase = await createClient();
 
   let unitsQuery = supabase

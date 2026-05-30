@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatDate } from "@/lib/format";
@@ -41,7 +42,7 @@ export default async function EmployeeDetailPage({
 
   const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
   const { data, error } = await supabase
     .from("employees")

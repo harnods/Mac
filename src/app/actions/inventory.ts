@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import { convert } from "@/lib/units";
 import type { Item } from "@/lib/supabase/types";
@@ -25,7 +26,8 @@ export type ActionResult = { ok: true; id?: string } | { ok: false; error: strin
 export async function createItem(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = itemSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -44,7 +46,8 @@ export async function createItem(input: unknown): Promise<ActionResult> {
 
 export async function updateItem(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = itemSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -90,7 +93,8 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
 
 export async function deleteItem(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   // Soft-delete: preserve references in purchases, recipes, purchase requests
@@ -112,7 +116,7 @@ export type ItemFormData = {
 
 export async function getItemFormData(itemTypeSlug: string, itemId?: string): Promise<ItemFormData | null> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return null;
+  if (!can(profile, P.INVENTORY_WRITE)) return null;
 
   const config = ITEM_TYPE_CONFIG[itemTypeSlug as ItemTypeSlug];
   if (!config) return null;
@@ -151,7 +155,8 @@ const categorySchema = z.object({
 
 export async function createCategory(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -169,7 +174,8 @@ export async function createCategory(input: unknown): Promise<ActionResult> {
 
 export async function updateCategory(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -186,7 +192,8 @@ export async function updateCategory(id: string, input: unknown): Promise<Action
 
 export async function deleteCategory(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 
@@ -231,7 +238,7 @@ export type ProductFormData = {
 
 export async function getProductFormData(itemId?: string): Promise<ProductFormData | null> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return null;
+  if (!can(profile, P.INVENTORY_WRITE)) return null;
 
   const supabase = await createClient();
 
@@ -271,7 +278,8 @@ export async function getProductFormData(itemId?: string): Promise<ProductFormDa
 
 export async function createProductItem(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -300,7 +308,8 @@ export async function createProductItem(input: unknown): Promise<ActionResult> {
 
 export async function updateProductItem(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -330,7 +339,8 @@ export async function updateProductItem(id: string, input: unknown): Promise<Act
 
 export async function setProductStatus(id: string, status: "active" | "draft"): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -346,7 +356,8 @@ export async function setProductStatus(id: string, status: "active" | "draft"): 
 
 export async function setItemSellable(id: string, is_sellable: boolean): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase

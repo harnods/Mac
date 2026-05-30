@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ItemForm } from "@/components/inventory/item-form";
@@ -21,7 +22,7 @@ export default async function EditItemPage({
 
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect(`/inventory/${itemType}/${id}`);
+  if (!can(profile, P.INVENTORY_WRITE)) redirect(`/inventory/${itemType}/${id}`);
 
   const supabase = await createClient();
   const [{ data: item }, { data: categories }, { data: units }, ...txResults] = await Promise.all([

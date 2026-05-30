@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PrepOrderForm } from "@/components/prep-orders/prep-order-form";
@@ -36,7 +37,7 @@ export type RecipeForPrep = {
 export default async function NewPrepOrderPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/prep-orders");
+  if (!can(profile, P.PREP_ORDERS_WRITE)) redirect("/prep-orders");
 
   const supabase = await createClient();
 

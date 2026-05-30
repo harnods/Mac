@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -39,7 +40,7 @@ export default async function PrepItemDetailPage({
 }) {
   const { id } = await params;
   const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.INVENTORY_WRITE);
   const supabase = await createClient();
 
   const [{ data: itemData, error }, { data: ordersData }] =

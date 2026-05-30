@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -25,7 +26,7 @@ export default async function EmployeesPage({
 
   const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
   let query = supabase
     .from("employees")

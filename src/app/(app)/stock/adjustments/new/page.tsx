@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { AdjustmentForm } from "@/components/stock/adjustment-form";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function NewStockAdjustmentPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect("/stock/adjustments");
+  if (!can(profile, P.STOCK_WRITE)) redirect("/stock/adjustments");
 
   const supabase = await createClient();
 

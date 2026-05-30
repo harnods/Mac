@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { PurchaseRequestForm } from "@/components/purchasing/purchase-request-form";
@@ -36,7 +37,7 @@ export default async function EditPurchaseRequestPage({
 
   if (!req) notFound();
   if (req.status !== "draft") redirect(`/purchasing/requests/${id}`);
-  if (req.created_by !== profile.id && profile.role !== "admin")
+  if (req.created_by !== profile.id && !can(profile, P.PURCHASING_APPROVE))
     redirect(`/purchasing/requests/${id}`);
 
   const initialRows = (req.purchase_request_items ?? []).map((ri: { item_id: string; qty: number; unit: string }) => ({

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
@@ -65,7 +66,7 @@ export default async function PurchaseRequestDetailPage({
   if (error || !data) notFound();
   const req = data as unknown as RequestDetail;
 
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.PURCHASING_APPROVE);
   const isOwn = req.created_by === profile?.id;
   const canDelete = isAdmin || (isOwn && (req.status === "pending" || req.status === "draft"));
   const canSubmitDraft = req.status === "draft" && (isOwn || isAdmin);

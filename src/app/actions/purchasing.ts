@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { convert } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -23,6 +24,7 @@ const createRequestSchema = z.object({
 export async function createPurchaseRequest(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_REQUEST)) return { ok: false, error: "No permission" };
 
   const parsed = createRequestSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -63,6 +65,7 @@ export async function createPurchaseRequest(raw: unknown): Promise<ActionResult>
 export async function updatePurchaseRequest(id: string, raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_REQUEST)) return { ok: false, error: "No permission" };
 
   const parsed = createRequestSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -85,7 +88,7 @@ export async function updatePurchaseRequest(id: string, raw: unknown): Promise<A
 
   if (!req) return { ok: false, error: "Request not found" };
   if (req.status !== "draft") return { ok: false, error: "Only draft requests can be edited" };
-  if (req.created_by !== profile.id && profile.role !== "admin")
+  if (req.created_by !== profile.id && !can(profile, P.PURCHASING_APPROVE))
     return { ok: false, error: "Not authorized" };
 
   // Replace all items
@@ -118,6 +121,7 @@ export async function updatePurchaseRequest(id: string, raw: unknown): Promise<A
 export async function submitDraftRequest(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_REQUEST)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 
@@ -130,7 +134,7 @@ export async function submitDraftRequest(id: string): Promise<ActionResult> {
 
   if (!req) return { ok: false, error: "Request not found" };
   if (req.status !== "draft") return { ok: false, error: "Request is not a draft" };
-  if (req.created_by !== profile.id && profile.role !== "admin")
+  if (req.created_by !== profile.id && !can(profile, P.PURCHASING_APPROVE))
     return { ok: false, error: "Not authorized" };
 
   const { error } = await supabase
@@ -149,7 +153,8 @@ export async function reviewPurchaseRequest(
   action: "approved" | "rejected"
 ): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_APPROVE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -185,7 +190,8 @@ const createPurchaseSchema = z.object({
 
 export async function createPurchase(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
-  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_PURCHASE)) return { ok: false, error: "No permission" };
 
   const parsed = createPurchaseSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -302,6 +308,7 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
 export async function deletePurchaseRequest(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_REQUEST)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase.from("purchase_requests").delete().eq("id", id);

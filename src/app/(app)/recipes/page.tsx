@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -34,23 +35,22 @@ export default async function RecipesPage({
   const { q = "", type } = await searchParams;
   const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.RECIPES_WRITE);
+
+  const filterByType = type === "wip" || type === "product";
+  const itemType = type === "wip" ? "prep_item" : "product";
+  // Use !inner when filtering by type so PostgREST can push the filter to the join
+  const productJoin = filterByType
+    ? "product:items!product_id!inner(name,type)"
+    : "product:items!product_id(name,type)";
 
   let query = supabase
     .from("recipes")
-    .select("id, name, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), product:items!product_id(name,type)")
+    .select(`id, name, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`)
     .order("created_at", { ascending: false });
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
-
-  // Type filter: resolve product_ids of the matching item type first
-  if (type === "wip" || type === "product") {
-    const itemType = type === "wip" ? "prep_item" : "product";
-    const { data: matched } = await supabase.from("items").select("id").eq("type", itemType);
-    const ids = (matched ?? []).map((p) => p.id);
-    if (ids.length > 0) query = query.in("product_id", ids);
-    else query = query.in("product_id", ["00000000-0000-0000-0000-000000000000"]); // no match
-  }
+  if (filterByType) query = query.eq("items.type", itemType);
 
   const { data } = await query;
   const list = (data ?? []) as unknown as RecipeRow[];

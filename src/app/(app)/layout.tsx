@@ -9,6 +9,7 @@ import { PurchasingNav } from "@/components/purchasing-nav";
 import { PrepOrdersNav } from "@/components/prep-orders-nav";
 import { SalesNav } from "@/components/sales-nav";
 import { EmployeesNav } from "@/components/employees-nav";
+import { SettingsNav } from "@/components/settings-nav";
 import { MainNavMobile } from "@/components/main-nav-mobile";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <EmployeesNav />
               <StockNav />
               <PurchasingNav />
+              <SettingsNav />
             </nav>
           </div>
           <UserMenu profile={profile} />

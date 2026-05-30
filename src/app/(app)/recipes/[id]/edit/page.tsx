@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { RecipeForm } from "@/components/recipes/recipe-form";
@@ -17,7 +18,7 @@ export default async function EditRecipePage({
   const { id } = await params;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (profile.role !== "admin") redirect(`/recipes/${id}`);
+  if (!can(profile, P.RECIPES_WRITE)) redirect(`/recipes/${id}`);
 
   const supabase = await createClient();
 

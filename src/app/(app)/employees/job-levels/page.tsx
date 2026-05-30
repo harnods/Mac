@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
 import {
   createJobLevel,
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function JobLevelsPage() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
   const { data } = await supabase
     .from("job_levels")
