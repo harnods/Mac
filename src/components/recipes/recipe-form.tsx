@@ -105,6 +105,7 @@ export function RecipeForm({
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [quickCreateName, setQuickCreateName] = useState("");
   const [quickCreateRowKey, setQuickCreateRowKey] = useState<string | null>(null);
+  const [quickCreateMode, setQuickCreateMode] = useState<"ingredient" | "substitute">("ingredient");
 
   // Weight per pcs (optional)
   const [weightPerPcs, setWeightPerPcs] = useState(
@@ -565,6 +566,13 @@ export function RecipeForm({
                   onSubstitutesChange={(subs) => updateRow(row.key, { substitutes: subs })}
                   onRemove={rows.length > 1 && !isTrailingEmpty ? () => removeRow(row.key) : undefined}
                   onQuickCreate={(name) => {
+                    setQuickCreateMode("ingredient");
+                    setQuickCreateName(name);
+                    setQuickCreateRowKey(row.key);
+                    setQuickCreateOpen(true);
+                  }}
+                  onQuickCreateSub={(name) => {
+                    setQuickCreateMode("substitute");
                     setQuickCreateName(name);
                     setQuickCreateRowKey(row.key);
                     setQuickCreateOpen(true);
@@ -585,7 +593,17 @@ export function RecipeForm({
         onCreated={(newItem) => {
           setExtraIngredientItems((prev) => [...prev, newItem]);
           if (quickCreateRowKey) {
-            updateRow(quickCreateRowKey, { item_id: newItem.id, unit: newItem.unit as UnitCode });
+            if (quickCreateMode === "substitute") {
+              setRows((prev) =>
+                prev.map((r) =>
+                  r.key === quickCreateRowKey
+                    ? { ...r, substitutes: [...r.substitutes, newItem.id] }
+                    : r
+                )
+              );
+            } else {
+              updateRow(quickCreateRowKey, { item_id: newItem.id, unit: newItem.unit as UnitCode });
+            }
           }
         }}
       />
@@ -615,6 +633,7 @@ function IngredientRowField({
   onSubstitutesChange,
   onRemove,
   onQuickCreate,
+  onQuickCreateSub,
 }: {
   id: string;
   row: IngredientRow;
@@ -628,6 +647,7 @@ function IngredientRowField({
   onSubstitutesChange: (substitutes: string[]) => void;
   onRemove?: () => void;
   onQuickCreate: (name: string) => void;
+  onQuickCreateSub: (name: string) => void;
 }) {
   const [itemOpen, setItemOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
@@ -884,7 +904,16 @@ function IngredientRowField({
               />
               <CommandList>
                 <CommandEmpty>
-                  {subSearch.trim() && !subExactMatch ? "No items found." : "No items found."}
+                  {subSearch.trim() ? (
+                    <button
+                      type="button"
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
+                      onClick={() => { setSubOpen(false); onQuickCreateSub(subSearch.trim()); setSubSearch(""); }}
+                    >
+                      <Plus className="size-3.5" />
+                      Create &ldquo;{subSearch.trim()}&rdquo;
+                    </button>
+                  ) : "No items found."}
                 </CommandEmpty>
                 <CommandGroup>
                   {subCandidates
@@ -892,11 +921,19 @@ function IngredientRowField({
                     .map((i) => (
                       <CommandItem key={i.id} value={i.name} onSelect={() => addSub(i.id)}>
                         <span className="flex-1 truncate">{i.name}</span>
-                        <span className="text-xs text-muted-foreground ml-2 shrink-0">
-                          {i.unit}
-                        </span>
+                        <span className="text-xs text-muted-foreground ml-2 shrink-0">{i.unit}</span>
                       </CommandItem>
                     ))}
+                  {subSearch.trim() && !subExactMatch && (
+                    <CommandItem
+                      value={`__create__${subSearch}`}
+                      onSelect={() => { setSubOpen(false); onQuickCreateSub(subSearch.trim()); setSubSearch(""); }}
+                      className="text-muted-foreground"
+                    >
+                      <Plus className="size-4" />
+                      Create &ldquo;{subSearch.trim()}&rdquo;
+                    </CommandItem>
+                  )}
                 </CommandGroup>
               </CommandList>
             </Command>
