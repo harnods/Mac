@@ -371,6 +371,59 @@ export async function setItemSellable(id: string, is_sellable: boolean): Promise
   return { ok: true };
 }
 
+// ─── Product drawer ───────────────────────────────────────────────────────────
+
+export type ProductDrawerData = {
+  id: string;
+  name: string;
+  unit: string;
+  status: string | null;
+  category: string | null;
+  recipe: {
+    id: string;
+    name: string;
+    items: { id: string; name: string; quantity: number; unit: string }[];
+  } | null;
+};
+
+export async function getProductDrawerData(productId: string): Promise<ProductDrawerData | null> {
+  const supabase = await createClient();
+
+  const [{ data: item }, { data: recipe }] = await Promise.all([
+    supabase
+      .from("items")
+      .select("id, name, unit, status, categories(name)")
+      .eq("id", productId)
+      .eq("type", "product")
+      .maybeSingle(),
+    supabase
+      .from("recipes")
+      .select("id, name, recipe_items(id, quantity, unit, item:items!item_id(id, name))")
+      .eq("product_id", productId)
+      .eq("recipe_type", "product")
+      .maybeSingle(),
+  ]);
+
+  if (!item) return null;
+
+  return {
+    id: item.id,
+    name: item.name,
+    unit: item.unit,
+    status: (item as unknown as { status?: string }).status ?? null,
+    category: (item as unknown as { categories?: { name: string } | null }).categories?.name ?? null,
+    recipe: recipe
+      ? {
+          id: recipe.id,
+          name: recipe.name,
+          items: (recipe.recipe_items as unknown as { id: string; quantity: number; unit: string; item: { id: string; name: string } | null }[])
+            .filter((ri) => ri.item)
+            .map((ri) => ({ id: ri.id, name: ri.item!.name, quantity: ri.quantity, unit: ri.unit })),
+        }
+      : null,
+  };
+}
+
 // ─── Bulk select actions ──────────────────────────────────────────────────────
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResult> {

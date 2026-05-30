@@ -8,6 +8,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { RecipeDeleteButton } from "@/components/recipes/recipe-delete-button";
+import { ProductDrawerTrigger } from "@/components/inventory/product-drawer";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
 import type { RecipeWithItems } from "@/lib/supabase/types";
 
@@ -70,7 +71,7 @@ export default async function RecipeDetailPage({
         {recipe.product && (
           <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <span className="text-muted-foreground">Output</span>
-            <span className="font-medium">{recipe.product.name}</span>
+            <ProductDrawerTrigger productId={recipe.product.id} productName={recipe.product.name} />
             <>
               <span className="text-muted-foreground">Yield</span>
               <span className="tabular-nums">
