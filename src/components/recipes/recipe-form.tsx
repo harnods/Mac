@@ -46,10 +46,11 @@ type IngredientRow = {
   item_id: string | null;
   quantity: string;
   unit: UnitCode | null;
+  substitutes: string[]; // item_ids
 };
 
 function newRow(): IngredientRow {
-  return { key: crypto.randomUUID(), item_id: null, quantity: "", unit: null };
+  return { key: crypto.randomUUID(), item_id: null, quantity: "", unit: null, substitutes: [] };
 }
 
 export function RecipeForm({
@@ -160,6 +161,7 @@ export function RecipeForm({
           item_id: ri.item_id,
           quantity: String(ri.quantity),
           unit: ri.unit,
+          substitutes: (ri as typeof ri & { substitutes?: { item_id: string }[] }).substitutes?.map((s) => s.item_id) ?? [],
         })),
         newRow(),
       ];
@@ -269,7 +271,7 @@ export function RecipeForm({
       weight_unit: !isNaN(weightNum) && weightNum > 0 ? weightUnit : null,
       items: rows
         .filter((r) => r.item_id && r.quantity && r.unit)
-        .map((r) => ({ item_id: r.item_id!, quantity: r.quantity, unit: r.unit! })),
+        .map((r) => ({ item_id: r.item_id!, quantity: r.quantity, unit: r.unit!, substitutes: r.substitutes })),
     };
     start(async () => {
       const res = isEdit
@@ -560,7 +562,8 @@ export function RecipeForm({
                   onMultiItemSelect={(ids) => handleMultiItemSelect(row.key, ids)}
                   onQtyChange={(qty) => updateRow(row.key, { quantity: qty })}
                   onUnitChange={(unit) => updateRow(row.key, { unit })}
-                  onRemove={rows.length > 1 ? () => removeRow(row.key) : undefined}
+                  onSubstitutesChange={(subs) => updateRow(row.key, { substitutes: subs })}
+                  onRemove={rows.length > 1 && !isTrailingEmpty ? () => removeRow(row.key) : undefined}
                   onQuickCreate={(name) => {
                     setQuickCreateName(name);
                     setQuickCreateRowKey(row.key);
@@ -609,6 +612,7 @@ function IngredientRowField({
   onMultiItemSelect,
   onQtyChange,
   onUnitChange,
+  onSubstitutesChange,
   onRemove,
   onQuickCreate,
 }: {
@@ -621,6 +625,7 @@ function IngredientRowField({
   onMultiItemSelect: (ids: string[]) => void;
   onQtyChange: (qty: string) => void;
   onUnitChange: (unit: UnitCode) => void;
+  onSubstitutesChange: (substitutes: string[]) => void;
   onRemove?: () => void;
   onQuickCreate: (name: string) => void;
 }) {
@@ -639,6 +644,24 @@ function IngredientRowField({
   const selectedItem = items.find((i) => i.id === row.item_id) ?? null;
   const units = selectedItem ? compatibleUnits(selectedItem.unit) : [];
   const exactMatch = items.some((i) => i.name.toLowerCase() === itemSearch.toLowerCase());
+
+  // Substitutes
+  const [subOpen, setSubOpen] = useState(false);
+  const [subSearch, setSubSearch] = useState("");
+  const subCandidates = items.filter(
+    (i) => i.id !== row.item_id && !row.substitutes.includes(i.id)
+  );
+  const subExactMatch = subCandidates.some(
+    (i) => i.name.toLowerCase() === subSearch.toLowerCase()
+  );
+  function addSub(itemId: string) {
+    onSubstitutesChange([...row.substitutes, itemId]);
+    setSubSearch("");
+    setSubOpen(false);
+  }
+  function removeSub(itemId: string) {
+    onSubstitutesChange(row.substitutes.filter((s) => s !== itemId));
+  }
 
   function triggerQuickCreate() {
     setItemOpen(false);
@@ -669,7 +692,8 @@ function IngredientRowField({
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center gap-2">
+    <div ref={setNodeRef} style={style}>
+    <div className="flex items-center gap-2">
       {/* Drag handle */}
       {canDrag ? (
         <button
@@ -813,10 +837,73 @@ function IngredientRowField({
         size="icon"
         onClick={onRemove}
         disabled={!onRemove}
-        className="shrink-0 text-muted-foreground hover:text-destructive"
+        className={cn("shrink-0 text-muted-foreground hover:text-destructive", !onRemove && "invisible")}
       >
         <Trash2 className="size-4" />
       </Button>
+    </div>
+
+    {/* Substitutes — only when an item is selected */}
+    {row.item_id && (
+      <div className="ml-[4.5rem] flex flex-wrap items-center gap-1.5 mt-1 mb-0.5">
+        <span className="text-xs text-muted-foreground shrink-0">Sub:</span>
+        {row.substitutes.map((subId) => {
+          const subItem = items.find((i) => i.id === subId);
+          return (
+            <span
+              key={subId}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs"
+            >
+              {subItem?.name ?? subId}
+              <button
+                type="button"
+                onClick={() => removeSub(subId)}
+                className="text-muted-foreground hover:text-foreground leading-none"
+              >
+                ×
+              </button>
+            </span>
+          );
+        })}
+        <Popover open={subOpen} onOpenChange={setSubOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+            >
+              <Plus className="size-3" />
+              Add substitute
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0" align="start">
+            <Command>
+              <CommandInput
+                placeholder="Search item..."
+                value={subSearch}
+                onValueChange={setSubSearch}
+              />
+              <CommandList>
+                <CommandEmpty>
+                  {subSearch.trim() && !subExactMatch ? "No items found." : "No items found."}
+                </CommandEmpty>
+                <CommandGroup>
+                  {subCandidates
+                    .filter((i) => !subSearch.trim() || i.name.toLowerCase().includes(subSearch.toLowerCase()))
+                    .map((i) => (
+                      <CommandItem key={i.id} value={i.name} onSelect={() => addSub(i.id)}>
+                        <span className="flex-1 truncate">{i.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                          {i.unit}
+                        </span>
+                      </CommandItem>
+                    ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      </div>
+    )}
     </div>
   );
 }

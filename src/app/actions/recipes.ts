@@ -10,6 +10,7 @@ const recipeItemSchema = z.object({
   item_id: z.string().uuid(),
   quantity: z.coerce.number().positive(),
   unit: z.string().min(1),
+  substitutes: z.array(z.string().uuid()).optional().default([]),
 });
 
 const recipeSchema = z.object({
@@ -23,6 +24,18 @@ const recipeSchema = z.object({
 });
 
 type ActionResult = { ok: true } | { ok: false; error: string };
+
+async function insertSubstitutes(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  recipeItemRows: { id: string; substitutes: string[] }[]
+) {
+  const rows = recipeItemRows.flatMap(({ id, substitutes }) =>
+    substitutes.map((item_id) => ({ recipe_item_id: id, item_id }))
+  );
+  if (rows.length === 0) return null;
+  const { error } = await supabase.from("recipe_item_substitutes").insert(rows);
+  return error;
+}
 
 export async function createRecipe(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
@@ -43,11 +56,18 @@ export async function createRecipe(raw: unknown): Promise<ActionResult> {
 
   if (error || !recipe) return { ok: false, error: error?.message ?? "Failed to create recipe" };
 
-  const { error: itemsError } = await supabase.from("recipe_items").insert(
-    items.map((it) => ({ recipe_id: recipe.id, ...it }))
-  );
+  const { data: insertedItems, error: itemsError } = await supabase
+    .from("recipe_items")
+    .insert(items.map(({ substitutes: _, ...it }) => ({ recipe_id: recipe.id, ...it })))
+    .select("id");
 
-  if (itemsError) return { ok: false, error: itemsError.message };
+  if (itemsError || !insertedItems) return { ok: false, error: itemsError?.message ?? "Failed to create recipe items" };
+
+  const subError = await insertSubstitutes(
+    supabase,
+    insertedItems.map((row, i) => ({ id: row.id, substitutes: items[i].substitutes ?? [] }))
+  );
+  if (subError) return { ok: false, error: subError.message };
 
   revalidatePath("/recipes");
   return { ok: true };
@@ -71,13 +91,21 @@ export async function updateRecipe(id: string, raw: unknown): Promise<ActionResu
 
   if (error) return { ok: false, error: error.message };
 
+  // Cascade delete handles recipe_item_substitutes automatically
   await supabase.from("recipe_items").delete().eq("recipe_id", id);
 
-  const { error: itemsError } = await supabase.from("recipe_items").insert(
-    items.map((it) => ({ recipe_id: id, ...it }))
-  );
+  const { data: insertedItems, error: itemsError } = await supabase
+    .from("recipe_items")
+    .insert(items.map(({ substitutes: _, ...it }) => ({ recipe_id: id, ...it })))
+    .select("id");
 
-  if (itemsError) return { ok: false, error: itemsError.message };
+  if (itemsError || !insertedItems) return { ok: false, error: itemsError?.message ?? "Failed to update recipe items" };
+
+  const subError = await insertSubstitutes(
+    supabase,
+    insertedItems.map((row, i) => ({ id: row.id, substitutes: items[i].substitutes ?? [] }))
+  );
+  if (subError) return { ok: false, error: subError.message };
 
   revalidatePath("/recipes");
   revalidatePath(`/recipes/${id}`);
