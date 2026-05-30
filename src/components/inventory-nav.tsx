@@ -16,7 +16,7 @@ export function InventoryNav() {
   const pathname = usePathname();
   const active =
     pathname.startsWith("/inventory") ||
-    pathname.startsWith("/categories");
+    pathname.startsWith("/stock");
 
   return (
     <DropdownMenu>
@@ -29,7 +29,7 @@ export function InventoryNav() {
         <span>Inventory</span>
         <ChevronDown className="size-3.5 opacity-60" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-52">
+      <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuItem asChild>
           <Link href="/inventory/ingredients" className="cursor-pointer">Ingredients</Link>
         </DropdownMenuItem>
@@ -44,17 +44,23 @@ export function InventoryNav() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/inventory/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+          <Link href="/stock/adjustments" className="cursor-pointer">Stock adjustment</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/categories/products" className="cursor-pointer">Product categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/inventory/categories/supplies" className="cursor-pointer">Supply categories</Link>
+          <Link href="/stock/counts" className="cursor-pointer">Stock count</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/inventory/units" className="cursor-pointer">Units</Link>
+          <Link href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/units" className="cursor-pointer">Units</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

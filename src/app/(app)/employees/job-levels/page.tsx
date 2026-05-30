@@ -1,34 +1,55 @@
+import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
-import {
-  createJobLevel,
-  updateJobLevel,
-  deleteJobLevel,
-} from "@/app/actions/employees";
-import { getJobLevels } from "@/lib/cached-queries";
+import { AddMasterDataButton } from "@/components/employees/add-master-data-button";
+import { MasterDataFilter } from "@/components/employees/master-data-filter";
+import { createJobLevel, updateJobLevel, deleteJobLevel } from "@/app/actions/employees";
 
-export default async function JobLevelsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function JobLevelsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q = "" } = await searchParams;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
+  const supabase = await createClient();
 
-  const items = await getJobLevels();
+  let query = supabase
+    .from("job_levels")
+    .select("id,name,sort_order,updated_at")
+    .order("sort_order")
+    .order("name");
+  if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
+  const { data } = await query;
+  const items = (data ?? []) as { id: string; name: string; sort_order: number }[];
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Job levels</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage job level master data. Items are ordered by their sort order value. Drag-reorder is not supported — edit the sort order number to reorder.
-        </p>
+        {isAdmin && (
+          <AddMasterDataButton
+            title="Job level"
+            showSortOrder
+            onCreate={createJobLevel}
+          />
+        )}
       </div>
+
+      <Suspense fallback={null}>
+        <MasterDataFilter placeholder="Search job levels..." />
+      </Suspense>
 
       <MasterDataManager
         title="Job level"
         items={items}
         isAdmin={isAdmin}
         showSortOrder
-        onCreate={createJobLevel}
         onUpdate={updateJobLevel}
         onDelete={deleteJobLevel}
       />

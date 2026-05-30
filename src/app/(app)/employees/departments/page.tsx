@@ -1,33 +1,44 @@
+import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
-import {
-  createDepartment,
-  updateDepartment,
-  deleteDepartment,
-} from "@/app/actions/employees";
-import { getDepartments } from "@/lib/cached-queries";
+import { AddMasterDataButton } from "@/components/employees/add-master-data-button";
+import { MasterDataFilter } from "@/components/employees/master-data-filter";
+import { createDepartment, updateDepartment, deleteDepartment } from "@/app/actions/employees";
 
-export default async function DepartmentsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function DepartmentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q = "" } = await searchParams;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
+  const supabase = await createClient();
 
-  const items = await getDepartments();
+  let query = supabase.from("departments").select("id,name,updated_at").order("name");
+  if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
+  const { data } = await query;
+  const items = (data ?? []) as { id: string; name: string }[];
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Departments</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage department master data for employees.
-        </p>
+        {isAdmin && <AddMasterDataButton title="Department" onCreate={createDepartment} />}
       </div>
+
+      <Suspense fallback={null}>
+        <MasterDataFilter placeholder="Search departments..." />
+      </Suspense>
 
       <MasterDataManager
         title="Department"
         items={items}
         isAdmin={isAdmin}
-        onCreate={createDepartment}
         onUpdate={updateDepartment}
         onDelete={deleteDepartment}
       />

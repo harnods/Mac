@@ -35,16 +35,22 @@ export function MainNavMobile() {
           <Link href="/inventory/prep-items" className="cursor-pointer">Prep items</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+          <Link href="/stock/adjustments" className="cursor-pointer">Stock adjustment</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/categories/products" className="cursor-pointer">Product categories</Link>
+          <Link href="/stock/counts" className="cursor-pointer">Stock count</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/categories/supplies" className="cursor-pointer">Supply categories</Link>
+          <Link href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/units" className="cursor-pointer">Units</Link>
+          <Link href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/units" className="cursor-pointer">Units</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Recipes</DropdownMenuLabel>
@@ -57,47 +63,46 @@ export function MainNavMobile() {
           <Link href="/prep-orders" className="cursor-pointer">Prep orders</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Sales</DropdownMenuLabel>
+        <DropdownMenuLabel>Purchasing</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/sales" className="cursor-pointer">Sales</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Stock</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href="/stock/adjustments" className="cursor-pointer">Manual adjustment</Link>
+          <Link href="/purchasing/requests" className="cursor-pointer">Purchase requests</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/stock/counts" className="cursor-pointer">Stock count</Link>
+          <Link href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Employees</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/employees" className="cursor-pointer">All employees</Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/employees/departments" className="cursor-pointer">Departments</Link>
+          <Link href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/units" className="cursor-pointer">Units</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/employees/departments" className="cursor-pointer">Department</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/employees/job-positions" className="cursor-pointer">Job positions</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/employees/employment-statuses" className="cursor-pointer">Employment statuses</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
           <Link href="/employees/job-levels" className="cursor-pointer">Job levels</Link>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Purchasing</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/purchasing/requests" className="cursor-pointer">Purchase Requests</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Settings</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
+          <Link href="/employees/employment-statuses" className="cursor-pointer">Employment status</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

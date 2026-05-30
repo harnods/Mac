@@ -4,10 +4,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { UserMenu } from "@/components/user-menu";
 import { InventoryNav } from "@/components/inventory-nav";
 import { RecipeNav } from "@/components/recipe-nav";
-import { StockNav } from "@/components/stock-nav";
-import { PurchasingNav } from "@/components/purchasing-nav";
 import { PrepOrdersNav } from "@/components/prep-orders-nav";
-import { SalesNav } from "@/components/sales-nav";
+import { PurchasingNav } from "@/components/purchasing-nav";
 import { EmployeesNav } from "@/components/employees-nav";
 import { SettingsNav } from "@/components/settings-nav";
 import { MainNavMobile } from "@/components/main-nav-mobile";
@@ -31,10 +29,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <InventoryNav />
               <RecipeNav />
               <PrepOrdersNav />
-              <SalesNav />
-              <EmployeesNav />
-              <StockNav />
               <PurchasingNav />
+              <span className="w-px h-4 bg-border mx-1" />
+              <EmployeesNav />
+              <span className="w-px h-4 bg-border mx-1" />
               <SettingsNav />
             </nav>
           </div>

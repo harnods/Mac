@@ -1,33 +1,44 @@
+import { Suspense } from "react";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
-import {
-  createEmploymentStatus,
-  updateEmploymentStatus,
-  deleteEmploymentStatus,
-} from "@/app/actions/employees";
-import { getEmploymentStatuses } from "@/lib/cached-queries";
+import { AddMasterDataButton } from "@/components/employees/add-master-data-button";
+import { MasterDataFilter } from "@/components/employees/master-data-filter";
+import { createEmploymentStatus, updateEmploymentStatus, deleteEmploymentStatus } from "@/app/actions/employees";
 
-export default async function EmploymentStatusesPage() {
+export const dynamic = "force-dynamic";
+
+export default async function EmploymentStatusesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q = "" } = await searchParams;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
+  const supabase = await createClient();
 
-  const items = await getEmploymentStatuses();
+  let query = supabase.from("employment_statuses").select("id,name,updated_at").order("name");
+  if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
+  const { data } = await query;
+  const items = (data ?? []) as { id: string; name: string }[];
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Employment statuses</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage employment status master data. Seeded defaults: Permanent, Contract, Part-time.
-        </p>
+        {isAdmin && <AddMasterDataButton title="Employment status" onCreate={createEmploymentStatus} />}
       </div>
+
+      <Suspense fallback={null}>
+        <MasterDataFilter placeholder="Search employment statuses..." />
+      </Suspense>
 
       <MasterDataManager
         title="Employment status"
         items={items}
         isAdmin={isAdmin}
-        onCreate={createEmploymentStatus}
         onUpdate={updateEmploymentStatus}
         onDelete={deleteEmploymentStatus}
       />

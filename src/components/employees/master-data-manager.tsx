@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,6 @@ type Props = {
   items: Item[];
   isAdmin: boolean;
   showSortOrder?: boolean;
-  onCreate: (input: unknown) => Promise<ActionResult>;
   onUpdate: (id: string, input: unknown) => Promise<ActionResult>;
   onDelete: (id: string) => Promise<ActionResult>;
 };
@@ -54,7 +53,6 @@ export function MasterDataManager({
   items,
   isAdmin,
   showSortOrder = false,
-  onCreate,
   onUpdate,
   onDelete,
 }: Props) {
@@ -63,9 +61,6 @@ export function MasterDataManager({
   const [modal, setModal] = useState<ModalState>(null);
   const [editName, setEditName] = useState("");
   const [editSortOrder, setEditSortOrder] = useState("0");
-  const [addName, setAddName] = useState("");
-  const [addSortOrder, setAddSortOrder] = useState("0");
-  const [adding, setAdding] = useState(false);
 
   function openEdit(item: Item) {
     setEditName(item.name);
@@ -94,22 +89,6 @@ export function MasterDataManager({
       if (!res.ok) { toast.error(res.error); return; }
       toast.success(`${title} deleted`);
       setModal(null);
-      router.refresh();
-    });
-  }
-
-  function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!addName.trim()) return;
-    start(async () => {
-      const input: Record<string, unknown> = { name: addName.trim() };
-      if (showSortOrder) input.sort_order = Number(addSortOrder);
-      const res = await onCreate(input);
-      if (!res.ok) { toast.error(res.error); return; }
-      toast.success(`${title} created`);
-      setAddName("");
-      setAddSortOrder("0");
-      setAdding(false);
       router.refresh();
     });
   }
@@ -167,47 +146,9 @@ export function MasterDataManager({
               </TableRow>
             ))}
 
-            {/* Inline add row */}
-            {isAdmin && adding && (
-              <TableRow>
-                <TableCell colSpan={showSortOrder ? 2 : 1}>
-                  <form onSubmit={handleAdd} className="flex items-center gap-2">
-                    <Input
-                      autoFocus
-                      placeholder="Name"
-                      value={addName}
-                      onChange={(e) => setAddName(e.target.value)}
-                      className="h-8"
-                    />
-                    {showSortOrder && (
-                      <Input
-                        type="number"
-                        placeholder="Order"
-                        value={addSortOrder}
-                        onChange={(e) => setAddSortOrder(e.target.value)}
-                        className="h-8 w-20"
-                      />
-                    )}
-                    <Button type="submit" size="sm" disabled={pending || !addName.trim()}>
-                      {pending ? "..." : "Add"}
-                    </Button>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => { setAdding(false); setAddName(""); setAddSortOrder("0"); }}>
-                      Cancel
-                    </Button>
-                  </form>
-                </TableCell>
-                {isAdmin && <TableCell />}
-              </TableRow>
-            )}
           </TableBody>
         </Table>
       </div>
-
-      {isAdmin && !adding && (
-        <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="mt-3">
-          <Plus className="size-4 mr-1" /> Add {title.toLowerCase()}
-        </Button>
-      )}
 
       {/* Edit modal */}
       <Dialog open={modal?.type === "edit"} onOpenChange={(o) => !o && setModal(null)}>
