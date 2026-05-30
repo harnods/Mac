@@ -32,6 +32,7 @@ export function ItemTableRow({
   showCost = false,
   isSelected = false,
   onToggleSelect,
+  hasRecipe,
 }: {
   item: ItemWithCategory;
   isAdmin: boolean;
@@ -41,6 +42,7 @@ export function ItemTableRow({
   showCost?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  hasRecipe?: boolean;
 }) {
   const [viewUnit, setViewUnit] = useState<UnitCode>(item.unit);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -102,6 +104,13 @@ export function ItemTableRow({
             {item.avg_purchase_cost != null
               ? <>Rp{formatNum(item.avg_purchase_cost)}<span className="text-muted-foreground text-xs">/{item.unit}</span></>
               : <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {hasRecipe !== undefined && (
+          <TableCell>
+            {hasRecipe
+              ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
+              : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
         <TableCell>

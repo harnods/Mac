@@ -29,12 +29,13 @@ type Props = {
   showCategory: boolean;
   stockMode: StockMode;
   showCost: boolean;
+  linkedRecipeProductIds?: Set<string>;
 };
 
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, isAdmin, itemTypeSlug, showCategory, stockMode, showCost,
+  items, categories, isAdmin, itemTypeSlug, showCategory, stockMode, showCost, linkedRecipeProductIds,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -140,6 +141,7 @@ export function ItemBulkTable({
               {stockMode !== "none" && <TableHead className="w-32">Available</TableHead>}
               {showCost && <TableHead className="w-32 text-right">Last cost</TableHead>}
               {showCost && <TableHead className="w-32 text-right">Avg. cost</TableHead>}
+              {linkedRecipeProductIds && <TableHead className="w-24">Recipe</TableHead>}
               <TableHead className="w-44">Last updated</TableHead>
               <TableHead />
               <TableHead className="w-12" />
@@ -157,6 +159,7 @@ export function ItemBulkTable({
                 showCost={showCost}
                 isSelected={selected.has(item.id)}
                 onToggleSelect={isAdmin ? () => toggleOne(item.id) : undefined}
+                hasRecipe={linkedRecipeProductIds ? linkedRecipeProductIds.has(item.id) : undefined}
               />
             ))}
           </TableBody>

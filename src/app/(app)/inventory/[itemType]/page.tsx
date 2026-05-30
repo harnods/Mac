@@ -52,15 +52,19 @@ export default async function ItemTypePage({
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   if (cat) query = query.eq("category_id", cat);
 
-  const [{ data: items, count }, { data: categories }] = await Promise.all([
+  const [{ data: items, count }, { data: categories }, { data: recipeLinks }] = await Promise.all([
     query,
     config.hasCategories
       ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
+      : Promise.resolve({ data: [] }),
+    config.dbType === "product"
+      ? supabase.from("recipes").select("product_id").eq("recipe_type", "product").not("product_id", "is", null)
       : Promise.resolve({ data: [] }),
   ]);
 
   const list = (items ?? []) as ItemWithCategory[];
   const cats = (categories ?? []) as Category[];
+  const linkedRecipeProductIds = new Set((recipeLinks ?? []).map((r: { product_id: string }) => r.product_id));
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   const buildHref = (p: number) => {
@@ -124,6 +128,7 @@ export default async function ItemTypePage({
             showCategory={config.hasCategories}
             stockMode={config.stockMode}
             showCost={config.showCost}
+            linkedRecipeProductIds={config.dbType === "product" ? linkedRecipeProductIds : undefined}
           />
 
           <div className="grid gap-3 md:hidden">

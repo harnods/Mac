@@ -169,6 +169,17 @@ export default async function ItemDetailPage({
       </div>
 
       {/* Recipe — product only */}
+      {config.dbType === "product" && !linkedRecipe && isAdmin && (
+        <div className="space-y-2 max-w-2xl">
+          <h2 className="text-sm font-medium">Recipe</h2>
+          <p className="text-sm text-muted-foreground">
+            No recipe yet.{" "}
+            <Link href={`/recipes/new?name=${encodeURIComponent(item.name)}&type=product`} className="underline hover:text-foreground">
+              Create recipe
+            </Link>
+          </p>
+        </div>
+      )}
       {linkedRecipe && (
         <div className="space-y-2 max-w-2xl">
           <div className="flex items-center justify-between gap-4">

@@ -10,7 +10,12 @@ import type { Item } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewRecipePage() {
+export default async function NewRecipePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ name?: string; type?: string }>;
+}) {
+  const { name: initialName, type: initialType } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (!can(profile, P.RECIPES_WRITE)) redirect("/recipes");
@@ -38,6 +43,8 @@ export default async function NewRecipePage() {
         items={(items ?? []) as Pick<Item, "id" | "name" | "unit" | "type">[]}
         products={(products ?? []) as Pick<Item, "id" | "name" | "unit" | "type">[]}
         units={(unitsData ?? []).map((u: { code: string }) => u.code)}
+        initialName={initialName}
+        initialRecipeType={initialType === "product" ? "product" : initialType === "wip" ? "wip" : undefined}
       />
     </div>
   );

@@ -69,12 +69,16 @@ export function RecipeForm({
   recipe,
   recipeItems,
   units: initialUnits = [],
+  initialName,
+  initialRecipeType,
 }: {
   items: Pick<Item, "id" | "name" | "unit" | "type">[];
   products: Pick<Item, "id" | "name" | "unit" | "type">[];
   recipe?: Recipe & { unit?: string | null };
   recipeItems?: RecipeItemWithItem[];
   units?: string[];
+  initialName?: string;
+  initialRecipeType?: "wip" | "product";
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -97,8 +101,8 @@ export function RecipeForm({
     : recipe?.product_id                ? "product"
     : "wip";
 
-  const [recipeType, setRecipeType] = useState<"wip" | "product">(initialType);
-  const [name, setName] = useState(recipe?.name ?? "");
+  const [recipeType, setRecipeType] = useState<"wip" | "product">(initialRecipeType ?? initialType);
+  const [name, setName] = useState(recipe?.name ?? initialName ?? "");
   const [productId, setProductId] = useState<string | null>(recipe?.product_id ?? null);
   const [yieldQty, setYieldQty] = useState(String(recipe?.yield_qty ?? 1));
   const [yieldUnit, setYieldUnit] = useState<string>(recipe?.unit ?? "pcs");
@@ -303,6 +307,12 @@ export function RecipeForm({
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {/* Name */}
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+
       {/* Recipe type */}
       <div className="space-y-2">
         <Label>Recipe type</Label>
@@ -328,12 +338,6 @@ export function RecipeForm({
             ? "Recipe for a prep item — ingredients are raw ingredients, output is a prep item."
             : "Recipe for a finished product — ingredients can include prep items (WIP)."}
         </p>
-      </div>
-
-      {/* Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
       {/* Output item — hidden for new product recipes (auto-created from recipe name) */}
