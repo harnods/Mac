@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { EmployeeDeleteButton } from "@/components/employees/employee-actions";
+import { AccessSection } from "@/components/employees/access-section";
 import type { EmployeeWithRelations } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ export default async function EmployeeDetailPage({
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email)"
+      "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email), mac_user:profiles!user_id(id,email,role)"
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -103,6 +104,19 @@ export default async function EmployeeDetailPage({
           <DetailRow label="Last updated" value={formatDate(emp.updated_at)} />
         </dl>
       </div>
+
+      {isAdmin && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold">System access</h2>
+          <AccessSection
+            employeeId={emp.id}
+            employeeEmail={emp.email}
+            userId={emp.user_id}
+            userEmail={emp.mac_user?.email ?? null}
+            userRole={emp.mac_user?.role ?? null}
+          />
+        </div>
+      )}
     </div>
   );
 }

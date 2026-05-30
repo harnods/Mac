@@ -191,6 +191,7 @@ export type Employee = {
   job_position_id: string | null;
   job_level_id: string | null;
   employment_status_id: string | null;
+  user_id: string | null;
   updated_by: string | null;
   updated_at: string;
   created_at: string;
@@ -202,5 +203,6 @@ export type EmployeeWithRelations = Employee & {
   job_positions: Pick<JobPosition, 'id' | 'name'> | null;
   job_levels: Pick<JobLevel, 'id' | 'name'> | null;
   employment_statuses: Pick<EmploymentStatus, 'id' | 'name'> | null;
+  mac_user: Pick<Profile, 'id' | 'email' | 'role'> | null;
   updater: Updater | null;
 };

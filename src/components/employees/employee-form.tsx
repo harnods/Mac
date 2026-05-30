@@ -14,7 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createEmployee, updateEmployee } from "@/app/actions/employees";
+import { createEmployee, updateEmployee, grantEmployeeAccess } from "@/app/actions/employees";
+import { Copy, Check } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import type { Department, JobPosition, EmploymentStatus, JobLevel, Employee } from "@/lib/supabase/types";
 
 type Props = {
@@ -55,6 +64,21 @@ export function EmployeeForm({
   const [jobLevelId, setJobLevelId] = useState<string>(employee?.job_level_id ?? EMPTY);
   const [employmentStatusId, setEmploymentStatusId] = useState<string>(employee?.employment_status_id ?? EMPTY);
 
+  // System access (create mode only)
+  const [grantAccess, setGrantAccess] = useState(false);
+  const [accessRole, setAccessRole] = useState<"staff" | "admin">("staff");
+
+  // Credentials dialog after creation with access
+  const [credsOpen, setCredsOpen] = useState(false);
+  const [creds, setCreds] = useState<{ email: string; password: string } | null>(null);
+  const [copied, setCopied] = useState<"email" | "password" | null>(null);
+
+  function handleCopy(type: "email" | "password", value: string) {
+    navigator.clipboard.writeText(value);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
   function toPayloadValue(val: string): string | null {
     return val === EMPTY ? "" : val;
   }
@@ -82,6 +106,20 @@ export function EmployeeForm({
         : await createEmployee(payload);
 
       if (!res.ok) { toast.error(res.error); return; }
+
+      // Grant access if requested (create mode only)
+      if (!isEdit && grantAccess && res.id && email.trim()) {
+        const accessRes = await grantEmployeeAccess(res.id, { email: email.trim(), role: accessRole });
+        if (!accessRes.ok) {
+          toast.warning(`Employee created, but access grant failed: ${accessRes.error}`);
+        } else {
+          setCreds({ email: accessRes.email, password: accessRes.password });
+          setCredsOpen(true);
+          router.refresh();
+          return; // wait for credentials dialog close before navigating
+        }
+      }
+
       toast.success(isEdit ? "Saved" : "Employee created");
       router.refresh();
       if (onSuccess) {
@@ -252,6 +290,38 @@ export function EmployeeForm({
         </div>
       </div>
 
+      {/* System access — create mode only */}
+      {!isEdit && (
+        <div className="border rounded-lg p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">System access</p>
+              <p className="text-xs text-muted-foreground">Allow this employee to sign in to Mac</p>
+            </div>
+            <Switch checked={grantAccess} onCheckedChange={setGrantAccess} />
+          </div>
+          {grantAccess && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Login email will be taken from the Email field above. Make sure it&apos;s filled in.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="access-role">Role</Label>
+                <Select value={accessRole} onValueChange={(v) => setAccessRole(v as "staff" | "admin")}>
+                  <SelectTrigger id="access-role" className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
           Cancel
@@ -260,6 +330,48 @@ export function EmployeeForm({
           {pending ? "Saving..." : isEdit ? "Save changes" : "Create employee"}
         </Button>
       </div>
+
+      {/* Credentials dialog shown after grant on create */}
+      <Dialog open={credsOpen} onOpenChange={(open) => {
+        if (!open) {
+          setCredsOpen(false);
+          router.push(creds ? `/employees` : "/employees");
+        }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Employee created with access</DialogTitle>
+            <DialogDescription>
+              Share these credentials with the employee. The password won&apos;t be shown again.
+            </DialogDescription>
+          </DialogHeader>
+          {creds && (
+            <div className="space-y-3 pt-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm bg-muted rounded px-2 py-1.5 font-mono truncate">{creds.email}</code>
+                  <Button size="icon" variant="ghost" className="size-8 shrink-0" onClick={() => handleCopy("email", creds.email)}>
+                    {copied === "email" ? <Check className="size-3.5 text-green-600" /> : <Copy className="size-3.5" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Password</Label>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-sm bg-muted rounded px-2 py-1.5 font-mono truncate">{creds.password}</code>
+                  <Button size="icon" variant="ghost" className="size-8 shrink-0" onClick={() => handleCopy("password", creds.password)}>
+                    {copied === "password" ? <Check className="size-3.5 text-green-600" /> : <Copy className="size-3.5" />}
+                  </Button>
+                </div>
+              </div>
+              <Button className="w-full mt-2" onClick={() => { setCredsOpen(false); router.push("/employees"); }}>
+                Done
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }

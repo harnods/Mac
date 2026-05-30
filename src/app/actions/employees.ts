@@ -3,10 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
+import { randomBytes } from "crypto";
 import type { Department, JobPosition, EmploymentStatus, JobLevel, Employee } from "@/lib/supabase/types";
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
+export type AccessResult =
+  | { ok: true; email: string; password: string }
+  | { ok: false; error: string };
+
+function genPassword() {
+  return randomBytes(12).toString("base64url");
+}
+
+function serviceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -412,6 +429,91 @@ export async function deleteJobLevel(id: string): Promise<ActionResult> {
 
   const { error } = await supabase.from("job_levels").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+  revalidatePath("/employees", "layout");
+  return { ok: true };
+}
+
+// ─── System access ────────────────────────────────────────────────────────────
+
+export async function grantEmployeeAccess(
+  employeeId: string,
+  input: { email: string; role: "admin" | "staff" },
+): Promise<AccessResult> {
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+
+  const { email, role } = input;
+  if (!email?.trim()) return { ok: false, error: "Email is required to grant access" };
+
+  const supabase = await createClient();
+  const admin = serviceClient();
+  const password = genPassword();
+
+  // Check the employee exists and has no user yet
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("id, user_id")
+    .eq("id", employeeId)
+    .maybeSingle();
+  if (!emp) return { ok: false, error: "Employee not found" };
+  if (emp.user_id) return { ok: false, error: "Employee already has system access" };
+
+  // Create the auth user
+  const { data: authUser, error: authErr } = await admin.auth.admin.createUser({
+    email: email.trim(),
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: "", role },
+  });
+  if (authErr || !authUser.user) return { ok: false, error: authErr?.message ?? "Failed to create user" };
+
+  const userId = authUser.user.id;
+
+  // Upsert profile (trigger may have already created it)
+  await supabase
+    .from("profiles")
+    .upsert({ id: userId, email: email.trim(), role }, { onConflict: "id" });
+
+  // Link to employee
+  const { error: linkErr } = await supabase
+    .from("employees")
+    .update({ user_id: userId, updated_by: profile.id })
+    .eq("id", employeeId);
+
+  if (linkErr) {
+    // Roll back auth user creation
+    await admin.auth.admin.deleteUser(userId);
+    return { ok: false, error: linkErr.message };
+  }
+
+  revalidatePath("/employees", "layout");
+  return { ok: true, email: email.trim(), password };
+}
+
+export async function revokeEmployeeAccess(employeeId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile || profile.role !== "admin") return { ok: false, error: "Admin only" };
+
+  const supabase = await createClient();
+  const admin = serviceClient();
+
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("id, user_id")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  if (!emp) return { ok: false, error: "Employee not found" };
+  if (!emp.user_id) return { ok: false, error: "Employee has no system access" };
+
+  // Unlink first, then delete auth user
+  await supabase
+    .from("employees")
+    .update({ user_id: null, updated_by: profile.id })
+    .eq("id", employeeId);
+
+  await admin.auth.admin.deleteUser(emp.user_id);
+
   revalidatePath("/employees", "layout");
   return { ok: true };
 }
