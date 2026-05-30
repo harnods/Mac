@@ -109,25 +109,36 @@ function extractFileData(wb: XLSX.WorkBook): FileData | string {
 function parsePastedText(text: string): FileData | string {
   const raw = text
     .split(/\r?\n/)
-    .map((line) => line.split("\t").map((c) => c.trim()));
+    .map((line) => line.split("\t").map((c) => c.trim()))
+    .filter((row) => row.some((c) => c !== ""));
 
-  // Find first non-empty row as header
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(10, raw.length); i++) {
-    if (raw[i].some((c) => c !== "")) { headerIdx = i; break; }
+  if (raw.length === 0) return "Pasted content appears to be empty.";
+
+  const colCount = Math.max(...raw.map((r) => r.length));
+
+  // Detect header row: first row where every non-empty cell looks like a label
+  // (not purely numeric). If ambiguous or only 1 row total, skip header detection.
+  const looksLikeHeader = (row: string[]) =>
+    row.some((c) => c !== "") &&
+    row.every((c) => c === "" || isNaN(Number(c)));
+
+  let headers: string[];
+  let dataRows: string[][];
+
+  if (raw.length > 1 && looksLikeHeader(raw[0])) {
+    // First row is a header
+    headers = raw[0].map((h, i) => h || `Column ${i + 1}`);
+    dataRows = raw.slice(1);
+  } else {
+    // No header row — generate "Column 1", "Column 2", ...
+    headers = Array.from({ length: colCount }, (_, i) => `Column ${i + 1}`);
+    dataRows = raw;
   }
-  if (headerIdx === -1) return "Pasted content appears to be empty.";
 
-  const headers = raw[headerIdx].filter(Boolean);
-  if (headers.length === 0) return "No columns found in the pasted header row.";
+  const rows = dataRows.map((r) =>
+    headers.map((_, ci) => r[ci]?.trim() ?? "")
+  );
 
-  const rows: string[][] = [];
-  for (let i = headerIdx + 1; i < raw.length; i++) {
-    const cells = headers.map((_, ci) => raw[i][ci]?.trim() ?? "");
-    if (cells.some((c) => c !== "")) rows.push(cells);
-  }
-
-  if (rows.length === 0) return "No data rows found — make sure you copied the header row and data rows.";
   return { headers, rows };
 }
 
