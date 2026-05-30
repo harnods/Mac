@@ -81,13 +81,13 @@ export default function LoginPage() {
                 <span className="text-muted-foreground">Admin · </span>
                 <span className="font-mono select-all">admin@machimoto.local</span>
                 <span className="text-muted-foreground"> / </span>
-                <span className="font-mono select-all">Y1A0Qf6QOpCdswVa</span>
+                <span className="font-mono select-all">mac-admin-2025</span>
               </div>
               <div className="text-xs">
                 <span className="text-muted-foreground">Staff · </span>
                 <span className="font-mono select-all">staff@machimoto.local</span>
                 <span className="text-muted-foreground"> / </span>
-                <span className="font-mono select-all">5VnhvenTjRSYOP7f</span>
+                <span className="font-mono select-all">mac-staff-2025</span>
               </div>
             </div>
           </div>

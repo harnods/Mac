@@ -65,13 +65,17 @@ export function EmployeeTableRow({
                   <DropdownMenuItem asChild>
                     <Link href={`/employees/${employee.id}/edit`}>Edit</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => setDeleteOpen(true)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    Delete
-                  </DropdownMenuItem>
+                  {!employee.mac_user?.is_owner && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => setDeleteOpen(true)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </>
               )}
             </DropdownMenuContent>
@@ -79,7 +83,7 @@ export function EmployeeTableRow({
         </TableCell>
       </ClickableTableRow>
 
-      {canWrite && (
+      {canWrite && !employee.mac_user?.is_owner && (
         <EmployeeDeleteDialog
           id={employee.id}
           name={employee.name}

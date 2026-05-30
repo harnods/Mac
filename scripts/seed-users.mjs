@@ -43,13 +43,13 @@ function genPassword() {
   return randomBytes(12).toString("base64url");
 }
 
-async function upsertUser({ email, role, fullName }) {
+async function upsertUser({ email, role, fullName, isOwner = false }) {
   // Look up existing user.
   const { data: list, error: listErr } = await supabase.auth.admin.listUsers({ perPage: 200 });
   if (listErr) throw listErr;
   const existing = list.users.find((u) => u.email === email);
 
-  const password = genPassword();
+  const password = FIXED_PASSWORDS[email] ?? genPassword();
   let userId;
 
   if (existing) {
@@ -74,7 +74,7 @@ async function upsertUser({ email, role, fullName }) {
   // Force role + full_name in profiles (the trigger only sets default 'staff' if metadata is missing).
   const { error: upErr } = await supabase
     .from("profiles")
-    .upsert({ id: userId, email, full_name: fullName, role }, { onConflict: "id" });
+    .upsert({ id: userId, email, full_name: fullName, role, is_owner: isOwner }, { onConflict: "id" });
   if (upErr) throw upErr;
 
   // Create an employee record linked to this user (if one doesn't exist yet).
@@ -96,8 +96,14 @@ async function upsertUser({ email, role, fullName }) {
   return { email, password, role };
 }
 
+// Fixed passwords for local development — stable across seed runs.
+const FIXED_PASSWORDS = {
+  "admin@machimoto.local": "mac-admin-2025",
+  "staff@machimoto.local": "mac-staff-2025",
+};
+
 const users = [
-  { email: "admin@machimoto.local", role: "admin", fullName: "Machimoto Admin" },
+  { email: "admin@machimoto.local", role: "admin", fullName: "Machimoto Admin", isOwner: true },
   { email: "staff@machimoto.local", role: "staff", fullName: "Machimoto Staff" },
 ];
 

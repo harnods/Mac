@@ -138,6 +138,22 @@ export async function deleteEmployee(id: string): Promise<ActionResult> {
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+
+  // Block deletion of account owners
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("user_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (emp?.user_id) {
+    const { data: linkedProfile } = await supabase
+      .from("profiles")
+      .select("is_owner")
+      .eq("id", emp.user_id)
+      .maybeSingle();
+    if (linkedProfile?.is_owner) return { ok: false, error: "Cannot delete the account owner." };
+  }
+
   const { error } = await supabase
     .from("employees")
     .update({ deleted_at: new Date().toISOString(), updated_by: profile.id })

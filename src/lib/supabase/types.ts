@@ -1,5 +1,5 @@
 export type UnitCode = string;
-export type UserRole = "admin" | "staff";
+export type UserRole = string; // any role name — defined in the roles table
 export type ItemType = 'ingredient' | 'supply' | 'product' | 'prep_item';
 export type CategoryType = 'ingredient' | 'supply' | 'product';
 
@@ -8,6 +8,7 @@ export type Profile = {
   email: string;
   full_name: string | null;
   role: UserRole;
+  is_owner: boolean;
   created_at: string;
 };
 
@@ -205,6 +206,6 @@ export type EmployeeWithRelations = Employee & {
   job_positions: Pick<JobPosition, 'id' | 'name'> | null;
   job_levels: Pick<JobLevel, 'id' | 'name'> | null;
   employment_statuses: Pick<EmploymentStatus, 'id' | 'name'> | null;
-  mac_user: Pick<Profile, 'id' | 'email' | 'role'> | null;
+  mac_user: Pick<Profile, 'id' | 'email' | 'role' | 'is_owner'> | null;
   updater: Updater | null;
 };

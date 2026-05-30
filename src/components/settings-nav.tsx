@@ -17,6 +17,8 @@ export function SettingsNav() {
   const pathname = usePathname();
   const active =
     pathname.startsWith("/settings") ||
+    pathname.startsWith("/inventory/categories") ||
+    pathname.startsWith("/inventory/units") ||
     pathname.startsWith("/employees/departments") ||
     pathname.startsWith("/employees/job-positions") ||
     pathname.startsWith("/employees/job-levels") ||
@@ -36,16 +38,16 @@ export function SettingsNav() {
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuLabel>Categories</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/ingredients" className="cursor-pointer">Ingredients</Link>
+          <Link href="/inventory/categories/ingredients" className="cursor-pointer">Ingredients</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/supplies" className="cursor-pointer">Supplies</Link>
+          <Link href="/inventory/categories/supplies" className="cursor-pointer">Supplies</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/products" className="cursor-pointer">Products</Link>
+          <Link href="/inventory/categories/products" className="cursor-pointer">Products</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/units" className="cursor-pointer">Units</Link>
+          <Link href="/inventory/units" className="cursor-pointer">Units</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

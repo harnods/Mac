@@ -47,7 +47,7 @@ export default async function EmployeeDetailPage({
   const { data, error } = await supabase
     .from("employees")
     .select(
-      "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email), mac_user:profiles!user_id(id,email,role)"
+      "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email), mac_user:profiles!user_id(id,email,role,is_owner)"
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -70,7 +70,9 @@ export default async function EmployeeDetailPage({
             <Button variant="outline" size="sm" asChild>
               <Link href={`/employees/${id}/edit`}>Edit</Link>
             </Button>
-            <EmployeeDeleteButton id={id} name={emp.name} />
+            {!emp.mac_user?.is_owner && (
+              <EmployeeDeleteButton id={id} name={emp.name} />
+            )}
           </div>
         )}
       </div>

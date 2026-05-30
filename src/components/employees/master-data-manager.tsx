@@ -30,9 +30,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatDate, updaterName } from "@/lib/format";
+import type { Updater } from "@/lib/supabase/types";
 import type { ActionResult } from "@/app/actions/employees";
 
-type Item = { id: string; name: string; sort_order?: number };
+type Item = {
+  id: string;
+  name: string;
+  sort_order?: number;
+  updated_at?: string;
+  updater?: Updater | null;
+};
 
 type ModalState =
   | { type: "edit"; item: Item }
@@ -101,6 +109,7 @@ export function MasterDataManager({
             <TableRow>
               <TableHead>Name</TableHead>
               {showSortOrder && <TableHead className="w-28">Sort order</TableHead>}
+              <TableHead className="w-44">Last updated</TableHead>
               {isAdmin && <TableHead className="w-12" />}
             </TableRow>
           </TableHeader>
@@ -108,7 +117,7 @@ export function MasterDataManager({
             {items.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={isAdmin ? (showSortOrder ? 3 : 2) : (showSortOrder ? 2 : 1)}
+                  colSpan={isAdmin ? (showSortOrder ? 4 : 3) : (showSortOrder ? 3 : 2)}
                   className="text-center text-sm text-muted-foreground py-8"
                 >
                   No {title.toLowerCase()} yet.
@@ -123,6 +132,14 @@ export function MasterDataManager({
                     {item.sort_order ?? 0}
                   </TableCell>
                 )}
+                <TableCell>
+                  {item.updated_at && (
+                    <>
+                      <div className="text-sm">{formatDate(item.updated_at)}</div>
+                      <div className="text-xs text-muted-foreground">{updaterName(item.updater ?? null)}</div>
+                    </>
+                  )}
+                </TableCell>
                 {isAdmin && (
                   <TableCell>
                     <DropdownMenu>

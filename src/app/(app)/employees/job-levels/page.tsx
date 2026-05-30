@@ -21,12 +21,12 @@ export default async function JobLevelsPage({
 
   let query = supabase
     .from("job_levels")
-    .select("id,name,sort_order,updated_at")
+    .select("id,name,sort_order,updated_at,updater:profiles!updated_by(full_name,email)")
     .order("sort_order")
     .order("name");
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   const { data } = await query;
-  const items = (data ?? []) as { id: string; name: string; sort_order: number }[];
+  const items = (data ?? []) as unknown as { id: string; name: string; sort_order: number; updated_at: string; updater: { full_name: string | null; email: string } | null }[];
 
   return (
     <div className="space-y-4">

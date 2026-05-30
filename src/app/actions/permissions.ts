@@ -98,7 +98,7 @@ export async function getUsersWithRoles() {
   const profile = await getCurrentProfile();
   if (!can(profile, P.SETTINGS_ROLES)) return [];
   const supabase = await createClient();
-  const { data } = await supabase.from("profiles").select("id,email,full_name,role").order("full_name");
+  const { data } = await supabase.from("profiles").select("id,email,full_name,role,is_owner").order("full_name");
   return data ?? [];
 }
 
@@ -108,6 +108,11 @@ export async function setUserRole(userId: string, role: string): Promise<ActionR
   if (!can(profile, P.SETTINGS_ROLES)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+
+  // Guard: account owner role cannot be changed
+  const { data: target } = await supabase.from("profiles").select("is_owner").eq("id", userId).maybeSingle();
+  if (target?.is_owner) return { ok: false, error: "Cannot change the role of the account owner" };
+
   // Verify role exists
   const { data: roleData } = await supabase.from("roles").select("name").eq("name", role).maybeSingle();
   if (!roleData) return { ok: false, error: "Role not found" };

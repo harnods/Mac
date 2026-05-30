@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Trash2, Plus, ShieldCheck } from "lucide-react";
+import { Trash2, Plus, ShieldCheck, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { RoleWithPermissions } from "@/app/actions/permissions";
@@ -21,6 +21,7 @@ type User = {
   email: string;
   full_name: string | null;
   role: string;
+  is_owner: boolean;
 };
 
 type Props = {
@@ -253,19 +254,33 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
             <tbody className="divide-y">
               {users.map((user) => (
                 <tr key={user.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-2">{user.full_name ?? "—"}</td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <span>{user.full_name ?? "—"}</span>
+                      {user.is_owner && (
+                        <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                          <Crown className="size-3" />
+                          Account owner
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-2 text-muted-foreground">{user.email}</td>
                   <td className="px-4 py-2">
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleUserRoleChange(user.id, e.target.value)}
-                      disabled={isPending}
-                      className="border rounded px-2 py-1 text-sm bg-background w-full"
-                    >
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.name}>{r.name}</option>
-                      ))}
-                    </select>
+                    {user.is_owner ? (
+                      <span className="text-sm text-muted-foreground px-2 py-1 inline-block">{user.role}</span>
+                    ) : (
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleUserRoleChange(user.id, e.target.value)}
+                        disabled={isPending}
+                        className="border rounded px-2 py-1 text-sm bg-background w-full"
+                      >
+                        {roles.map((r) => (
+                          <option key={r.id} value={r.name}>{r.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                 </tr>
               ))}

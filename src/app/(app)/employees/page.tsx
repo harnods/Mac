@@ -42,7 +42,7 @@ export default async function EmployeesPage({
       let query = supabase
         .from("employees")
         .select(
-          "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email), mac_user:profiles!user_id(id,email,role)",
+          "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email), mac_user:profiles!user_id(id,email,role,is_owner)",
           { count: "exact" },
         )
         .is("deleted_at", null)
