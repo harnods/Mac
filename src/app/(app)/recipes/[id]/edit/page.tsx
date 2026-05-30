@@ -25,7 +25,7 @@ export default async function EditRecipePage({
   const [{ data: recipe, error }, { data: items }, { data: products }, { data: unitsData }] = await Promise.all([
     supabase
       .from("recipes")
-      .select("*, recipe_items(id, item_id, quantity, unit, item:items(id,name,unit), substitutes:recipe_item_substitutes(item_id))")
+      .select("*, recipe_items(id, item_id, quantity, unit, item:items(id,name,unit), substitutes:recipe_item_substitutes(item_id, quantity, unit))")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("items").select("id, name, unit, type").in("type", ["ingredient", "prep_item"]).is("deleted_at", null).order("name"),

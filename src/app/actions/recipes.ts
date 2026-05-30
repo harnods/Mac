@@ -6,11 +6,17 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 
+const substituteSchema = z.object({
+  item_id: z.string().uuid(),
+  quantity: z.coerce.number().positive(),
+  unit: z.string().min(1),
+});
+
 const recipeItemSchema = z.object({
   item_id: z.string().uuid(),
   quantity: z.coerce.number().positive(),
   unit: z.string().min(1),
-  substitutes: z.array(z.string().uuid()).optional().default([]),
+  substitutes: z.array(substituteSchema).optional().default([]),
 });
 
 const recipeSchema = z.object({
@@ -26,12 +32,14 @@ const recipeSchema = z.object({
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
+type SubstituteEntry = { item_id: string; quantity: number; unit: string };
+
 async function insertSubstitutes(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  recipeItemRows: { id: string; substitutes: string[] }[]
+  recipeItemRows: { id: string; substitutes: SubstituteEntry[] }[]
 ) {
   const rows = recipeItemRows.flatMap(({ id, substitutes }) =>
-    substitutes.map((item_id) => ({ recipe_item_id: id, item_id }))
+    substitutes.map((s) => ({ recipe_item_id: id, item_id: s.item_id, quantity: s.quantity, unit: s.unit }))
   );
   if (rows.length === 0) return null;
   const { error } = await supabase.from("recipe_item_substitutes").insert(rows);

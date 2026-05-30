@@ -41,16 +41,26 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+type Substitute = {
+  item_id: string;
+  quantity: string;
+  unit: string;
+};
+
 type IngredientRow = {
   key: string;
   item_id: string | null;
   quantity: string;
   unit: UnitCode | null;
-  substitutes: string[]; // item_ids
+  substitutes: Substitute[];
 };
 
 function newRow(): IngredientRow {
   return { key: crypto.randomUUID(), item_id: null, quantity: "", unit: null, substitutes: [] };
+}
+
+function newSub(item: Pick<Item, "id" | "unit">): Substitute {
+  return { item_id: item.id, quantity: "1", unit: item.unit };
 }
 
 export function RecipeForm({
@@ -161,7 +171,8 @@ export function RecipeForm({
           item_id: ri.item_id,
           quantity: String(ri.quantity),
           unit: ri.unit,
-          substitutes: (ri as typeof ri & { substitutes?: { item_id: string }[] }).substitutes?.map((s) => s.item_id) ?? [],
+          substitutes: (ri as typeof ri & { substitutes?: { item_id: string; quantity: number; unit: string | null }[] })
+            .substitutes?.map((s) => ({ item_id: s.item_id, quantity: String(s.quantity ?? 1), unit: s.unit ?? "" })) ?? [],
         })),
         newRow(),
       ];
@@ -272,7 +283,12 @@ export function RecipeForm({
       weight_unit: !isNaN(weightNum) && weightNum > 0 ? weightUnit : null,
       items: rows
         .filter((r) => r.item_id && r.quantity && r.unit)
-        .map((r) => ({ item_id: r.item_id!, quantity: r.quantity, unit: r.unit!, substitutes: r.substitutes })),
+        .map((r) => ({
+          item_id: r.item_id!,
+          quantity: r.quantity,
+          unit: r.unit!,
+          substitutes: r.substitutes.filter((s) => s.item_id && s.quantity && s.unit),
+        })),
     };
     start(async () => {
       const res = isEdit
@@ -597,7 +613,7 @@ export function RecipeForm({
               setRows((prev) =>
                 prev.map((r) =>
                   r.key === quickCreateRowKey
-                    ? { ...r, substitutes: [...r.substitutes, newItem.id] }
+                    ? { ...r, substitutes: [...r.substitutes, newSub(newItem)] }
                     : r
                 )
               );
@@ -644,7 +660,7 @@ function IngredientRowField({
   onMultiItemSelect: (ids: string[]) => void;
   onQtyChange: (qty: string) => void;
   onUnitChange: (unit: UnitCode) => void;
-  onSubstitutesChange: (substitutes: string[]) => void;
+  onSubstitutesChange: (substitutes: Substitute[]) => void;
   onRemove?: () => void;
   onQuickCreate: (name: string) => void;
   onQuickCreateSub: (name: string) => void;
@@ -669,18 +685,21 @@ function IngredientRowField({
   const [subOpen, setSubOpen] = useState(false);
   const [subSearch, setSubSearch] = useState("");
   const subCandidates = items.filter(
-    (i) => i.id !== row.item_id && !row.substitutes.includes(i.id)
+    (i) => i.id !== row.item_id && !row.substitutes.some((s) => s.item_id === i.id)
   );
   const subExactMatch = subCandidates.some(
     (i) => i.name.toLowerCase() === subSearch.toLowerCase()
   );
-  function addSub(itemId: string) {
-    onSubstitutesChange([...row.substitutes, itemId]);
+  function addSub(item: Pick<Item, "id" | "unit">) {
+    onSubstitutesChange([...row.substitutes, newSub(item)]);
     setSubSearch("");
     setSubOpen(false);
   }
   function removeSub(itemId: string) {
-    onSubstitutesChange(row.substitutes.filter((s) => s !== itemId));
+    onSubstitutesChange(row.substitutes.filter((s) => s.item_id !== itemId));
+  }
+  function updateSub(itemId: string, patch: Partial<Substitute>) {
+    onSubstitutesChange(row.substitutes.map((s) => s.item_id === itemId ? { ...s, ...patch } : s));
   }
 
   function triggerQuickCreate() {
@@ -867,18 +886,36 @@ function IngredientRowField({
     {row.item_id && (
       <div className="ml-[4.5rem] flex flex-wrap items-center gap-1.5 mt-1 mb-0.5">
         <span className="text-xs text-muted-foreground shrink-0">Sub:</span>
-        {row.substitutes.map((subId) => {
-          const subItem = items.find((i) => i.id === subId);
+        {row.substitutes.map((sub) => {
+          const subItem = items.find((i) => i.id === sub.item_id);
+          const subUnits = subItem ? compatibleUnits(subItem.unit) : sub.unit ? [sub.unit] : [];
           return (
             <span
-              key={subId}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-xs"
+              key={sub.item_id}
+              className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs"
             >
-              {subItem?.name ?? subId}
+              <span className="font-medium">{subItem?.name ?? sub.item_id}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={sub.quantity}
+                onChange={(e) => updateSub(sub.item_id, { quantity: e.target.value })}
+                className="w-10 bg-transparent border-b border-muted-foreground/30 text-center focus:outline-none focus:border-foreground"
+              />
+              <select
+                value={sub.unit}
+                onChange={(e) => updateSub(sub.item_id, { unit: e.target.value })}
+                className="bg-transparent focus:outline-none text-muted-foreground"
+              >
+                {subUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                {!subUnits.includes(sub.unit) && sub.unit && (
+                  <option value={sub.unit}>{sub.unit}</option>
+                )}
+              </select>
               <button
                 type="button"
-                onClick={() => removeSub(subId)}
-                className="text-muted-foreground hover:text-foreground leading-none"
+                onClick={() => removeSub(sub.item_id)}
+                className="text-muted-foreground hover:text-foreground leading-none ml-0.5"
               >
                 ×
               </button>
@@ -919,7 +956,7 @@ function IngredientRowField({
                   {subCandidates
                     .filter((i) => !subSearch.trim() || i.name.toLowerCase().includes(subSearch.toLowerCase()))
                     .map((i) => (
-                      <CommandItem key={i.id} value={i.name} onSelect={() => addSub(i.id)}>
+                      <CommandItem key={i.id} value={i.name} onSelect={() => addSub(i)}>
                         <span className="flex-1 truncate">{i.name}</span>
                         <span className="text-xs text-muted-foreground ml-2 shrink-0">{i.unit}</span>
                       </CommandItem>
