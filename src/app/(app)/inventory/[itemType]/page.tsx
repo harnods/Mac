@@ -53,7 +53,7 @@ export default async function ItemTypePage({
     .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)", { count: "exact" })
     .eq("type", config.dbType)
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order("updated_at", { ascending: false })
     .range(from, to);
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);

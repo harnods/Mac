@@ -47,7 +47,7 @@ export default async function PrepItemsPage({
     .select("id, name, unit, on_hand, reserved, updated_at, updater:profiles!updated_by(full_name,email)")
     .eq("type", "prep_item")
     .is("deleted_at", null)
-    .order("name");
+    .order("updated_at", { ascending: false });
 
   if (q.trim()) {
     itemsQuery = itemsQuery.ilike("name", `%${q.trim()}%`);

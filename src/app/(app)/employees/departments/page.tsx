@@ -19,7 +19,7 @@ export default async function DepartmentsPage({
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
   const supabase = await createClient();
 
-  let query = supabase.from("departments").select("id,name,updated_at,updater:profiles!updated_by(full_name,email)").order("name");
+  let query = supabase.from("departments").select("id,name,updated_at,updater:profiles!updated_by(full_name,email)").order("updated_at", { ascending: false });
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   const { data } = await query;
   const items = (data ?? []) as unknown as { id: string; name: string; updated_at: string; updater: { full_name: string | null; email: string } | null }[];

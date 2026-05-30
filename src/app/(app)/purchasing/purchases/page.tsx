@@ -49,7 +49,7 @@ export default async function PurchasesPage({
   let query = supabase
     .from("purchases")
     .select("id, note, transaction_date, created_at, updated_by, updater:profiles!updated_by(full_name,email), purchase_purchase_requests(purchase_request_id), purchase_items(id)", { count: "exact" })
-    .order("created_at", { ascending: false })
+    .order("updated_at", { ascending: false })
     .range(from, to);
 
   if (q.trim()) query = query.ilike("note", `%${q.trim()}%`);

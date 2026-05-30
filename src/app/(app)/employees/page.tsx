@@ -46,7 +46,7 @@ export default async function EmployeesPage({
           { count: "exact" },
         )
         .is("deleted_at", null)
-        .order("name")
+        .order("updated_at", { ascending: false })
         .range(from, to);
       if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
       if (dept) query = query.eq("department_id", dept);
