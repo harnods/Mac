@@ -30,6 +30,8 @@ export function ItemTableRow({
   showCategory = true,
   stockMode = 'full',
   showCost = false,
+  isSelected = false,
+  onToggleSelect,
 }: {
   item: ItemWithCategory;
   isAdmin: boolean;
@@ -37,6 +39,8 @@ export function ItemTableRow({
   showCategory?: boolean;
   stockMode?: StockMode;
   showCost?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const [viewUnit, setViewUnit] = useState<UnitCode>(item.unit);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -52,7 +56,12 @@ export function ItemTableRow({
 
   return (
     <>
-      <ClickableTableRow href={`/inventory/${itemTypeSlug}/${item.id}`}>
+      <ClickableTableRow href={`/inventory/${itemTypeSlug}/${item.id}`} className={isSelected ? "bg-primary/5" : undefined}>
+        {onToggleSelect && (
+          <TableCell className="w-8 pr-0" onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}>
+            <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="cursor-pointer" />
+          </TableCell>
+        )}
         <TableCell className="font-medium">
           <span className="flex items-center gap-2 min-w-0">
             <span className="truncate">{item.name}</span>

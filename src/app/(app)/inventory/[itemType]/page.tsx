@@ -5,17 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { formatQty } from "@/lib/units";
 import { ItemsFilter } from "@/components/inventory/items-filter";
-import { ItemTableRow } from "@/components/inventory/item-table-row";
+import { ItemBulkTable } from "@/components/inventory/item-bulk-table";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ImportItemsButton } from "@/components/inventory/import-items-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
@@ -123,37 +116,15 @@ export default async function ItemTypePage({
         </div>
       ) : (
         <>
-          <div className="border table-outer rounded-lg overflow-x-auto hidden md:block">
-            <Table className="table-fixed w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-48">Name</TableHead>
-                  {config.hasCategories && <TableHead className="w-36">Category</TableHead>}
-                  {config.stockMode === 'full' && <TableHead className="w-32">On hand</TableHead>}
-                  {config.stockMode === 'full' && <TableHead className="w-32">Reserved</TableHead>}
-                  {config.stockMode !== 'none' && <TableHead className="w-32">Available</TableHead>}
-                  {config.showCost && <TableHead className="w-32 text-right">Last cost</TableHead>}
-                  {config.showCost && <TableHead className="w-32 text-right">Avg. cost</TableHead>}
-                  <TableHead className="w-44">Last updated</TableHead>
-                  <TableHead />
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.map((it) => (
-                  <ItemTableRow
-                    key={it.id}
-                    item={it}
-                    isAdmin={isAdmin}
-                    itemTypeSlug={itemType}
-                    showCategory={config.hasCategories}
-                    stockMode={config.stockMode}
-                    showCost={config.showCost}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <ItemBulkTable
+            items={list}
+            categories={cats}
+            isAdmin={isAdmin}
+            itemTypeSlug={itemType as ItemTypeSlug}
+            showCategory={config.hasCategories}
+            stockMode={config.stockMode}
+            showCost={config.showCost}
+          />
 
           <div className="grid gap-3 md:hidden">
             {list.map((it) => (

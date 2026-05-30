@@ -4,15 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
-import { RecipeTableRowClient } from "@/components/recipes/recipe-table-row";
+import { RecipeBulkTable } from "@/components/recipes/recipe-bulk-table";
 import { RecipesFilter } from "@/components/recipes/recipes-filter";
 import type { Updater } from "@/lib/supabase/types";
 import { PaginationBar } from "@/components/ui/pagination-bar";
@@ -99,36 +92,7 @@ export default async function RecipesPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-56">Name</TableHead>
-                <TableHead className="w-24">Type</TableHead>
-                <TableHead className="w-48">Output</TableHead>
-                <TableHead className="w-28">Ingredients</TableHead>
-                <TableHead className="w-44">Last updated</TableHead>
-                <TableHead />
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((r) => (
-                <RecipeTableRowClient
-                  key={r.id}
-                  id={r.id}
-                  name={r.name}
-                  product={r.product?.name ?? null}
-                  productType={r.recipe_type ?? r.product?.type ?? null}
-                  ingredientCount={r.recipe_items.length}
-                  updatedAt={r.updated_at}
-                  updater={r.updater}
-                  isAdmin={isAdmin}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <RecipeBulkTable recipes={list} isAdmin={isAdmin} />
       )}
       <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>

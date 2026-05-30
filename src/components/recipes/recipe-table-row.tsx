@@ -26,9 +26,11 @@ type Props = {
   updatedAt: string;
   updater: Updater | null;
   isAdmin: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 };
 
-export function RecipeTableRowClient({ id, name, product, productType, ingredientCount, updatedAt, updater, isAdmin }: Props) {
+export function RecipeTableRowClient({ id, name, product, productType, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const typeLabel =
@@ -39,7 +41,12 @@ export function RecipeTableRowClient({ id, name, product, productType, ingredien
 
   return (
     <>
-      <ClickableTableRow href={`/recipes/${id}`}>
+      <ClickableTableRow href={`/recipes/${id}`} className={isSelected ? "bg-primary/5" : undefined}>
+        {onToggleSelect && (
+          <TableCell className="w-8 pr-0" onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}>
+            <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="cursor-pointer" />
+          </TableCell>
+        )}
         <TableCell className="font-medium truncate">{name}</TableCell>
         <TableCell className="text-sm">
           {typeLabel ?? <span className="text-muted-foreground">—</span>}

@@ -145,3 +145,17 @@ export async function deleteRecipe(id: string): Promise<ActionResult> {
   revalidatePath("/recipes");
   return { ok: true };
 }
+
+export async function bulkDeleteRecipes(ids: string[]): Promise<ActionResult> {
+  if (!ids.length) return { ok: false, error: "No recipes selected" };
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("recipes").delete().in("id", ids);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/recipes");
+  return { ok: true };
+}

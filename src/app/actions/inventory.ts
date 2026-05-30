@@ -371,6 +371,48 @@ export async function setItemSellable(id: string, is_sellable: boolean): Promise
   return { ok: true };
 }
 
+// ─── Bulk select actions ──────────────────────────────────────────────────────
+
+export async function bulkDeleteItems(ids: string[]): Promise<ActionResult> {
+  if (!ids.length) return { ok: false, error: "No items selected" };
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("items")
+    .update({ deleted_at: new Date().toISOString(), updated_by: profile.id })
+    .in("id", ids);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inventory", "layout");
+  return { ok: true };
+}
+
+export type BulkItemPatch = {
+  category_id?: string | null;
+  status?: "active" | "draft";
+};
+
+export async function bulkUpdateItems(ids: string[], patch: BulkItemPatch): Promise<ActionResult> {
+  if (!ids.length) return { ok: false, error: "No items selected" };
+  if (!Object.keys(patch).length) return { ok: false, error: "No fields to update" };
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("items")
+    .update({ ...patch, updated_by: profile.id })
+    .in("id", ids);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inventory", "layout");
+  return { ok: true };
+}
+
 // ─── Bulk import ─────────────────────────────────────────────────────────────
 
 export type ConflictResolution = "skip" | "overwrite" | "add_new";
