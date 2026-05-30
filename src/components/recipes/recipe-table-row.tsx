@@ -43,8 +43,10 @@ export function RecipeTableRowClient({ id, name, product, productType, ingredien
     <>
       <ClickableTableRow href={`/recipes/${id}`} className={isSelected ? "bg-primary/5" : undefined}>
         {onToggleSelect && (
-          <TableCell className="w-8 pr-0" onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}>
-            <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="cursor-pointer" />
+          <TableCell className="w-10 px-0" onClick={(e) => e.stopPropagation()}>
+            <label className="flex items-center justify-center w-full py-3 cursor-pointer">
+              <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="size-4 cursor-pointer" />
+            </label>
           </TableCell>
         )}
         <TableCell className="font-medium truncate">{name}</TableCell>

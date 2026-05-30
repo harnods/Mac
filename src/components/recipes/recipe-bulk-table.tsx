@@ -84,14 +84,16 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
           <TableHeader>
             <TableRow>
               {isAdmin && (
-                <TableHead className="w-8 pr-0">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
-                    onChange={toggleAll}
-                    className="cursor-pointer"
-                  />
+                <TableHead className="w-10 px-0">
+                  <label className="flex items-center justify-center w-full py-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                      onChange={toggleAll}
+                      className="size-4 cursor-pointer"
+                    />
+                  </label>
                 </TableHead>
               )}
               <TableHead className="w-56">Name</TableHead>
