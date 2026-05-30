@@ -370,3 +370,134 @@ export async function setItemSellable(id: string, is_sellable: boolean): Promise
   revalidatePath("/inventory", "layout");
   return { ok: true };
 }
+
+// ─── Bulk import ─────────────────────────────────────────────────────────────
+
+export type ImportRow = {
+  name: string;
+  category_name?: string;
+  unit: string;
+};
+
+export type ImportItemsResult =
+  | { ok: true; inserted: number; skipped: string[]; created: { categories: string[]; units: string[] } }
+  | { ok: false; error: string };
+
+export async function importItems(
+  itemTypeSlug: string,
+  rows: ImportRow[]
+): Promise<ImportItemsResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+
+  const config = ITEM_TYPE_CONFIG[itemTypeSlug as ItemTypeSlug];
+  if (!config) return { ok: false, error: "Invalid item type" };
+
+  if (rows.length === 0) return { ok: false, error: "No rows to import" };
+  if (rows.length > 500) return { ok: false, error: "Maximum 500 rows per import" };
+
+  const supabase = await createClient();
+
+  // ── Categories ────────────────────────────────────────────────────────────
+  let defaultCatId: string | null = null;
+  const catMap = new Map<string, string>(); // lowercase name → id
+  const createdCategories: string[] = [];
+
+  if (config.hasCategories) {
+    const { data: cats } = await supabase
+      .from("categories")
+      .select("id,name,is_default")
+      .eq("type", config.dbType);
+
+    for (const c of cats ?? []) {
+      catMap.set(c.name.toLowerCase(), c.id);
+      if (c.is_default) defaultCatId = c.id;
+    }
+
+    // Auto-create missing categories
+    const neededCats = new Set(
+      rows
+        .map((r) => r.category_name?.trim())
+        .filter((n): n is string => !!n && !catMap.has(n.toLowerCase()))
+    );
+    for (const catName of neededCats) {
+      const { data, error } = await supabase
+        .from("categories")
+        .insert({ name: catName, type: config.dbType, updated_by: profile.id })
+        .select("id")
+        .single();
+      if (!error && data) {
+        catMap.set(catName.toLowerCase(), data.id);
+        createdCategories.push(catName);
+      }
+    }
+  }
+
+  // ── Units ────────────────────────────────────────────────────────────────
+  const { data: unitData } = await supabase.from("units").select("code");
+  const validUnits = new Set((unitData ?? []).map((u: { code: string }) => u.code));
+  const createdUnits: string[] = [];
+
+  const neededUnits = new Set(
+    rows.map((r) => r.unit?.trim()).filter((u): u is string => !!u && !validUnits.has(u))
+  );
+  for (const code of neededUnits) {
+    const { error } = await supabase.from("units").insert({ code, is_system: false });
+    if (!error) {
+      validUnits.add(code);
+      createdUnits.push(code);
+    }
+  }
+
+  // ── Items ─────────────────────────────────────────────────────────────────
+  const skipped: string[] = [];
+  const toInsert: Record<string, unknown>[] = [];
+
+  const { data: existing } = await supabase
+    .from("items")
+    .select("name")
+    .eq("type", config.dbType)
+    .is("deleted_at", null);
+  const existingNames = new Set((existing ?? []).map((i: { name: string }) => i.name.toLowerCase()));
+
+  for (const row of rows) {
+    const name = String(row.name ?? "").trim();
+    const unit = String(row.unit ?? "").trim();
+
+    if (!name) { skipped.push("(empty name)"); continue; }
+    if (!unit) { skipped.push(`${name}: unit is empty`); continue; }
+    if (!validUnits.has(unit)) { skipped.push(`${name}: unit "${unit}" could not be created`); continue; }
+    if (existingNames.has(name.toLowerCase())) { skipped.push(`${name}: already exists`); continue; }
+
+    let category_id: string | null = defaultCatId;
+    if (config.hasCategories && row.category_name?.trim()) {
+      category_id = catMap.get(row.category_name.trim().toLowerCase()) ?? defaultCatId;
+    }
+
+    const entry: Record<string, unknown> = {
+      name,
+      type: config.dbType,
+      unit,
+      updated_by: profile.id,
+    };
+    if (config.hasCategories) entry.category_id = category_id;
+
+    toInsert.push(entry);
+    existingNames.add(name.toLowerCase());
+  }
+
+  if (toInsert.length === 0) {
+    return { ok: true, inserted: 0, skipped, created: { categories: createdCategories, units: createdUnits } };
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("items")
+    .insert(toInsert)
+    .select("id");
+
+  if (insertError) return { ok: false, error: insertError.message };
+
+  revalidatePath("/inventory", "layout");
+  return { ok: true, inserted: (inserted ?? []).length, skipped, created: { categories: createdCategories, units: createdUnits } };
+}

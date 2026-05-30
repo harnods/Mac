@@ -17,6 +17,7 @@ import { formatQty } from "@/lib/units";
 import { ItemsFilter } from "@/components/inventory/items-filter";
 import { ItemTableRow } from "@/components/inventory/item-table-row";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
+import { ImportItemsButton } from "@/components/inventory/import-items-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import type { Category, ItemWithCategory } from "@/lib/supabase/types";
 import { PaginationBar } from "@/components/ui/pagination-bar";
@@ -84,14 +85,17 @@ export default async function ItemTypePage({
           <h1 className="text-2xl font-semibold tracking-tight">{config.label}</h1>
         </div>
         {isAdmin && (
-          <ItemFormDialog
-            itemTypeSlug={itemType as ItemTypeSlug}
-            trigger={
-              <Button>
-                <Plus className="size-4" /> Add {config.singular.toLowerCase()}
-              </Button>
-            }
-          />
+          <div className="flex items-center gap-2">
+            <ImportItemsButton itemTypeSlug={itemType as ItemTypeSlug} />
+            <ItemFormDialog
+              itemTypeSlug={itemType as ItemTypeSlug}
+              trigger={
+                <Button>
+                  <Plus className="size-4" /> Add {config.singular.toLowerCase()}
+                </Button>
+              }
+            />
+          </div>
         )}
       </div>
 
