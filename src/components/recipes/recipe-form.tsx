@@ -69,8 +69,22 @@ export function RecipeForm({
   const [pending, start] = useTransition();
   const isEdit = !!recipe;
 
-  const initialType = recipe?.product_id
-    ? (products.find((p) => p.id === recipe.product_id)?.type === "prep_item" ? "wip" : "product")
+  // Determine recipe type from linked product, or fall back to ingredient types.
+  // A recipe with prep_item ingredients must be a product recipe (WIP recipes
+  // can only use raw ingredients).
+  const linkedProductType = recipe?.product_id
+    ? products.find((p) => p.id === recipe.product_id)?.type
+    : undefined;
+
+  const hasPrepItemIngredient = recipeItems?.some(
+    (ri) => items.find((i) => i.id === ri.item_id)?.type === "prep_item"
+  );
+
+  const initialType: "wip" | "product" =
+    linkedProductType === "prep_item" ? "wip"
+    : linkedProductType === "product"  ? "product"
+    : hasPrepItemIngredient            ? "product"
+    : recipe?.product_id               ? "product"   // has a product_id but item not in list
     : "wip";
 
   const [recipeType, setRecipeType] = useState<"wip" | "product">(initialType);
