@@ -70,22 +70,21 @@ export function RecipeForm({
   const [pending, start] = useTransition();
   const isEdit = !!recipe;
 
-  // Determine recipe type from linked product, or fall back to ingredient types.
-  // A recipe with prep_item ingredients must be a product recipe (WIP recipes
-  // can only use raw ingredients).
+  // Prefer the stored recipe_type column; fall back to heuristics for old records.
+  const storedType = (recipe as (typeof recipe & { recipe_type?: string }) | undefined)?.recipe_type;
   const linkedProductType = recipe?.product_id
     ? products.find((p) => p.id === recipe.product_id)?.type
     : undefined;
-
   const hasPrepItemIngredient = recipeItems?.some(
     (ri) => items.find((i) => i.id === ri.item_id)?.type === "prep_item"
   );
 
   const initialType: "wip" | "product" =
-    linkedProductType === "prep_item" ? "wip"
-    : linkedProductType === "product"  ? "product"
-    : hasPrepItemIngredient            ? "product"
-    : recipe?.product_id               ? "product"   // has a product_id but item not in list
+    storedType === "wip" || storedType === "product" ? storedType
+    : linkedProductType === "prep_item" ? "wip"
+    : linkedProductType === "product"   ? "product"
+    : hasPrepItemIngredient             ? "product"
+    : recipe?.product_id                ? "product"
     : "wip";
 
   const [recipeType, setRecipeType] = useState<"wip" | "product">(initialType);
@@ -265,6 +264,7 @@ export function RecipeForm({
     const weightNum = parseDecimal(weightPerPcs);
     const payload = {
       name,
+      recipe_type: recipeType,
       product_id: productId ?? null,
       yield_qty: parseDecimal(yieldQty),
       unit: recipeType === "wip" ? yieldUnit : null,

@@ -15,6 +15,7 @@ const recipeItemSchema = z.object({
 
 const recipeSchema = z.object({
   name: z.string().min(1),
+  recipe_type: z.enum(["wip", "product"]).default("wip"),
   product_id: z.string().uuid().nullable().optional(),
   yield_qty: z.coerce.number().positive().default(1),
   unit: z.string().min(1).nullable().optional(),
@@ -44,13 +45,13 @@ export async function createRecipe(raw: unknown): Promise<ActionResult> {
 
   const parsed = recipeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, product_id, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
+  const { name, recipe_type, product_id, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
 
   const supabase = await createClient();
 
   const { data: recipe, error } = await supabase
     .from("recipes")
-    .insert({ name, product_id: product_id ?? null, yield_qty, unit: unit ?? null, weight_per_pcs: weight_per_pcs ?? null, weight_unit: weight_unit ?? null, updated_by: profile.id })
+    .insert({ name, recipe_type, product_id: product_id ?? null, yield_qty, unit: unit ?? null, weight_per_pcs: weight_per_pcs ?? null, weight_unit: weight_unit ?? null, updated_by: profile.id })
     .select("id")
     .single();
 
@@ -80,13 +81,13 @@ export async function updateRecipe(id: string, raw: unknown): Promise<ActionResu
 
   const parsed = recipeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, product_id, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
+  const { name, recipe_type, product_id, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
 
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("recipes")
-    .update({ name, product_id: product_id ?? null, yield_qty, unit: unit ?? null, weight_per_pcs: weight_per_pcs ?? null, weight_unit: weight_unit ?? null, updated_by: profile.id })
+    .update({ name, recipe_type, product_id: product_id ?? null, yield_qty, unit: unit ?? null, weight_per_pcs: weight_per_pcs ?? null, weight_unit: weight_unit ?? null, updated_by: profile.id })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };

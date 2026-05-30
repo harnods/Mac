@@ -31,7 +31,11 @@ type Props = {
 export function RecipeTableRowClient({ id, name, product, productType, ingredientCount, updatedAt, updater, isAdmin }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const typeLabel = productType === "prep_item" ? "WIP" : productType === "product" ? "Product" : null;
+  const typeLabel =
+    productType === "wip"      ? "WIP"
+    : productType === "product"  ? "Product"
+    : productType === "prep_item" ? "WIP"      // legacy: inferred from item type
+    : null;
 
   return (
     <>

@@ -24,6 +24,7 @@ const PAGE_SIZE = 25;
 type RecipeRow = {
   id: string;
   name: string;
+  recipe_type: string | null;
   updated_at: string;
   updater: Updater | null;
   recipe_items: { id: string }[];
@@ -53,7 +54,7 @@ export default async function RecipesPage({
 
   let query = supabase
     .from("recipes")
-    .select(`id, name, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`, { count: "exact" })
+    .select(`id, name, recipe_type, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -118,7 +119,7 @@ export default async function RecipesPage({
                   id={r.id}
                   name={r.name}
                   product={r.product?.name ?? null}
-                  productType={r.product?.type ?? null}
+                  productType={r.recipe_type ?? r.product?.type ?? null}
                   ingredientCount={r.recipe_items.length}
                   updatedAt={r.updated_at}
                   updater={r.updater}
