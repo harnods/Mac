@@ -31,8 +31,12 @@ export default async function RecipeDetailPage({
     .maybeSingle();
 
   if (error || !data) notFound();
-  const recipe = data as RecipeWithItems & { unit?: string | null; weight_per_pcs?: number | null; weight_unit?: string | null; product: { id: string; name: string; unit: string; type: string } | null };
-  const isWip = recipe.product?.type === "prep_item";
+  const recipe = data as RecipeWithItems & { recipe_type?: string | null; unit?: string | null; weight_per_pcs?: number | null; weight_unit?: string | null; product: { id: string; name: string; unit: string; type: string } | null };
+  const recipeType: "wip" | "product" =
+    recipe.recipe_type === "product" ? "product"
+    : recipe.recipe_type === "wip"    ? "wip"
+    : recipe.product?.type === "prep_item" ? "wip" : "product";
+  const isWip = recipeType === "wip";
   const isAdmin = can(profile, P.RECIPES_WRITE);
 
   return (
@@ -59,6 +63,10 @@ export default async function RecipeDetailPage({
       </div>
 
       <div className="max-w-2xl space-y-4">
+        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
+          <span className="text-muted-foreground">Type</span>
+          <span>{isWip ? "WIP (prep item)" : "Product"}</span>
+        </div>
         {recipe.product && (
           <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <span className="text-muted-foreground">Output</span>
