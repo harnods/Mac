@@ -767,7 +767,6 @@ function IngredientRowField({
       <DecimalInput
         min="0"
         step="any"
-        required={!!row.item_id}
         value={row.quantity}
         onValueChange={(v) => onQtyChange(v)}
         className="w-24 shrink-0"
