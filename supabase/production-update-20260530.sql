@@ -157,7 +157,7 @@ CREATE OR REPLACE FUNCTION public.get_my_permissions()
 RETURNS text[] LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT COALESCE(array_agg(rp.permission_key), '{}')
   FROM profiles p
-  JOIN roles r ON r.name = p.role
+  JOIN roles r ON r.name = p.role::text
   JOIN role_permissions rp ON rp.role_id = r.id
   WHERE p.id = auth.uid()
 $$;
