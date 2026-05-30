@@ -29,13 +29,18 @@ import {
 import { Upload, ClipboardPaste, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { importItems } from "@/app/actions/inventory";
+import { importItems, getExistingItemNames } from "@/app/actions/inventory";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
-import type { ImportRow } from "@/app/actions/inventory";
+import type { ImportRow, ConflictResolution } from "@/app/actions/inventory";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ParsedRow = ImportRow & { _rowNum: number; _errors: string[] };
+type ParsedRow = ImportRow & {
+  _rowNum: number;
+  _errors: string[];
+  _conflict: boolean;
+  resolution: ConflictResolution;
+};
 
 type ColumnMapping = {
   name: string;      // required
@@ -161,7 +166,11 @@ function guessMapping(
   };
 }
 
-function applyMapping(fileData: FileData, mapping: ColumnMapping): ParsedRow[] {
+function applyMapping(
+  fileData: FileData,
+  mapping: ColumnMapping,
+  existingNames: Set<string>
+): ParsedRow[] {
   const { headers, rows } = fileData;
   const idx = (col: string) => (col && col !== SKIP ? headers.indexOf(col) : -1);
 
@@ -181,7 +190,9 @@ function applyMapping(fileData: FileData, mapping: ColumnMapping): ParsedRow[] {
     if (!name.trim()) errs.push("Name is required");
     if (!unit.trim()) errs.push("Unit is required");
 
-    return { ...row, _rowNum: i + 2, _errors: errs };
+    const conflict = !!name.trim() && existingNames.has(name.trim().toLowerCase());
+
+    return { ...row, _rowNum: i + 2, _errors: errs, _conflict: conflict, resolution: "skip" as ConflictResolution };
   });
 }
 
@@ -198,9 +209,12 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
   const [fileData, setFileData]       = useState<FileData | null>(null);
   const [mapping, setMapping]         = useState<ColumnMapping>({ name: "", unit: "", category: "" });
   const [rows, setRows]               = useState<ParsedRow[]>([]);
+  const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
+  const [loadingConflicts, setLoadingConflicts] = useState(false);
   const [loading, setLoading]         = useState(false);
   const [importResult, setImportResult] = useState<{
     inserted: number;
+    updated: number;
     skipped: string[];
     created: { categories: string[]; units: string[] };
   } | null>(null);
@@ -214,6 +228,7 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
     setFileData(null);
     setRows([]);
     setImportResult(null);
+    setExistingNames(new Set());
   }, [open, itemTypeSlug]);
 
   const processFile = useCallback(async (file: File) => {
@@ -251,11 +266,16 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
     setStep("map");
   }
 
-  function handleConfirmMapping() {
+  async function handleConfirmMapping() {
     if (!fileData) return;
     if (!mapping.name) { toast.error("Please map the Name column."); return; }
     if (!mapping.unit) { toast.error("Please map the Unit column."); return; }
-    setRows(applyMapping(fileData, mapping));
+    setLoadingConflicts(true);
+    const names = await getExistingItemNames(itemTypeSlug);
+    const nameSet = new Set(names.map((n) => n.toLowerCase()));
+    setExistingNames(nameSet);
+    setRows(applyMapping(fileData, mapping, nameSet));
+    setLoadingConflicts(false);
     setStep("preview");
   }
 
@@ -264,18 +284,21 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
     if (validRows.length === 0) { toast.error("No valid rows to import."); return; }
 
     setLoading(true);
-    const payload: ImportRow[] = validRows.map(({ _rowNum: _, _errors: __, ...rest }) => rest);
+    const payload: ImportRow[] = validRows.map(({ _rowNum: _, _errors: __, _conflict: ___, ...rest }) => rest);
     const result = await importItems(itemTypeSlug, payload);
     setLoading(false);
 
     if (!result.ok) { toast.error(result.error); return; }
-    setImportResult({ inserted: result.inserted, skipped: result.skipped, created: result.created });
+    setImportResult({ inserted: result.inserted, updated: result.updated, skipped: result.skipped, created: result.created });
     setStep("done");
     router.refresh();
   }
 
   const errorCount = rows.filter((r) => r._errors.length > 0).length;
-  const validCount = rows.length - errorCount;
+  // rows with no errors that are either new, overwrite, or add_new (not skip)
+  const validCount = rows.filter(
+    (r) => r._errors.length === 0 && (!r._conflict || r.resolution !== "skip")
+  ).length;
 
   const ColSelect = ({
     field,
@@ -483,8 +506,8 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
               <Button variant="ghost" onClick={() => { setStep("upload"); setFileData(null); setPasteText(""); }}>
                 Back
               </Button>
-              <Button onClick={handleConfirmMapping}>
-                Preview {fileData.rows.length} row{fileData.rows.length !== 1 ? "s" : ""}
+              <Button onClick={handleConfirmMapping} disabled={loadingConflicts}>
+                {loadingConflicts ? "Checking…" : `Preview ${fileData.rows.length} row${fileData.rows.length !== 1 ? "s" : ""}`}
               </Button>
             </DialogFooter>
           </div>
@@ -493,55 +516,81 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
         {/* ── Preview ── */}
         {step === "preview" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 text-sm">
-              {errorCount === 0 ? (
-                <span className="flex items-center gap-1.5 text-green-600">
-                  <CheckCircle2 className="size-4" />
-                  {rows.length} rows ready
-                </span>
-              ) : (
-                <span className="flex items-center gap-1.5 text-amber-600">
-                  <AlertCircle className="size-4" />
-                  {validCount} valid, {errorCount} with errors (will be skipped)
-                </span>
-              )}
-              <Button variant="outline" size="sm" className="ml-auto" onClick={() => setStep("map")}>
-                Adjust mapping
-              </Button>
-            </div>
+            {(() => {
+              const conflictCount = rows.filter((r) => r._errors.length === 0 && r._conflict).length;
+              const cleanCount    = rows.filter((r) => r._errors.length === 0 && !r._conflict).length;
+              return (
+                <div className="flex items-center gap-3 text-sm flex-wrap">
+                  {cleanCount > 0 && (
+                    <span className="flex items-center gap-1.5 text-green-600">
+                      <CheckCircle2 className="size-4" />
+                      {cleanCount} new
+                    </span>
+                  )}
+                  {conflictCount > 0 && (
+                    <span className="flex items-center gap-1.5 text-amber-600">
+                      <AlertCircle className="size-4" />
+                      {conflictCount} conflict{conflictCount !== 1 ? "s" : ""} — pilih aksi di bawah
+                    </span>
+                  )}
+                  {errorCount > 0 && (
+                    <span className="text-muted-foreground text-xs">{errorCount} error (skip)</span>
+                  )}
+                  <Button variant="outline" size="sm" className="ml-auto" onClick={() => setStep("map")}>
+                    Adjust mapping
+                  </Button>
+                </div>
+              );
+            })()}
 
-            <div className="border rounded-lg overflow-auto max-h-80">
+            <div className="border rounded-lg overflow-auto max-h-[360px]">
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
-                    <TableHead className="w-56">Name</TableHead>
-                    {config.hasCategories && <TableHead className="w-36">Category</TableHead>}
-                    <TableHead className="w-24">Unit</TableHead>
-                    <TableHead />
+                    <TableHead className="w-44">Name</TableHead>
+                    {config.hasCategories && <TableHead className="w-32">Category</TableHead>}
+                    <TableHead className="w-20">Unit</TableHead>
+                    <TableHead className="w-52">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row) => (
+                  {rows.map((row, i) => (
                     <TableRow
                       key={row._rowNum}
-                      className={row._errors.length > 0 ? "bg-destructive/5" : undefined}
+                      className={row._errors.length > 0 ? "opacity-40" : undefined}
                     >
-                      <TableCell className="text-muted-foreground text-xs tabular-nums">
-                        {row._rowNum}
-                      </TableCell>
-                      <TableCell className="truncate">
+                      <TableCell className="text-muted-foreground text-xs tabular-nums">{row._rowNum}</TableCell>
+                      <TableCell className="truncate font-medium">
                         {row.name || <span className="text-muted-foreground italic">—</span>}
                       </TableCell>
                       {config.hasCategories && (
-                        <TableCell className="truncate text-muted-foreground">
-                          {row.category_name || "—"}
-                        </TableCell>
+                        <TableCell className="truncate text-muted-foreground text-xs">{row.category_name || "—"}</TableCell>
                       )}
-                      <TableCell>{row.unit || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                      <TableCell className="text-xs">{row.unit || "—"}</TableCell>
                       <TableCell>
-                        {row._errors.length > 0 && (
+                        {row._errors.length > 0 ? (
                           <span className="text-xs text-destructive">{row._errors.join("; ")}</span>
+                        ) : row._conflict ? (
+                          <div className="flex gap-1">
+                            {(["skip", "overwrite", "add_new"] as ConflictResolution[]).map((opt) => (
+                              <button
+                                key={opt}
+                                onClick={() => setRows((prev) => prev.map((r, j) => j === i ? { ...r, resolution: opt } : r))}
+                                className={`px-2 py-0.5 rounded text-xs border transition-colors ${
+                                  row.resolution === opt
+                                    ? opt === "skip"      ? "bg-muted border-muted-foreground/40 font-medium"
+                                    : opt === "overwrite" ? "bg-amber-100 border-amber-400 text-amber-800 font-medium"
+                                    :                       "bg-green-100 border-green-400 text-green-800 font-medium"
+                                    : "border-muted-foreground/20 text-muted-foreground hover:border-muted-foreground/50"
+                                }`}
+                              >
+                                {opt === "skip" ? "Skip" : opt === "overwrite" ? "Overwrite" : "Add new"}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-green-600">New</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -567,7 +616,10 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
                 <CheckCircle2 className="size-5 text-green-600 mt-0.5 shrink-0" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium">
-                    {importResult.inserted} item{importResult.inserted !== 1 ? "s" : ""} imported successfully.
+                    {[
+                      importResult.inserted > 0 && `${importResult.inserted} added`,
+                      importResult.updated > 0  && `${importResult.updated} overwritten`,
+                    ].filter(Boolean).join(", ") || "No items imported"}.
                   </p>
                   {importResult.created.categories.length > 0 && (
                     <p className="text-xs text-muted-foreground">

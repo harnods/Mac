@@ -373,15 +373,35 @@ export async function setItemSellable(id: string, is_sellable: boolean): Promise
 
 // ─── Bulk import ─────────────────────────────────────────────────────────────
 
+export type ConflictResolution = "skip" | "overwrite" | "add_new";
+
 export type ImportRow = {
   name: string;
   category_name?: string;
   unit: string;
+  resolution?: ConflictResolution; // only set for rows that conflict
 };
 
 export type ImportItemsResult =
-  | { ok: true; inserted: number; skipped: string[]; created: { categories: string[]; units: string[] } }
+  | { ok: true; inserted: number; updated: number; skipped: string[]; created: { categories: string[]; units: string[] } }
   | { ok: false; error: string };
+
+export async function getExistingItemNames(itemTypeSlug: string): Promise<string[]> {
+  const profile = await getCurrentProfile();
+  if (!can(profile, P.INVENTORY_WRITE)) return [];
+
+  const config = ITEM_TYPE_CONFIG[itemTypeSlug as ItemTypeSlug];
+  if (!config) return [];
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("items")
+    .select("name")
+    .eq("type", config.dbType)
+    .is("deleted_at", null);
+
+  return (data ?? []).map((i: { name: string }) => i.name);
+}
 
 export async function importItems(
   itemTypeSlug: string,
@@ -453,13 +473,29 @@ export async function importItems(
   // ── Items ─────────────────────────────────────────────────────────────────
   const skipped: string[] = [];
   const toInsert: Record<string, unknown>[] = [];
+  const toUpdate: { id: string; patch: Record<string, unknown> }[] = [];
 
   const { data: existing } = await supabase
     .from("items")
-    .select("name")
+    .select("id,name")
     .eq("type", config.dbType)
     .is("deleted_at", null);
-  const existingNames = new Set((existing ?? []).map((i: { name: string }) => i.name.toLowerCase()));
+
+  // name (lowercase) → id
+  const existingMap = new Map((existing ?? []).map((i: { id: string; name: string }) => [i.name.toLowerCase(), i.id]));
+  // track all names including ones we're about to insert (avoid intra-batch dupes)
+  const seenNames = new Set(existingMap.keys());
+
+  // helper: find a free name with numeric suffix "(1)", "(2)", ...
+  const findFreeName = (base: string): string => {
+    let n = 1;
+    let candidate = `${base} (${n})`;
+    while (seenNames.has(candidate.toLowerCase())) {
+      n++;
+      candidate = `${base} (${n})`;
+    }
+    return candidate;
+  };
 
   for (const row of rows) {
     const name = String(row.name ?? "").trim();
@@ -468,36 +504,62 @@ export async function importItems(
     if (!name) { skipped.push("(empty name)"); continue; }
     if (!unit) { skipped.push(`${name}: unit is empty`); continue; }
     if (!validUnits.has(unit)) { skipped.push(`${name}: unit "${unit}" could not be created`); continue; }
-    if (existingNames.has(name.toLowerCase())) { skipped.push(`${name}: already exists`); continue; }
 
     let category_id: string | null = defaultCatId;
     if (config.hasCategories && row.category_name?.trim()) {
       category_id = catMap.get(row.category_name.trim().toLowerCase()) ?? defaultCatId;
     }
 
-    const entry: Record<string, unknown> = {
-      name,
-      type: config.dbType,
-      unit,
-      updated_by: profile.id,
-    };
-    if (config.hasCategories) entry.category_id = category_id;
+    const patch: Record<string, unknown> = { unit, updated_by: profile.id };
+    if (config.hasCategories) patch.category_id = category_id;
 
-    toInsert.push(entry);
-    existingNames.add(name.toLowerCase());
+    const isConflict = existingMap.has(name.toLowerCase());
+
+    if (isConflict) {
+      const resolution = row.resolution ?? "skip";
+
+      if (resolution === "skip") {
+        skipped.push(`${name}: skipped`);
+        continue;
+      }
+
+      if (resolution === "overwrite") {
+        const existingId = existingMap.get(name.toLowerCase())!;
+        toUpdate.push({ id: existingId, patch: { ...patch, name } });
+        continue;
+      }
+
+      if (resolution === "add_new") {
+        const newName = findFreeName(name);
+        toInsert.push({ name: newName, type: config.dbType, ...patch });
+        seenNames.add(newName.toLowerCase());
+        continue;
+      }
+    }
+
+    // No conflict — insert normally
+    toInsert.push({ name, type: config.dbType, ...patch });
+    seenNames.add(name.toLowerCase());
   }
 
-  if (toInsert.length === 0) {
-    return { ok: true, inserted: 0, skipped, created: { categories: createdCategories, units: createdUnits } };
+  // Batch insert new items
+  let insertedCount = 0;
+  if (toInsert.length > 0) {
+    const { data: ins, error: insertError } = await supabase
+      .from("items")
+      .insert(toInsert)
+      .select("id");
+    if (insertError) return { ok: false, error: insertError.message };
+    insertedCount = (ins ?? []).length;
   }
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("items")
-    .insert(toInsert)
-    .select("id");
-
-  if (insertError) return { ok: false, error: insertError.message };
+  // Update overwritten items one-by-one (different patches per row)
+  let updatedCount = 0;
+  for (const { id, patch } of toUpdate) {
+    const { error } = await supabase.from("items").update(patch).eq("id", id);
+    if (!error) updatedCount++;
+  }
 
   revalidatePath("/inventory", "layout");
-  return { ok: true, inserted: (inserted ?? []).length, skipped, created: { categories: createdCategories, units: createdUnits } };
+  return { ok: true, inserted: insertedCount, updated: updatedCount, skipped, created: { categories: createdCategories, units: createdUnits } };
 }
