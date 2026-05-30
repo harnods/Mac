@@ -9,6 +9,7 @@ import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { RecipeDeleteButton } from "@/components/recipes/recipe-delete-button";
 import { ProductDrawerTrigger } from "@/components/inventory/product-drawer";
+import { IngredientDrawerTrigger } from "@/components/inventory/ingredient-drawer";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
 import type { RecipeWithItems } from "@/lib/supabase/types";
 
@@ -101,8 +102,10 @@ export default async function RecipeDetailPage({
             {recipe.recipe_items.map((ri, idx) => (
               <div key={ri.id} className="grid grid-cols-[2rem_12rem_auto] gap-x-6 items-center py-2 border-b last:border-0">
                 <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
-                <span className="font-medium text-sm pl-3 flex items-center">
-                  {ri.item?.name ?? "—"}
+                <span className="font-medium text-sm pl-3 flex items-center gap-1.5">
+                  {ri.item && !ri.item.deleted_at
+                    ? <IngredientDrawerTrigger itemId={ri.item.id} itemName={ri.item.name} />
+                    : ri.item?.name ?? "—"}
                   {ri.item?.deleted_at && <DeletedItemBadge />}
                 </span>
                 <span className="tabular-nums text-sm">

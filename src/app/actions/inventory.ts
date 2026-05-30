@@ -424,6 +424,67 @@ export async function getProductDrawerData(productId: string): Promise<ProductDr
   };
 }
 
+export type IngredientDrawerData = {
+  id: string;
+  name: string;
+  type: string;
+  unit: string;
+  category: string | null;
+  on_hand: number;
+  reserved: number;
+  available: number;
+  stockMode: "full" | "available" | "none";
+  itemPageUrl: string;
+};
+
+export async function getIngredientDrawerData(itemId: string): Promise<IngredientDrawerData | null> {
+  const supabase = await createClient();
+  const { data: item } = await supabase
+    .from("items")
+    .select("id, name, type, unit, on_hand, reserved, categories(name)")
+    .eq("id", itemId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!item) return null;
+
+  const typeToSlug: Record<string, string> = {
+    ingredient: "ingredients",
+    supply: "supplies",
+    product: "products",
+    prep_item: "prep-items",
+  };
+  const typeToLabel: Record<string, string> = {
+    ingredient: "Ingredient",
+    supply: "Supply",
+    product: "Product",
+    prep_item: "Prep item",
+  };
+  const stockMode: Record<string, "full" | "available" | "none"> = {
+    ingredient: "full",
+    supply: "available",
+    prep_item: "available",
+    product: "none",
+  };
+
+  const slug = typeToSlug[item.type] ?? "ingredients";
+  const onHand = Number(item.on_hand);
+  const reserved = Number(item.reserved);
+
+  return {
+    id: item.id,
+    name: item.name,
+    type: typeToLabel[item.type] ?? item.type,
+    unit: item.unit,
+    category: (item as unknown as { categories?: { name: string } | null }).categories?.name ?? null,
+    on_hand: onHand,
+    reserved,
+    available: onHand - reserved,
+    stockMode: stockMode[item.type] ?? "none",
+    itemPageUrl: `/inventory/${slug}/${item.id}`,
+  };
+}
+
 // ─── Bulk select actions ──────────────────────────────────────────────────────
 
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResult> {
