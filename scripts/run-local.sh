@@ -19,6 +19,15 @@ else
   echo "  started"
 fi
 
+# Always use legacy JWT keys (not sb_publishable_ format) — required by @supabase/ssr
+ANON_JWT=$(supabase --workdir . status --output json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ANON_KEY',''))" 2>/dev/null || true)
+SVC_JWT=$(supabase --workdir . status --output json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('SERVICE_ROLE_KEY',''))" 2>/dev/null || true)
+if [ -n "$ANON_JWT" ] && [ -n "$SVC_JWT" ]; then
+  sed -i '' "s|^NEXT_PUBLIC_SUPABASE_ANON_KEY=.*|NEXT_PUBLIC_SUPABASE_ANON_KEY=${ANON_JWT}|" .env.local
+  sed -i '' "s|^SUPABASE_SERVICE_ROLE_KEY=.*|SUPABASE_SERVICE_ROLE_KEY=${SVC_JWT}|" .env.local
+  echo "  JWT keys updated in .env.local"
+fi
+
 echo "▶ Users…"
 COUNT=$(psql "$DB" -tA -c "select count(*) from profiles;" 2>/dev/null || echo 0)
 if [ "$COUNT" = "0" ]; then
