@@ -142,3 +142,65 @@ export type RecipeWithItems = Recipe & {
   updater: Updater | null;
   product: Pick<Item, "id" | "name" | "unit"> | null;
 };
+
+// ─── Employees ────────────────────────────────────────────────────────────────
+
+export type Department = {
+  id: string;
+  name: string;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type JobPosition = {
+  id: string;
+  name: string;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type EmploymentStatus = {
+  id: string;
+  name: string;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type JobLevel = {
+  id: string;
+  name: string;
+  sort_order: number;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type MaritalStatus = 'single' | 'married' | 'divorced' | 'widowed';
+export type Gender = 'male' | 'female';
+
+export type Employee = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  birthdate: string | null;
+  nik: string | null;
+  address: string | null;
+  marital_status: MaritalStatus | null;
+  gender: Gender | null;
+  department_id: string | null;
+  job_position_id: string | null;
+  job_level_id: string | null;
+  employment_status_id: string | null;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+  deleted_at: string | null;
+};
+
+export type EmployeeWithRelations = Employee & {
+  departments: Pick<Department, 'id' | 'name'> | null;
+  job_positions: Pick<JobPosition, 'id' | 'name'> | null;
+  job_levels: Pick<JobLevel, 'id' | 'name'> | null;
+  employment_statuses: Pick<EmploymentStatus, 'id' | 'name'> | null;
+  updater: Updater | null;
+};

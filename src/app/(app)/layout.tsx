@@ -8,6 +8,7 @@ import { StockNav } from "@/components/stock-nav";
 import { PurchasingNav } from "@/components/purchasing-nav";
 import { PrepOrdersNav } from "@/components/prep-orders-nav";
 import { SalesNav } from "@/components/sales-nav";
+import { EmployeesNav } from "@/components/employees-nav";
 import { MainNavMobile } from "@/components/main-nav-mobile";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <RecipeNav />
               <PrepOrdersNav />
               <SalesNav />
+              <EmployeesNav />
               <StockNav />
               <PurchasingNav />
             </nav>

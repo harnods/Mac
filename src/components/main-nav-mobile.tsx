@@ -70,6 +70,23 @@ export function MainNavMobile() {
           <Link href="/stock/counts" className="cursor-pointer">Stock count</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuLabel>Employees</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/employees" className="cursor-pointer">All employees</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/employees/departments" className="cursor-pointer">Departments</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/employees/job-positions" className="cursor-pointer">Job positions</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/employees/employment-statuses" className="cursor-pointer">Employment statuses</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/employees/job-levels" className="cursor-pointer">Job levels</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>Purchasing</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/purchasing/requests" className="cursor-pointer">Purchase Requests</Link>
