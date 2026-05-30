@@ -336,7 +336,16 @@ export function RecipeForm({
         <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
-      {/* Output item */}
+      {/* Output item — hidden for new product recipes (auto-created from recipe name) */}
+      {recipeType === "product" && !isEdit ? (
+        <div className="space-y-1">
+          <Label>Output item</Label>
+          <p className="text-xs text-muted-foreground">
+            A product <span className="font-medium text-foreground">&ldquo;{name || "…"}&rdquo;</span> will be created automatically.
+            You can rename it later from the Products page independently of this recipe name.
+          </p>
+        </div>
+      ) : (
       <div className="space-y-2">
         <Label>Output item</Label>
         <Popover open={productOpen} onOpenChange={setProductOpen}>
@@ -419,6 +428,7 @@ export function RecipeForm({
           </PopoverContent>
         </Popover>
       </div>
+      )}
 
       {/* Yield — WIP: qty + unit picker with quick-add; Product: qty + readonly unit */}
       {productId && (

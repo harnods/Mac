@@ -53,9 +53,21 @@ export async function createRecipe(raw: unknown): Promise<ActionResult> {
 
   const parsed = recipeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, recipe_type, product_id, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
+  const { name, recipe_type, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
+  let { product_id } = parsed.data;
 
   const supabase = await createClient();
+
+  // Auto-create a product item when creating a product-type recipe with no output item selected
+  if (recipe_type === "product" && !product_id) {
+    const { data: newProduct, error: productError } = await supabase
+      .from("items")
+      .insert({ name, type: "product", unit: "pcs", updated_by: profile.id })
+      .select("id")
+      .single();
+    if (productError || !newProduct) return { ok: false, error: productError?.message ?? "Failed to create product item" };
+    product_id = newProduct.id;
+  }
 
   const { data: recipe, error } = await supabase
     .from("recipes")
