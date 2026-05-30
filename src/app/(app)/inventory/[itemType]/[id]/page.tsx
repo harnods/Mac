@@ -70,7 +70,7 @@ export default async function ItemDetailPage({
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const [{ data, error }, { data: ledgerData }, { data: setItemsData }] = await Promise.all([
+  const [{ data, error }, { data: ledgerData }, { data: setItemsData }, { data: recipeData }] = await Promise.all([
     supabase
       .from("items")
       .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)")
@@ -91,6 +91,14 @@ export default async function ItemDetailPage({
           .select("product_id, qty, product:items!product_id(id, name, unit)")
           .eq("set_id", id)
       : Promise.resolve({ data: [] }),
+    config.dbType === 'product'
+      ? supabase
+          .from("recipes")
+          .select("id, name, recipe_items(id, quantity, unit, item:items!item_id(id, name, deleted_at))")
+          .eq("product_id", id)
+          .eq("recipe_type", "product")
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   if (error || !data) notFound();
@@ -98,6 +106,10 @@ export default async function ItemDetailPage({
   const isAdmin = can(profile, P.INVENTORY_WRITE);
   const ledger = (ledgerData ?? []) as LedgerRow[];
   const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
+
+  type RecipeIngredient = { id: string; quantity: number; unit: string; item: { id: string; name: string; deleted_at: string | null } | null };
+  type LinkedRecipe = { id: string; name: string; recipe_items: RecipeIngredient[] };
+  const linkedRecipe = recipeData as LinkedRecipe | null;
 
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);
@@ -155,6 +167,50 @@ export default async function ItemDetailPage({
           updaterLabel={item.updater ? updaterName(item.updater) : null}
         />
       </div>
+
+      {/* Recipe — product only */}
+      {linkedRecipe && (
+        <div className="space-y-2 max-w-2xl">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-sm font-medium">Recipe</h2>
+            <Link href={`/recipes/${linkedRecipe.id}`} className="text-xs text-muted-foreground hover:text-foreground underline">
+              {linkedRecipe.name} →
+            </Link>
+          </div>
+          {linkedRecipe.recipe_items.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No ingredients in recipe.</p>
+          ) : (
+            <div className="border table-outer rounded-lg overflow-x-auto">
+              <Table className="table-fixed w-full">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8">#</TableHead>
+                    <TableHead>Ingredient</TableHead>
+                    <TableHead className="w-28">Qty</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linkedRecipe.recipe_items.map((ri, idx) => (
+                    <TableRow key={ri.id}>
+                      <TableCell className="text-muted-foreground text-sm tabular-nums">{idx + 1}</TableCell>
+                      <TableCell className="text-sm font-medium">
+                        {ri.item ? (
+                          <Link href={`/inventory/ingredients/${ri.item.id}`} className="hover:underline">
+                            {ri.item.name}
+                          </Link>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm tabular-nums">
+                        <Qty value={ri.quantity} unit={ri.unit} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Included products — set only */}
       {item.product_kind === "set" && (
