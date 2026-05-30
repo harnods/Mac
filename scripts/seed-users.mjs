@@ -77,6 +77,22 @@ async function upsertUser({ email, role, fullName }) {
     .upsert({ id: userId, email, full_name: fullName, role }, { onConflict: "id" });
   if (upErr) throw upErr;
 
+  // Create an employee record linked to this user (if one doesn't exist yet).
+  const { data: existingEmp } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!existingEmp) {
+    await supabase.from("employees").insert({
+      name: fullName,
+      email,
+      user_id: userId,
+      updated_by: userId,
+    });
+  }
+
   return { email, password, role };
 }
 
