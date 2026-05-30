@@ -396,18 +396,18 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                   onPaste={(e) => {
-                    // auto-continue after paste
-                    setTimeout(() => {
-                      const text = e.currentTarget.value;
-                      if (text.trim()) {
-                        const result = parsePastedText(text);
-                        if (typeof result !== "string") {
-                          setFileData(result);
-                          setMapping(guessMapping(result.headers, config.hasCategories));
-                          setStep("map");
-                        }
-                      }
-                    }, 50);
+                    // capture before React recycles the event
+                    const pasted = e.clipboardData.getData("text").trim();
+                    if (!pasted) return;
+                    const result = parsePastedText(pasted);
+                    if (typeof result !== "string") {
+                      setPasteText(pasted);
+                      setFileData(result);
+                      setMapping(guessMapping(result.headers, config.hasCategories));
+                      setStep("map");
+                    } else {
+                      toast.error(result);
+                    }
                   }}
                 />
                 <div className="flex justify-between">
