@@ -19,18 +19,25 @@ import { ItemTableRow } from "@/components/inventory/item-table-row";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import type { Category, ItemWithCategory } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 export default async function ItemTypePage({
   params,
   searchParams,
 }: {
   params: Promise<{ itemType: string }>;
-  searchParams: Promise<{ q?: string; cat?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string; page?: string }>;
 }) {
   const { itemType } = await params;
-  const { q = "", cat } = await searchParams;
+  const { q = "", cat, page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
   const config = ITEM_TYPE_CONFIG[itemType as ItemTypeSlug];
   if (!config) notFound();
@@ -42,15 +49,16 @@ export default async function ItemTypePage({
 
   let query = supabase
     .from("items")
-    .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)")
+    .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)", { count: "exact" })
     .eq("type", config.dbType)
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   if (cat) query = query.eq("category_id", cat);
 
-  const [{ data: items }, { data: categories }] = await Promise.all([
+  const [{ data: items, count }, { data: categories }] = await Promise.all([
     query,
     config.hasCategories
       ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
@@ -59,6 +67,15 @@ export default async function ItemTypePage({
 
   const list = (items ?? []) as ItemWithCategory[];
   const cats = (categories ?? []) as Category[];
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (cat) sp.set("cat", cat);
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -159,6 +176,7 @@ export default async function ItemTypePage({
           </div>
         </>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

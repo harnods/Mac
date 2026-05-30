@@ -19,8 +19,11 @@ import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { PrepOrdersFilter } from "@/components/prep-orders/prep-orders-filter";
 import type { Updater } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 type PrepOrderRecord = {
   id: string;
@@ -42,9 +45,13 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
 export default async function PrepOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.PREP_ORDERS_WRITE);
   const supabase = await createClient();
@@ -56,13 +63,22 @@ export default async function PrepOrdersPage({
 
   let query = supabase
     .from("prep_orders")
-    .select(`id, status, target_qty, qty_to_prep, unit, planned_date, ${productJoin}, creator:profiles!created_by(full_name,email)`)
-    .order("planned_date", { ascending: false });
+    .select(`id, status, target_qty, qty_to_prep, unit, planned_date, ${productJoin}, creator:profiles!created_by(full_name,email)`, { count: "exact" })
+    .order("planned_date", { ascending: false })
+    .range(from, to);
 
   if (q.trim()) query = query.ilike("items.name", `%${q.trim()}%`);
 
-  const { data } = await query;
+  const { data, count } = await query;
   const list = (data ?? []) as unknown as PrepOrderRecord[];
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -140,6 +156,7 @@ export default async function PrepOrdersPage({
           </Table>
         </div>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

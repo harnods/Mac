@@ -15,8 +15,11 @@ import { Plus } from "lucide-react";
 import { RecipeTableRowClient } from "@/components/recipes/recipe-table-row";
 import { RecipesFilter } from "@/components/recipes/recipes-filter";
 import type { Updater } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 type RecipeRow = {
   id: string;
@@ -30,9 +33,13 @@ type RecipeRow = {
 export default async function RecipesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; page?: string }>;
 }) {
-  const { q = "", type } = await searchParams;
+  const { q = "", type, page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
   const supabase = await createClient();
   const isAdmin = can(profile, P.RECIPES_WRITE);
@@ -46,15 +53,25 @@ export default async function RecipesPage({
 
   let query = supabase
     .from("recipes")
-    .select(`id, name, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`)
-    .order("created_at", { ascending: false });
+    .select(`id, name, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`, { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   if (filterByType) query = query.eq("items.type", itemType);
 
-  const { data } = await query;
+  const { data, count } = await query;
   const list = (data ?? []) as unknown as RecipeRow[];
   const isFiltered = !!q.trim() || !!type;
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (type) sp.set("type", type);
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -112,6 +129,7 @@ export default async function RecipesPage({
           </Table>
         </div>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

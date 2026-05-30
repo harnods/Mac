@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
@@ -7,22 +6,13 @@ import {
   updateJobLevel,
   deleteJobLevel,
 } from "@/app/actions/employees";
-import type { JobLevel } from "@/lib/supabase/types";
-
-export const dynamic = "force-dynamic";
+import { getJobLevels } from "@/lib/cached-queries";
 
 export default async function JobLevelsPage() {
   const profile = await getCurrentProfile();
-  const supabase = await createClient();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
-  const { data } = await supabase
-    .from("job_levels")
-    .select("id,name,sort_order,updated_at")
-    .order("sort_order")
-    .order("name");
-
-  const items = (data ?? []) as JobLevel[];
+  const items = await getJobLevels();
 
   return (
     <div className="space-y-4">

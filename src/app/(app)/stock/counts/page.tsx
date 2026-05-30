@@ -17,8 +17,11 @@ import { Plus } from "lucide-react";
 import { formatDate, updaterName } from "@/lib/format";
 import { CountsFilter } from "@/components/stock/counts-filter";
 import type { Updater } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 type CountRecord = {
   id: string;
@@ -33,17 +36,22 @@ type CountRecord = {
 export default async function StockCountsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
 }) {
-  const { q = "", status } = await searchParams;
+  const { q = "", status, page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.STOCK_WRITE);
   const supabase = await createClient();
 
   let query = supabase
     .from("stock_counts")
-    .select("id, count_date, status, note, created_at, creator:profiles!created_by(full_name, email), stock_count_items(id)")
-    .order("created_at", { ascending: false });
+    .select("id, count_date, status, note, created_at, creator:profiles!created_by(full_name, email), stock_count_items(id)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (status === "draft" || status === "completed") {
     query = query.eq("status", status);
@@ -52,8 +60,17 @@ export default async function StockCountsPage({
     query = query.ilike("note", `%${q.trim()}%`);
   }
 
-  const { data } = await query;
+  const { data, count } = await query;
   const list = (data ?? []) as unknown as CountRecord[];
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (status) sp.set("status", status);
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -120,6 +137,7 @@ export default async function StockCountsPage({
           </Table>
         </div>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

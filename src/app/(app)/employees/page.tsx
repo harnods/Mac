@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
@@ -6,48 +7,73 @@ import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Plus } from "lucide-react";
+import { EmployeesFilter } from "@/components/employees/employees-filter";
+import { EmployeeTableRow } from "@/components/employees/employee-table-row";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import type { EmployeeWithRelations } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
+const PAGE_SIZE = 25;
+
 export default async function EmployeesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; dept?: string; page?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", dept, page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
   const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const isAdmin = can(profile, P.EMPLOYEES_WRITE);
+  const canWrite = can(profile, P.EMPLOYEES_WRITE);
+  const isFiltered = !!q.trim() || !!dept;
 
-  let query = supabase
-    .from("employees")
-    .select(
-      "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email)"
-    )
-    .is("deleted_at", null)
-    .order("name");
+  const [{ data: items, count }, { data: departmentsData }] = await Promise.all([
+    (() => {
+      let query = supabase
+        .from("employees")
+        .select(
+          "*, departments(id,name), job_positions(id,name), job_levels(id,name), employment_statuses(id,name), updater:profiles!updated_by(full_name,email), mac_user:profiles!user_id(id,email,role)",
+          { count: "exact" },
+        )
+        .is("deleted_at", null)
+        .order("name")
+        .range(from, to);
+      if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
+      if (dept) query = query.eq("department_id", dept);
+      return query;
+    })(),
+    supabase.from("departments").select("id,name").order("name"),
+  ]);
 
-  if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
+  const list = (items ?? []) as EmployeeWithRelations[];
+  const departments = (departmentsData ?? []) as { id: string; name: string }[];
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
-  const { data } = await query;
-  const list = (data ?? []) as EmployeeWithRelations[];
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (dept) sp.set("dept", dept);
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
         </div>
-        {isAdmin && (
+        {canWrite && (
           <Button asChild>
             <Link href="/employees/new">
               <Plus className="size-4" /> Add employee
@@ -56,26 +82,18 @@ export default async function EmployeesPage({
         )}
       </div>
 
-      <form method="get" className="flex gap-2 max-w-xs">
-        <Input
-          name="q"
-          defaultValue={q}
-          placeholder="Search by name…"
-          className="h-9"
-        />
-        <Button type="submit" variant="outline" size="sm" className="h-9">
-          Search
-        </Button>
-      </form>
+      <Suspense fallback={null}>
+        <EmployeesFilter departments={departments} />
+      </Suspense>
 
       {list.length === 0 ? (
         <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
-          {q.trim() ? "No employees match your search." : "No employees yet."}
-          {!q.trim() && isAdmin && (
+          {isFiltered ? "No employees match your search." : "No employees yet."}
+          {!isFiltered && canWrite && (
             <>
               {" "}
               <Link href="/employees/new" className="underline">
-                Add the first employee
+                Add the first one
               </Link>
               .
             </>
@@ -89,40 +107,21 @@ export default async function EmployeesPage({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-48">Name</TableHead>
-                  <TableHead className="w-40">Department</TableHead>
+                  <TableHead className="w-36">Department</TableHead>
                   <TableHead className="w-40">Job position</TableHead>
                   <TableHead className="w-32">Job level</TableHead>
                   <TableHead className="w-36">Status</TableHead>
+                  <TableHead className="w-44">Last updated</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {list.map((emp) => (
-                  <TableRow
+                  <EmployeeTableRow
                     key={emp.id}
-                    className="cursor-pointer hover:bg-accent/50"
-                    onClick={undefined}
-                  >
-                    <TableCell className="font-medium truncate">
-                      <Link
-                        href={`/employees/${emp.id}`}
-                        className="block w-full hover:underline"
-                      >
-                        {emp.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground truncate">
-                      {emp.departments?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground truncate">
-                      {emp.job_positions?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground truncate">
-                      {emp.job_levels?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground truncate">
-                      {emp.employment_statuses?.name ?? "—"}
-                    </TableCell>
-                  </TableRow>
+                    employee={emp}
+                    canWrite={canWrite}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -149,6 +148,8 @@ export default async function EmployeesPage({
           </div>
         </>
       )}
+
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

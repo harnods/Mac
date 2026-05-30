@@ -22,6 +22,7 @@ export function SalesFilter() {
         if (v === "") sp.delete(k);
         else sp.set(k, v);
       }
+      sp.delete("page");
       start(() => router.replace(`${pathname}?${sp.toString()}`, { scroll: false }));
     },
     [params, pathname, router],

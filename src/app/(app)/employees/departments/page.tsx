@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
@@ -7,21 +6,13 @@ import {
   updateDepartment,
   deleteDepartment,
 } from "@/app/actions/employees";
-import type { Department } from "@/lib/supabase/types";
-
-export const dynamic = "force-dynamic";
+import { getDepartments } from "@/lib/cached-queries";
 
 export default async function DepartmentsPage() {
   const profile = await getCurrentProfile();
-  const supabase = await createClient();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
-  const { data } = await supabase
-    .from("departments")
-    .select("id,name,updated_at")
-    .order("name");
-
-  const items = (data ?? []) as Department[];
+  const items = await getDepartments();
 
   return (
     <div className="space-y-4">

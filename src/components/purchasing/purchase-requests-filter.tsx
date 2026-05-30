@@ -24,6 +24,7 @@ export function PurchaseRequestsFilter() {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
+    params.delete("page");
     start(() => router.replace(`${pathname}?${params.toString()}`));
   }
 

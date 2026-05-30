@@ -17,8 +17,11 @@ import { Plus } from "lucide-react";
 import { formatId, formatDate, updaterName } from "@/lib/format";
 import { SalesFilter } from "@/components/sales/sales-filter";
 import type { Updater } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 type SalesEntry = {
   id: string;
@@ -32,24 +35,37 @@ type SalesEntry = {
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.SALES_WRITE);
   const supabase = await createClient();
 
   let query = supabase
     .from("sales_entries")
-    .select("id, entry_date, notes, created_at, creator:profiles!created_by(full_name,email), sales_entry_items(id)")
-    .order("entry_date", { ascending: false });
+    .select("id, entry_date, notes, created_at, creator:profiles!created_by(full_name,email), sales_entry_items(id)", { count: "exact" })
+    .order("entry_date", { ascending: false })
+    .range(from, to);
 
   if (q.trim()) {
     query = query.ilike("notes", `%${q.trim()}%`);
   }
 
-  const { data } = await query;
+  const { data, count } = await query;
   const list = (data ?? []) as unknown as SalesEntry[];
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -116,6 +132,7 @@ export default async function SalesPage({
           </Table>
         </div>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

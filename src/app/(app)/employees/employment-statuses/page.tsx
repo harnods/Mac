@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { MasterDataManager } from "@/components/employees/master-data-manager";
@@ -7,21 +6,13 @@ import {
   updateEmploymentStatus,
   deleteEmploymentStatus,
 } from "@/app/actions/employees";
-import type { EmploymentStatus } from "@/lib/supabase/types";
-
-export const dynamic = "force-dynamic";
+import { getEmploymentStatuses } from "@/lib/cached-queries";
 
 export default async function EmploymentStatusesPage() {
   const profile = await getCurrentProfile();
-  const supabase = await createClient();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
-  const { data } = await supabase
-    .from("employment_statuses")
-    .select("id,name,updated_at")
-    .order("name");
-
-  const items = (data ?? []) as EmploymentStatus[];
+  const items = await getEmploymentStatuses();
 
   return (
     <div className="space-y-4">

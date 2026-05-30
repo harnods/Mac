@@ -15,8 +15,11 @@ import { Plus } from "lucide-react";
 import { PurchaseRequestRow } from "@/components/purchasing/purchase-request-row";
 import { PurchaseRequestsFilter } from "@/components/purchasing/purchase-requests-filter";
 import type { PurchaseRequestStatus, Updater } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 type RequestRow = {
   id: string;
@@ -31,24 +34,38 @@ type RequestRow = {
 export default async function PurchaseRequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
 }) {
-  const { q = "", status } = await searchParams;
+  const { q = "", status, page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
   let query = supabase
     .from("purchase_requests")
-    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), purchase_request_items(id)")
-    .order("created_at", { ascending: false });
+    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), purchase_request_items(id)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (q.trim()) query = query.ilike("note", `%${q.trim()}%`);
   if (status && ["draft", "pending", "approved", "rejected"].includes(status))
     query = query.eq("status", status);
 
-  const { data } = await query;
+  const { data, count } = await query;
   const list = (data ?? []) as unknown as RequestRow[];
   const isAdmin = can(profile, P.PURCHASING_APPROVE);
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (status) sp.set("status", status);
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -105,6 +122,7 @@ export default async function PurchaseRequestsPage({
           </Table>
         </div>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

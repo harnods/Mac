@@ -15,8 +15,11 @@ import { Plus } from "lucide-react";
 import { PurchasesFilter } from "@/components/purchasing/purchases-filter";
 import { PurchaseRow } from "@/components/purchasing/purchase-row";
 import type { Updater } from "@/lib/supabase/types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 25;
 
 type PurchaseRecord = {
   id: string;
@@ -32,22 +35,35 @@ type PurchaseRecord = {
 export default async function PurchasesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", page: rawPageStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.PURCHASING_PURCHASE);
   const supabase = await createClient();
 
   let query = supabase
     .from("purchases")
-    .select("id, note, transaction_date, created_at, updated_by, updater:profiles!updated_by(full_name,email), purchase_purchase_requests(purchase_request_id), purchase_items(id)")
-    .order("created_at", { ascending: false });
+    .select("id, note, transaction_date, created_at, updated_by, updater:profiles!updated_by(full_name,email), purchase_purchase_requests(purchase_request_id), purchase_items(id)", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(from, to);
 
   if (q.trim()) query = query.ilike("note", `%${q.trim()}%`);
 
-  const { data } = await query;
+  const { data, count } = await query;
   const list = (data ?? []) as unknown as PurchaseRecord[];
+  const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
+
+  const buildHref = (p: number) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -96,6 +112,7 @@ export default async function PurchasesPage({
           </Table>
         </div>
       )}
+      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
@@ -215,6 +215,7 @@ export async function createDepartment(input: unknown): Promise<ActionResult> {
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("departments", "max");
   return { ok: true, id: data.id };
 }
 
@@ -234,6 +235,7 @@ export async function updateDepartment(id: string, input: unknown): Promise<Acti
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("departments", "max");
   return { ok: true };
 }
 
@@ -256,6 +258,7 @@ export async function deleteDepartment(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("departments").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("departments", "max");
   return { ok: true };
 }
 
@@ -278,6 +281,7 @@ export async function createJobPosition(input: unknown): Promise<ActionResult> {
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("job_positions", "max");
   return { ok: true, id: data.id };
 }
 
@@ -297,6 +301,7 @@ export async function updateJobPosition(id: string, input: unknown): Promise<Act
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("job_positions", "max");
   return { ok: true };
 }
 
@@ -319,6 +324,7 @@ export async function deleteJobPosition(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("job_positions").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("job_positions", "max");
   return { ok: true };
 }
 
@@ -341,6 +347,7 @@ export async function createEmploymentStatus(input: unknown): Promise<ActionResu
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("employment_statuses", "max");
   return { ok: true, id: data.id };
 }
 
@@ -360,6 +367,7 @@ export async function updateEmploymentStatus(id: string, input: unknown): Promis
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("employment_statuses", "max");
   return { ok: true };
 }
 
@@ -382,6 +390,7 @@ export async function deleteEmploymentStatus(id: string): Promise<ActionResult> 
   const { error } = await supabase.from("employment_statuses").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("employment_statuses", "max");
   return { ok: true };
 }
 
@@ -404,6 +413,7 @@ export async function createJobLevel(input: unknown): Promise<ActionResult> {
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("job_levels", "max");
   return { ok: true, id: data.id };
 }
 
@@ -423,6 +433,7 @@ export async function updateJobLevel(id: string, input: unknown): Promise<Action
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("job_levels", "max");
   return { ok: true };
 }
 
@@ -445,6 +456,7 @@ export async function deleteJobLevel(id: string): Promise<ActionResult> {
   const { error } = await supabase.from("job_levels").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/employees", "layout");
+  revalidateTag("job_levels", "max");
   return { ok: true };
 }
 
