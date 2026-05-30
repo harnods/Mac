@@ -26,7 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, ClipboardPaste, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { importItems } from "@/app/actions/inventory";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
@@ -104,6 +105,32 @@ function extractFileData(wb: XLSX.WorkBook): FileData | string {
   return { headers, rows };
 }
 
+// Parse text copied from Excel/Google Sheets (tab-separated)
+function parsePastedText(text: string): FileData | string {
+  const raw = text
+    .split(/\r?\n/)
+    .map((line) => line.split("\t").map((c) => c.trim()));
+
+  // Find first non-empty row as header
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(10, raw.length); i++) {
+    if (raw[i].some((c) => c !== "")) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) return "Pasted content appears to be empty.";
+
+  const headers = raw[headerIdx].filter(Boolean);
+  if (headers.length === 0) return "No columns found in the pasted header row.";
+
+  const rows: string[][] = [];
+  for (let i = headerIdx + 1; i < raw.length; i++) {
+    const cells = headers.map((_, ci) => raw[i][ci]?.trim() ?? "");
+    if (cells.some((c) => c !== "")) rows.push(cells);
+  }
+
+  if (rows.length === 0) return "No data rows found — make sure you copied the header row and data rows.";
+  return { headers, rows };
+}
+
 function guessMapping(
   headers: string[],
   hasCategories: boolean
@@ -155,6 +182,8 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep]               = useState<Step>("upload");
+  const [uploadMethod, setUploadMethod] = useState<"file" | "paste">("file");
+  const [pasteText, setPasteText]     = useState("");
   const [fileData, setFileData]       = useState<FileData | null>(null);
   const [mapping, setMapping]         = useState<ColumnMapping>({ name: "", unit: "", category: "" });
   const [rows, setRows]               = useState<ParsedRow[]>([]);
@@ -169,6 +198,8 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     setStep("upload");
+    setUploadMethod("file");
+    setPasteText("");
     setFileData(null);
     setRows([]);
     setImportResult(null);
@@ -198,6 +229,15 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) processFile(file);
+  }
+
+  function handlePasteContinue() {
+    if (!pasteText.trim()) { toast.error("Paste some data first."); return; }
+    const result = parsePastedText(pasteText);
+    if (typeof result === "string") { toast.error(result); return; }
+    setFileData(result);
+    setMapping(guessMapping(result.headers, config.hasCategories));
+    setStep("map");
   }
 
   function handleConfirmMapping() {
@@ -292,31 +332,100 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
         {/* ── Upload ── */}
         {step === "upload" && (
           <div className="space-y-4">
-            <div
-              className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
-                dragOver
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25 hover:border-primary/50"
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-            >
-              <Upload className="size-8 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium">Click to upload or drag and drop</p>
-              <p className="text-xs text-muted-foreground mt-1">.xlsx, .xls, or .csv</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                onChange={handleFileInput}
-              />
+            {/* Method tabs */}
+            <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+              <button
+                onClick={() => setUploadMethod("file")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  uploadMethod === "file"
+                    ? "bg-background shadow-sm font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Upload className="size-3.5" />
+                Upload file
+              </button>
+              <button
+                onClick={() => setUploadMethod("paste")}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  uploadMethod === "paste"
+                    ? "bg-background shadow-sm font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ClipboardPaste className="size-3.5" />
+                Paste from spreadsheet
+              </button>
             </div>
-            <div className="flex justify-end">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-            </div>
+
+            {/* File upload */}
+            {uploadMethod === "file" && (
+              <div
+                className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25 hover:border-primary/50"
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+              >
+                <Upload className="size-8 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm font-medium">Click to upload or drag and drop</p>
+                <p className="text-xs text-muted-foreground mt-1">.xlsx, .xls, or .csv</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={handleFileInput}
+                />
+              </div>
+            )}
+
+            {/* Paste from spreadsheet */}
+            {uploadMethod === "paste" && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Select and copy cells from Excel or Google Sheets (including the header row), then paste below.
+                </p>
+                <Textarea
+                  className="font-mono text-xs h-48 resize-none"
+                  placeholder={"Name\tCategory\tUnit\nTepung Terigu\tBahan Kering\tkg\nGula Pasir\tBahan Kering\tkg"}
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  onPaste={(e) => {
+                    // auto-continue after paste
+                    setTimeout(() => {
+                      const text = e.currentTarget.value;
+                      if (text.trim()) {
+                        const result = parsePastedText(text);
+                        if (typeof result !== "string") {
+                          setFileData(result);
+                          setMapping(guessMapping(result.headers, config.hasCategories));
+                          setStep("map");
+                        }
+                      }
+                    }, 50);
+                  }}
+                />
+                <div className="flex justify-between">
+                  <Button variant="ghost" size="sm" onClick={() => setPasteText("")} disabled={!pasteText}>
+                    Clear
+                  </Button>
+                  <Button onClick={handlePasteContinue} disabled={!pasteText.trim()}>
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {uploadMethod === "file" && (
+              <div className="flex justify-end">
+                <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -360,7 +469,7 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
             </div>
 
             <DialogFooter>
-              <Button variant="ghost" onClick={() => { setStep("upload"); setFileData(null); }}>
+              <Button variant="ghost" onClick={() => { setStep("upload"); setFileData(null); setPasteText(""); }}>
                 Back
               </Button>
               <Button onClick={handleConfirmMapping}>
