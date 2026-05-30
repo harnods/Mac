@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
+import { ImportItemsButton } from "@/components/inventory/import-items-button";
 import { ItemsFilter } from "@/components/inventory/items-filter";
 import { Plus } from "lucide-react";
 import { formatNum } from "@/lib/units";
@@ -60,14 +61,17 @@ export default async function PrepItemsPage({
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Prep items</h1>
         {isAdmin && (
-          <ItemFormDialog
-            itemTypeSlug="prep-items"
-            trigger={
-              <Button>
-                <Plus className="size-4" /> Add prep item
-              </Button>
-            }
-          />
+          <div className="flex items-center gap-2">
+            <ImportItemsButton itemTypeSlug="prep-items" />
+            <ItemFormDialog
+              itemTypeSlug="prep-items"
+              trigger={
+                <Button>
+                  <Plus className="size-4" /> Add prep item
+                </Button>
+              }
+            />
+          </div>
         )}
       </div>
 
