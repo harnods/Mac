@@ -1,37 +1,8 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(toSet) {
-          toSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          toSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  // getSession() reads the JWT from the cookie without a network round-trip,
-  // avoiding MIDDLEWARE_INVOCATION_TIMEOUT on Vercel Edge. Token integrity is
-  // verified in server components / route handlers via getUser().
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user ?? null;
-
   const { pathname } = request.nextUrl;
+
   const isPublic =
     pathname === "/login" ||
     pathname === "/order" ||
@@ -39,19 +10,29 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/");
 
-  if (!user && !isPublic) {
+  // Determine auth state purely from the Supabase session cookie — zero
+  // network calls, no Edge Runtime timeout risk. Full token verification
+  // and session refresh happen in Server Components via getUser().
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+  const cookieName = `sb-${projectRef}-auth-token`;
+  const hasSession =
+    request.cookies.has(cookieName) ||
+    request.cookies.has(`${cookieName}.0`);
+
+  if (!hasSession && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === "/login") {
+  if (hasSession && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/inventory";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  return response;
+  return NextResponse.next({ request });
 }
