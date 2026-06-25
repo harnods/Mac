@@ -21,6 +21,14 @@ export function MainNavMobile() {
         <Menu className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuLabel>Orders</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/orders" className="cursor-pointer">Order queue</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/orders/print-station" className="cursor-pointer">Print station</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>Inventory</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link href="/inventory/ingredients" className="cursor-pointer">Ingredients</Link>

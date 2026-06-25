@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Command,
   CommandEmpty,
@@ -60,6 +61,12 @@ export function ProductForm({
 
   const [setProducts, setSetProducts] = useState<SetProductEntry[]>(initialSetProducts);
   const [productOpen, setProductOpen] = useState(false);
+
+  const itemAny = item as (Item & { is_sellable?: boolean; sell_price?: number | null }) | undefined;
+  const [isSellable, setIsSellable] = useState(itemAny?.is_sellable ?? false);
+  const [sellPrice, setSellPrice] = useState(
+    itemAny?.sell_price != null ? String(itemAny.sell_price) : "",
+  );
 
   function handleKindChange(kind: ProductKind) {
     setProductKind(kind);
@@ -114,6 +121,8 @@ export function ProductForm({
         product_kind: productKind,
         unit: productKind === "set" ? "set" : unit,
         status: targetStatus,
+        is_sellable: isSellable,
+        sell_price: isSellable && sellPrice.trim() ? parseDecimal(sellPrice) : null,
         set_products: productKind === "set" ? setProducts : [],
       };
 
@@ -254,6 +263,29 @@ export function ProductForm({
               </Command>
             </PopoverContent>
           </Popover>
+        )}
+      </div>
+
+      {/* Sell to customers (shows on the customer order menu) */}
+      <div className="space-y-3 rounded-lg border p-3">
+        <div className="flex items-center gap-2">
+          <Switch id="sellable" checked={isSellable} onCheckedChange={setIsSellable} />
+          <Label htmlFor="sellable" className="cursor-pointer">
+            Jual ke customer (tampil di menu order)
+          </Label>
+        </div>
+        {isSellable && (
+          <div className="space-y-2">
+            <Label htmlFor="sell-price">Harga jual</Label>
+            <DecimalInput
+              id="sell-price"
+              min="0"
+              step="100"
+              value={sellPrice}
+              onValueChange={setSellPrice}
+              className="w-40"
+            />
+          </div>
         )}
       </div>
 

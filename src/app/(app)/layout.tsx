@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { UserMenu } from "@/components/user-menu";
+import { OrdersNav } from "@/components/orders-nav";
 import { InventoryNav } from "@/components/inventory-nav";
 import { RecipeNav } from "@/components/recipe-nav";
 import { PrepOrdersNav } from "@/components/prep-orders-nav";
@@ -26,6 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Mac
             </Link>
             <nav className="hidden md:flex items-center gap-1 text-sm">
+              <OrdersNav />
               <InventoryNav />
               <RecipeNav />
               <PrepOrdersNav />
