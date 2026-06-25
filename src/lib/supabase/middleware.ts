@@ -23,12 +23,21 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
+  // getSession() reads the JWT from the cookie without a network round-trip,
+  // avoiding MIDDLEWARE_INVOCATION_TIMEOUT on Vercel Edge. Token integrity is
+  // verified in server components / route handlers via getUser().
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   const { pathname } = request.nextUrl;
-  const isPublic = pathname === "/login" || pathname.startsWith("/_next") || pathname.startsWith("/api/");
+  const isPublic =
+    pathname === "/login" ||
+    pathname === "/order" ||
+    pathname.startsWith("/order/") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();
