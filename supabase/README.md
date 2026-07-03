@@ -21,7 +21,7 @@ cannot touch production.
 ```bash
 supabase start          # boot local Postgres + Auth (Docker)
 node scripts/seed-users.mjs   # create admin/staff (random passwords printed)
-npm run dev             # app → http://localhost:4321
+npm run dev             # app → http://localhost:3006
 
 supabase stop           # shut down (data persists across stop/start)
 supabase status         # show local URL + keys

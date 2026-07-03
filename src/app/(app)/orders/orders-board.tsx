@@ -15,7 +15,8 @@ export type Order = {
   order_number: string;
   status: "new" | "preparing" | "ready";
   customer_name: string | null;
-  customer_phone: string;
+  customer_phone: string | null;
+  table_name_snapshot: string | null;
   total: number;
   notes: string | null;
   printed_at: string | null;
@@ -109,7 +110,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
                         {order.order_number}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {order.customer_name || order.customer_phone}
+                        {order.table_name_snapshot ?? order.customer_name ?? order.customer_phone ?? "—"}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">

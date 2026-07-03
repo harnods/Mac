@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DB="postgresql://postgres:postgres@127.0.0.1:54322/postgres"
-PORT=4321
+PORT=3006
 
 echo "▶ Local Supabase…"
 if supabase status >/dev/null 2>&1; then

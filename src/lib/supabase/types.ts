@@ -44,6 +44,9 @@ export type Item = {
   last_purchase_cost: number | null;
   avg_purchase_cost: number | null;
   deleted_at: string | null;
+  is_sellable: boolean;
+  sell_price: number | null;
+  is_addon: boolean;
 };
 
 export type ItemWithCategory = Item & {

@@ -15,14 +15,15 @@ type ItemTypeConfig = {
   hasCategories: boolean;
   stockMode: StockMode;
   showCost: boolean;
+  showSellable: boolean;
   catSlug: CategoryTypeSlug | null;
 };
 
 export const ITEM_TYPE_CONFIG: Record<ItemTypeSlug, ItemTypeConfig> = {
-  ingredients:  { dbType: 'ingredient', label: 'Ingredients', singular: 'Ingredient', hasCategories: true,  stockMode: 'full',      showCost: true,  catSlug: 'ingredients' },
-  supplies:     { dbType: 'supply',     label: 'Supplies',    singular: 'Supply',     hasCategories: true,  stockMode: 'available', showCost: true,  catSlug: 'supplies' },
-  products:     { dbType: 'product',    label: 'Products',    singular: 'Product',    hasCategories: true,  stockMode: 'none',      showCost: false, catSlug: 'products' },
-  'prep-items': { dbType: 'prep_item',  label: 'Prep items',  singular: 'Prep item',  hasCategories: false, stockMode: 'available', showCost: false, catSlug: null },
+  ingredients:  { dbType: 'ingredient', label: 'Ingredients', singular: 'Ingredient', hasCategories: true,  stockMode: 'full',      showCost: true,  showSellable: false, catSlug: 'ingredients' },
+  supplies:     { dbType: 'supply',     label: 'Supplies',    singular: 'Supply',     hasCategories: true,  stockMode: 'available', showCost: true,  showSellable: false, catSlug: 'supplies' },
+  products:     { dbType: 'product',    label: 'Products',    singular: 'Product',    hasCategories: true,  stockMode: 'none',      showCost: false, showSellable: true,  catSlug: 'products' },
+  'prep-items': { dbType: 'prep_item',  label: 'Prep items',  singular: 'Prep item',  hasCategories: false, stockMode: 'available', showCost: false, showSellable: false, catSlug: null },
 };
 
 type CategoryTypeConfig = {

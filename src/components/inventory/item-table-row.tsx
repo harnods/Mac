@@ -30,6 +30,7 @@ export function ItemTableRow({
   showCategory = true,
   stockMode = 'full',
   showCost = false,
+  showSellable = false,
   isSelected = false,
   onToggleSelect,
   hasRecipe,
@@ -40,6 +41,7 @@ export function ItemTableRow({
   showCategory?: boolean;
   stockMode?: StockMode;
   showCost?: boolean;
+  showSellable?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
   hasRecipe?: boolean;
@@ -104,6 +106,27 @@ export function ItemTableRow({
             {item.avg_purchase_cost != null
               ? <>Rp{formatNum(item.avg_purchase_cost)}<span className="text-muted-foreground text-xs">/{item.unit}</span></>
               : <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showSellable && (
+          <TableCell>
+            {item.is_sellable
+              ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
+              : <span className="text-xs text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showSellable && (
+          <TableCell className="tabular-nums text-right text-sm">
+            {item.sell_price != null
+              ? <>Rp{formatNum(item.sell_price)}</>
+              : <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showSellable && (
+          <TableCell>
+            {item.is_addon
+              ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
+              : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
         {hasRecipe !== undefined && (

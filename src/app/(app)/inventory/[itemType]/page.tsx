@@ -128,6 +128,7 @@ export default async function ItemTypePage({
             showCategory={config.hasCategories}
             stockMode={config.stockMode}
             showCost={config.showCost}
+            showSellable={config.showSellable}
             linkedRecipeProductIds={config.dbType === "product" ? linkedRecipeProductIds : undefined}
           />
 

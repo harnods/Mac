@@ -25,7 +25,8 @@ type OrderRow = {
   order_number: string;
   status: string;
   customer_name: string | null;
-  customer_phone: string;
+  customer_phone: string | null;
+  table_name_snapshot: string | null;
   total: number;
   notes: string | null;
   printed_at: string | null;
@@ -83,7 +84,7 @@ export function PrintStationClient() {
     const { data } = await supabase.current
       .from("orders")
       .select(
-        "id, order_number, status, customer_name, customer_phone, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty)",
+        "id, order_number, status, customer_name, customer_phone, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty)",
       )
       .in("status", ["new", "preparing", "ready"])
       .order("created_at", { ascending: false })
@@ -99,6 +100,7 @@ export function PrintStationClient() {
     try {
       const docket: DocketOrder = {
         orderNumber: order.order_number,
+        tableName: order.table_name_snapshot,
         customerName: order.customer_name,
         customerPhone: order.customer_phone,
         createdAt: order.created_at,
@@ -133,7 +135,7 @@ export function PrintStationClient() {
             const { data } = await supabase.current
               .from("orders")
               .select(
-                "id, order_number, status, customer_name, customer_phone, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty)",
+                "id, order_number, status, customer_name, customer_phone, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty)",
               )
               .eq("id", row.id)
               .maybeSingle();

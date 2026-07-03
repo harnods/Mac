@@ -7,8 +7,9 @@ const GS = 0x1d;
 type DocketLine = { qty: number; name: string };
 export type DocketOrder = {
   orderNumber: string;
+  tableName: string | null;
   customerName: string | null;
-  customerPhone: string;
+  customerPhone: string | null;
   createdAt: string;
   items: DocketLine[];
   total: number;
@@ -80,11 +81,15 @@ export function buildDocket(order: DocketOrder): Uint8Array {
   b.init().align("center");
   b.bold(true).line("PESANAN").bold(false);
   b.size(true).line(order.orderNumber).size(false);
+  if (order.tableName) b.bold(true).line(order.tableName).bold(false);
   b.line(time);
   b.align("left").line("--------------------------------");
 
-  b.line(order.customerName || order.customerPhone);
-  if (order.customerName) b.line(order.customerPhone);
+  const label = order.customerName || order.customerPhone;
+  if (label) {
+    b.line(label);
+    if (order.customerName && order.customerPhone) b.line(order.customerPhone);
+  }
   b.line("--------------------------------");
 
   for (const it of order.items) {

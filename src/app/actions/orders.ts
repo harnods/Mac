@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getCurrentProfile } from "@/lib/auth";
+import { getLoyaltySettings } from "@/app/actions/loyalty";
 
 type ActionResult = { ok: true; id: string } | { ok: false; error: string };
 type CreateOrderResult =
@@ -14,9 +15,10 @@ type CreateOrderResult =
 const ORDER_STATUSES = ["new", "preparing", "ready", "completed", "cancelled"] as const;
 
 const createOrderSchema = z.object({
-  phone: z.string().trim().min(6, "Enter a valid WhatsApp number").max(20),
+  phone: z.string().trim().min(6, "Enter a valid WhatsApp number").max(20).optional(),
   name: z.string().trim().max(80).optional(),
   notes: z.string().trim().max(500).optional(),
+  tableId: z.string().uuid().optional(),
   items: z
     .array(
       z.object({
@@ -41,7 +43,7 @@ function normalisePhone(raw: string): string {
 export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResult> {
   const parsed = createOrderSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { phone, name, notes, items } = parsed.data;
+  const { phone, name, notes, tableId, items } = parsed.data;
 
   // Merge duplicate item rows defensively.
   const qtyByItem = new Map<string, number>();
@@ -63,16 +65,28 @@ export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResu
   const valid = (products ?? []).filter((p) => p.is_sellable && !p.deleted_at);
   if (valid.length === 0) return { ok: false, error: "None of the selected products are available" };
 
-  const phoneNorm = normalisePhone(phone);
+  let customerId: string | null = null;
+  let phoneNorm: string | null = null;
+  if (phone) {
+    phoneNorm = normalisePhone(phone);
+    const { data: customer, error: custError } = await supabase
+      .from("customers")
+      .upsert({ phone: phoneNorm, name: name || null }, { onConflict: "phone" })
+      .select("id")
+      .single();
+    if (custError) return { ok: false, error: custError.message };
+    customerId = customer.id as string;
+  }
 
-  // Upsert customer by phone.
-  const { data: customer, error: custError } = await supabase
-    .from("customers")
-    .upsert({ phone: phoneNorm, name: name || null }, { onConflict: "phone" })
-    .select("id")
-    .single();
-
-  if (custError) return { ok: false, error: custError.message };
+  let tableNameSnapshot: string | null = null;
+  if (tableId) {
+    const { data: tableRow } = await supabase
+      .from("tables")
+      .select("name")
+      .eq("id", tableId)
+      .maybeSingle();
+    tableNameSnapshot = tableRow?.name ?? null;
+  }
 
   const lines = valid.map((p) => {
     const qty = qtyByItem.get(p.id)!;
@@ -86,15 +100,20 @@ export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResu
     };
   });
   const total = lines.reduce((sum, l) => sum + l.line_total, 0);
+  const { rpPerPoint } = await getLoyaltySettings();
+  const pointsEarned = Math.floor(total / rpPerPoint);
 
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
-      customer_id: customer.id,
+      customer_id: customerId,
       customer_phone: phoneNorm,
       customer_name: name || null,
+      table_id: tableId || null,
+      table_name_snapshot: tableNameSnapshot,
       notes: notes || null,
       total,
+      points_earned: pointsEarned,
     })
     .select("id, order_number")
     .single();
@@ -123,6 +142,33 @@ export async function updateOrderStatus(orderId: string, status: string): Promis
 
   revalidatePath("/orders");
   return { ok: true, id: orderId };
+}
+
+/** Close all open orders for a table (cashier closes the bill). */
+export async function closeTableBill(tableId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("orders")
+    .update({ status: "completed" })
+    .eq("table_id", tableId)
+    .in("status", ["new", "preparing", "ready"]);
+  if (error) return { ok: false, error: error.message };
+
+  // Void unclaimed points — use service client to bypass RLS
+  const service = createServiceClient();
+  await service
+    .from("orders")
+    .update({ points_void: true })
+    .eq("table_id", tableId)
+    .is("points_claimed_at", null)
+    .gt("points_earned", 0);
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/bills");
+  return { ok: true, id: tableId };
 }
 
 /** Mark an order as printed (called by the print station after a successful print). */

@@ -53,6 +53,12 @@ export function SettingsNav() {
         <DropdownMenuItem asChild>
           <Link href="/settings/roles" className="cursor-pointer">Roles &amp; Permissions</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/tables" className="cursor-pointer">Meja &amp; QR Code</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/settings/loyalty" className="cursor-pointer">Loyalty Points</Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/employees/departments" className="cursor-pointer">Department</Link>

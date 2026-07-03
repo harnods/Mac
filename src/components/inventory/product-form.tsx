@@ -62,11 +62,12 @@ export function ProductForm({
   const [setProducts, setSetProducts] = useState<SetProductEntry[]>(initialSetProducts);
   const [productOpen, setProductOpen] = useState(false);
 
-  const itemAny = item as (Item & { is_sellable?: boolean; sell_price?: number | null }) | undefined;
+  const itemAny = item as (Item & { is_sellable?: boolean; sell_price?: number | null; is_addon?: boolean }) | undefined;
   const [isSellable, setIsSellable] = useState(itemAny?.is_sellable ?? false);
   const [sellPrice, setSellPrice] = useState(
     itemAny?.sell_price != null ? String(itemAny.sell_price) : "",
   );
+  const [isAddon, setIsAddon] = useState(itemAny?.is_addon ?? false);
 
   function handleKindChange(kind: ProductKind) {
     setProductKind(kind);
@@ -123,6 +124,7 @@ export function ProductForm({
         status: targetStatus,
         is_sellable: isSellable,
         sell_price: isSellable && sellPrice.trim() ? parseDecimal(sellPrice) : null,
+        is_addon: isAddon,
         set_products: productKind === "set" ? setProducts : [],
       };
 
@@ -271,12 +273,12 @@ export function ProductForm({
         <div className="flex items-center gap-2">
           <Switch id="sellable" checked={isSellable} onCheckedChange={setIsSellable} />
           <Label htmlFor="sellable" className="cursor-pointer">
-            Jual ke customer (tampil di menu order)
+            Sell to customers (shown on the order menu)
           </Label>
         </div>
         {isSellable && (
           <div className="space-y-2">
-            <Label htmlFor="sell-price">Harga jual</Label>
+            <Label htmlFor="sell-price">Selling price</Label>
             <DecimalInput
               id="sell-price"
               min="0"
@@ -287,6 +289,14 @@ export function ProductForm({
             />
           </div>
         )}
+      </div>
+
+      {/* Add-on */}
+      <div className="flex items-center gap-2 rounded-lg border p-3">
+        <Switch id="addon" checked={isAddon} onCheckedChange={setIsAddon} />
+        <Label htmlFor="addon" className="cursor-pointer">
+          Sell as add-on (extra topping/side offered on other products)
+        </Label>
       </div>
 
       {/* Set items */}

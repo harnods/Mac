@@ -27,12 +27,5 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/inventory";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
   return NextResponse.next({ request });
 }
