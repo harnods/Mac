@@ -37,9 +37,9 @@ export function UserMenu({ profile }: { profile: Profile }) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="ml-1 outline-none">
-          <Avatar className="size-8">
-            <AvatarFallback className="text-xs">{initials || "?"}</AvatarFallback>
+        <DropdownMenuTrigger className="outline-none">
+          <Avatar className="size-10">
+            <AvatarFallback className="bg-[#cddbf1] text-[#0a0a0a] text-sm font-medium">{initials || "?"}</AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">

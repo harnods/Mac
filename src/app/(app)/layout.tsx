@@ -1,14 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { UserMenu } from "@/components/user-menu";
-import { OrdersNav } from "@/components/orders-nav";
-import { InventoryNav } from "@/components/inventory-nav";
-import { RecipeNav } from "@/components/recipe-nav";
-import { PrepOrdersNav } from "@/components/prep-orders-nav";
-import { PurchasingNav } from "@/components/purchasing-nav";
-import { EmployeesNav } from "@/components/employees-nav";
-import { SettingsNav } from "@/components/settings-nav";
+import { AppSidebar } from "@/components/app-sidebar";
 import { MainNavMobile } from "@/components/main-nav-mobile";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,32 +9,26 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!profile) redirect("/login");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b bg-background sticky top-0 z-30">
-        <div className="w-full px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <div className="md:hidden">
-              <MainNavMobile />
-            </div>
-            <Link href="/inventory" className="text-2xl font-bold tracking-tight leading-none">
-              Mac
-            </Link>
-            <nav className="hidden md:flex items-center gap-1 text-sm">
-              <OrdersNav />
-              <InventoryNav />
-              <RecipeNav />
-              <PrepOrdersNav />
-              <PurchasingNav />
-              <span className="w-px h-4 bg-border mx-1" />
-              <EmployeesNav />
-              <span className="w-px h-4 bg-border mx-1" />
-              <SettingsNav />
-            </nav>
+    <div className="flex h-screen overflow-hidden bg-[#f8fafe]">
+      <AppSidebar />
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-[72px] shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6">
+          <div className="flex items-center gap-3 md:hidden">
+            <MainNavMobile />
+            <span className="text-2xl font-bold tracking-tight text-[#0a0a0a]">Mac</span>
           </div>
-          <UserMenu profile={profile} />
+          <div className="ml-auto">
+            <UserMenu profile={profile} />
+          </div>
+        </header>
+
+        <div className="flex-1 min-h-0 md:pr-3 md:pb-3">
+          <main className="h-full bg-white md:rounded-[12px] overflow-y-auto">
+            <div className="px-4 sm:px-6 py-5">{children}</div>
+          </main>
         </div>
-      </header>
-      <main className="flex-1 w-full px-4 sm:px-6 py-6">{children}</main>
+      </div>
     </div>
   );
 }
