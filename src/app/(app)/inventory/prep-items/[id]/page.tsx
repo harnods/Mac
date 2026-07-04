@@ -15,7 +15,7 @@ import {
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ItemActions } from "@/components/inventory/item-actions";
 import { SellableToggleButton } from "@/components/inventory/sellable-toggle-button";
-import { ArrowLeft } from "lucide-react";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { formatDate, updaterName } from "@/lib/format";
@@ -69,11 +69,14 @@ export default async function PrepItemDetailPage({
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-            <Link href="/inventory/prep-items"><ArrowLeft className="size-4" /></Link>
-          </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+        <div>
+          <PageBreadcrumb items={[{ label: "Prep items", href: "/inventory/prep-items" }]} />
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+              Prep item
+            </span>
+          </div>
         </div>
         {isAdmin && (
           <div className="flex gap-2">

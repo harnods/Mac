@@ -14,13 +14,13 @@ import {
 } from "@/components/ui/table";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
-import { ArrowLeft } from "lucide-react";
 import { formatQty } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { formatDate, updaterName } from "@/lib/format";
 import { ItemActions } from "@/components/inventory/item-actions";
 import { ProductStatusButton } from "@/components/inventory/product-status-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import type { ItemWithCategory } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -118,10 +118,10 @@ export default async function ItemDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-            <Link href={`/inventory/${itemType}`}><ArrowLeft className="size-4" /></Link>
-          </Button>
+        <div>
+          <PageBreadcrumb
+            items={[{ label: config.label, href: `/inventory/${itemType}` }]}
+          />
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
             {item.status === "draft" && (

@@ -4,13 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { RecipeDeleteButton } from "@/components/recipes/recipe-delete-button";
 import { ProductDrawerTrigger } from "@/components/inventory/product-drawer";
 import { IngredientDrawerTrigger } from "@/components/inventory/ingredient-drawer";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
+import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import type { RecipeWithItems } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -44,13 +45,9 @@ export default async function RecipeDetailPage({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-            <Link href="/recipes"><ArrowLeft className="size-4" /></Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
-          </div>
+        <div>
+          <PageBreadcrumb items={[{ label: "Recipes", href: "/recipes" }]} />
+          <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
         </div>
         {isAdmin && (
           <div className="flex gap-2">
