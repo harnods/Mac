@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TableCell } from "@/components/ui/table";
+import { TableCell, STICKY_ACTION_CELL } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatDate, formatId } from "@/lib/format";
 import { PurchaseRequestDeleteDialog } from "./purchase-request-delete-dialog";
@@ -34,9 +34,16 @@ type Props = {
   createdAt: string;
   isAdmin: boolean;
   isOwn: boolean;
+  showStatus?: boolean;
+  showItems?: boolean;
+  showNote?: boolean;
+  showCreated?: boolean;
 };
 
-export function PurchaseRequestRow({ id, status, itemCount, note, creator, createdAt, isAdmin, isOwn }: Props) {
+export function PurchaseRequestRow({
+  id, status, itemCount, note, creator, createdAt, isAdmin, isOwn,
+  showStatus = true, showItems = true, showNote = true, showCreated = true,
+}: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const canDelete = isAdmin || (isOwn && (status === "pending" || status === "draft"));
 
@@ -44,24 +51,28 @@ export function PurchaseRequestRow({ id, status, itemCount, note, creator, creat
     <>
       <ClickableTableRow href={`/purchasing/requests/${id}`}>
         <TableCell className="font-medium tabular-nums">{formatId(id)}</TableCell>
-        <TableCell>
-          <Badge variant={
-            status === "approved" ? "success" :
-            status === "rejected" ? "destructive" :
-            status === "draft" ? "outline" :
-            "secondary"
-          }>
-            {STATUS_LABEL[status]}
-          </Badge>
-        </TableCell>
-        <TableCell className="tabular-nums">{itemCount}</TableCell>
-        <TableCell className="text-sm text-muted-foreground truncate">{note ?? "—"}</TableCell>
-        <TableCell>
-          <div className="text-sm">{formatDate(createdAt)}</div>
-          <div className="text-xs text-muted-foreground">{creator?.full_name ?? creator?.email ?? "—"}</div>
-        </TableCell>
+        {showStatus && (
+          <TableCell>
+            <Badge variant={
+              status === "approved" ? "success" :
+              status === "rejected" ? "destructive" :
+              status === "draft" ? "outline" :
+              "secondary"
+            }>
+              {STATUS_LABEL[status]}
+            </Badge>
+          </TableCell>
+        )}
+        {showItems && <TableCell className="tabular-nums">{itemCount}</TableCell>}
+        {showNote && <TableCell className="text-sm text-muted-foreground truncate">{note ?? "—"}</TableCell>}
+        {showCreated && (
+          <TableCell>
+            <div className="text-sm">{formatDate(createdAt)}</div>
+            <div className="text-xs text-muted-foreground">{creator?.full_name ?? creator?.email ?? "—"}</div>
+          </TableCell>
+        )}
         <TableCell />
-        <TableCell>
+        <TableCell className={STICKY_ACTION_CELL}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8">

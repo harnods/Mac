@@ -31,7 +31,7 @@ export default async function SettingsCategoryTypePage({
     .from("categories")
     .select("*, updater:profiles!updated_by(full_name,email)")
     .eq("type", config.dbType)
-    .order("updated_at", { ascending: false });
+    .order("name");
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
 

@@ -4,16 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { EmployeesFilter } from "@/components/employees/employees-filter";
-import { EmployeeTableRow } from "@/components/employees/employee-table-row";
+import { EmployeeTable } from "@/components/employees/employee-table";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import type { EmployeeWithRelations } from "@/lib/supabase/types";
 
@@ -46,7 +39,7 @@ export default async function EmployeesPage({
           { count: "exact" },
         )
         .is("deleted_at", null)
-        .order("updated_at", { ascending: false })
+        .order("name")
         .range(from, to);
       if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
       if (dept) query = query.eq("department_id", dept);
@@ -102,30 +95,7 @@ export default async function EmployeesPage({
       ) : (
         <>
           {/* Desktop table */}
-          <div className="border table-outer rounded-lg overflow-x-auto hidden md:block">
-            <Table className="table-fixed w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-48">Name</TableHead>
-                  <TableHead className="w-36">Department</TableHead>
-                  <TableHead className="w-40">Job position</TableHead>
-                  <TableHead className="w-32">Job level</TableHead>
-                  <TableHead className="w-36">Status</TableHead>
-                  <TableHead className="w-44">Last updated</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {list.map((emp) => (
-                  <EmployeeTableRow
-                    key={emp.id}
-                    employee={emp}
-                    canWrite={canWrite}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <EmployeeTable list={list} canWrite={canWrite} />
 
           {/* Mobile cards */}
           <div className="grid gap-3 md:hidden">

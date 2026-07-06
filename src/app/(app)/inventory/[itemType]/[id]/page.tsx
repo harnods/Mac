@@ -163,6 +163,10 @@ export default async function ItemDetailPage({
           categoryName={item.categories?.name ?? null}
           lastPurchaseCost={item.last_purchase_cost}
           avgPurchaseCost={item.avg_purchase_cost}
+          defaultPurchaseCost={item.default_purchase_cost}
+          defaultPurchaseCostUnit={item.default_purchase_cost_unit}
+          purchaseUnit={item.purchase_unit}
+          purchaseUnitQty={item.purchase_unit_qty}
           updatedAt={item.updated_at}
           updaterLabel={item.updater ? updaterName(item.updater) : null}
         />
@@ -192,7 +196,7 @@ export default async function ItemDetailPage({
             <p className="text-sm text-muted-foreground">No ingredients in recipe.</p>
           ) : (
             <div className="border table-outer rounded-lg overflow-x-auto">
-              <Table className="table-fixed w-full">
+              <Table className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
@@ -231,7 +235,7 @@ export default async function ItemDetailPage({
             <p className="text-sm text-muted-foreground py-2">No products in this set.</p>
           ) : (
             <div className="border table-outer rounded-lg overflow-x-auto">
-              <Table className="table-fixed w-full">
+              <Table className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
@@ -271,7 +275,7 @@ export default async function ItemDetailPage({
           </div>
         ) : (
           <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="table-fixed w-full">
+            <Table className="w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-32">Date</TableHead>

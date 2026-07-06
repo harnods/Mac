@@ -9,6 +9,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  STICKY_ACTION_HEAD,
+  STICKY_ACTION_CELL,
 } from "@/components/ui/table";
 import { AddUnitForm } from "@/components/inventory/add-unit-form";
 import { UnitRowActions } from "@/components/inventory/unit-row-actions";
@@ -57,14 +59,14 @@ export default async function SettingsUnitsPage({
       </Suspense>
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="table-fixed w-full">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               <TableHead className="w-32">Code</TableHead>
               <TableHead className="w-24">Type</TableHead>
               <TableHead className="w-32">Conversion</TableHead>
               <TableHead />
-              <TableHead className="w-12" />
+              <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -85,7 +87,7 @@ export default async function SettingsUnitsPage({
                     {CONVERSION_LABEL[u.code] ?? "—"}
                   </TableCell>
                   <TableCell />
-                  <TableCell>
+                  <TableCell className={STICKY_ACTION_CELL}>
                     {isAdmin && !u.is_system && <UnitRowActions code={u.code} />}
                   </TableCell>
                 </TableRow>

@@ -106,7 +106,7 @@ export default async function PrepOrdersPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="table-fixed w-full">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-28">No</TableHead>

@@ -3,6 +3,7 @@
 import { formatNum, formatQty } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { formatDate, formatRp } from "@/lib/format";
+import { defaultCostBreakdown } from "@/lib/cogs";
 import type { StockMode } from "@/lib/item-types";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -15,6 +16,10 @@ type Props = {
   categoryName: string | null;
   lastPurchaseCost: number | null;
   avgPurchaseCost: number | null;
+  defaultPurchaseCost: number | null;
+  defaultPurchaseCostUnit: UnitCode | null;
+  purchaseUnit: UnitCode | null;
+  purchaseUnitQty: number | null;
   updatedAt: string;
   updaterLabel: string | null;
 };
@@ -28,10 +33,23 @@ export function ItemStockSection({
   categoryName,
   lastPurchaseCost,
   avgPurchaseCost,
+  defaultPurchaseCost,
+  defaultPurchaseCostUnit,
+  purchaseUnit,
+  purchaseUnitQty,
   updatedAt,
   updaterLabel,
 }: Props) {
   const available = onHand - reserved;
+  const breakdown = defaultCostBreakdown({
+    unit: baseUnit,
+    last_purchase_cost: lastPurchaseCost,
+    avg_purchase_cost: avgPurchaseCost,
+    default_purchase_cost: defaultPurchaseCost,
+    default_purchase_cost_unit: defaultPurchaseCostUnit,
+    purchase_unit: purchaseUnit,
+    purchase_unit_qty: purchaseUnitQty,
+  });
 
   return (
     <div className="space-y-6">
@@ -56,21 +74,42 @@ export function ItemStockSection({
         </div>
       )}
 
-      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
-        <span className="text-muted-foreground">Default base unit</span><span>{baseUnit}</span>
-        {hasCategories && categoryName && (
-          <><span className="text-muted-foreground">Category</span><span>{categoryName}</span></>
-        )}
-        {lastPurchaseCost != null && (
-          <><span className="text-muted-foreground">Last purchase cost</span><span className="tabular-nums">{formatRp(lastPurchaseCost)} / {baseUnit}</span></>
-        )}
-        {avgPurchaseCost != null && (
-          <><span className="text-muted-foreground">Avg. purchase cost</span><span className="tabular-nums">{formatRp(avgPurchaseCost)} / {baseUnit}</span></>
-        )}
-        {updaterLabel && (
-          <><span className="text-muted-foreground">Last updated</span>
-          <span>{formatDate(updatedAt)} by {updaterLabel}</span></>
-        )}
+      <div className="space-y-3">
+        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
+          {hasCategories && categoryName && (
+            <><span className="text-muted-foreground">Category</span><span>{categoryName}</span></>
+          )}
+          <span className="text-muted-foreground">Default base unit</span><span>{baseUnit}</span>
+        </div>
+
+        <div className="border-t" />
+
+        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
+          {purchaseUnit && purchaseUnitQty != null && (
+            <><span className="text-muted-foreground">Purchase unit</span><span>1 {purchaseUnit} = {formatNum(purchaseUnitQty)} {baseUnit}</span></>
+          )}
+          {defaultPurchaseCost != null && (
+            <>
+              <span className="text-muted-foreground">Default purchase cost</span>
+              <span className="tabular-nums">
+                {formatRp(defaultPurchaseCost)} / {defaultPurchaseCostUnit ?? baseUnit}
+                {breakdown != null && (
+                  <span className="block text-xs text-muted-foreground">{formatRp(breakdown)} / {baseUnit}</span>
+                )}
+              </span>
+            </>
+          )}
+          {lastPurchaseCost != null && (
+            <><span className="text-muted-foreground">Last purchase cost</span><span className="tabular-nums">{formatRp(lastPurchaseCost)} / {baseUnit}</span></>
+          )}
+          {avgPurchaseCost != null && (
+            <><span className="text-muted-foreground">Avg. purchase cost</span><span className="tabular-nums">{formatRp(avgPurchaseCost)} / {baseUnit}</span></>
+          )}
+          {updaterLabel && (
+            <><span className="text-muted-foreground">Last updated</span>
+            <span>{formatDate(updatedAt)} by {updaterLabel}</span></>
+          )}
+        </div>
       </div>
     </div>
   );

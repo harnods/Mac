@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Table, TableBody, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableHead, TableHeader, TableRow, STICKY_ACTION_HEAD,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,8 +12,16 @@ import {
 import { Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { RecipeTableRowClient } from "./recipe-table-row";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/use-column-visibility";
 import { bulkDeleteRecipes } from "@/app/actions/recipes";
 import type { Updater } from "@/lib/supabase/types";
+
+export const RECIPE_COLUMNS: ColumnDef[] = [
+  { key: "type", label: "Type" },
+  { key: "output", label: "Output" },
+  { key: "ingredients", label: "Ingredients" },
+  { key: "lastUpdated", label: "Last updated", defaultHidden: true },
+];
 
 type RecipeRow = {
   id: string;
@@ -35,6 +43,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const { isVisible } = useColumnVisibility("recipes", RECIPE_COLUMNS);
 
   const allIds = recipes.map((r) => r.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
@@ -80,7 +89,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
       )}
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="table-fixed w-full">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               {isAdmin && (
@@ -97,12 +106,12 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
                 </TableHead>
               )}
               <TableHead className="w-56">Name</TableHead>
-              <TableHead className="w-24">Type</TableHead>
-              <TableHead className="w-48">Output</TableHead>
-              <TableHead className="w-28">Ingredients</TableHead>
-              <TableHead className="w-44">Last updated</TableHead>
+              {isVisible("type") && <TableHead className="w-24">Type</TableHead>}
+              {isVisible("output") && <TableHead className="w-48">Output</TableHead>}
+              {isVisible("ingredients") && <TableHead className="w-28">Ingredients</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
               <TableHead />
-              <TableHead className="w-12" />
+              <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -119,6 +128,10 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
                 isAdmin={isAdmin}
                 isSelected={selected.has(r.id)}
                 onToggleSelect={isAdmin ? () => toggleOne(r.id) : undefined}
+                showType={isVisible("type")}
+                showOutput={isVisible("output")}
+                showIngredients={isVisible("ingredients")}
+                showLastUpdated={isVisible("lastUpdated")}
               />
             ))}
           </TableBody>

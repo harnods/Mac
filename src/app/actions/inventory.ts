@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
-import { convert } from "@/lib/units";
+import { convert, compatibleUnits } from "@/lib/units";
+import { resolveComputedRecipeCost, type ComputedRecipeCost } from "@/lib/cogs-server";
 import type { Item } from "@/lib/supabase/types";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -19,7 +20,21 @@ const itemSchema = z.object({
   category_id: z.string().uuid().nullable(),
   unit: UNIT,
   type: ITEM_TYPE.default("ingredient"),
-});
+  default_purchase_cost: z.coerce.number().nonnegative().nullable().optional(),
+  default_purchase_cost_unit: z.string().nullable().optional(),
+  purchase_unit: z.string().nullable().optional(),
+  purchase_unit_qty: z.coerce.number().positive().nullable().optional(),
+}).refine(
+  (d) =>
+    d.default_purchase_cost == null ||
+    !d.default_purchase_cost_unit ||
+    compatibleUnits(d.unit as UnitCode).includes(d.default_purchase_cost_unit as UnitCode) ||
+    (!!d.purchase_unit && d.default_purchase_cost_unit === d.purchase_unit),
+  { message: "Default cost unit must be compatible with the item's unit", path: ["default_purchase_cost_unit"] },
+).refine(
+  (d) => !!d.purchase_unit === !!d.purchase_unit_qty,
+  { message: "Purchase unit and its quantity must be set together", path: ["purchase_unit_qty"] },
+);
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -35,7 +50,14 @@ export async function createItem(input: unknown): Promise<ActionResult> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("items")
-    .insert({ ...parsed.data, updated_by: profile.id })
+    .insert({
+      ...parsed.data,
+      default_purchase_cost: parsed.data.default_purchase_cost ?? null,
+      default_purchase_cost_unit: parsed.data.default_purchase_cost != null
+        ? (parsed.data.default_purchase_cost_unit ?? parsed.data.unit)
+        : null,
+      updated_by: profile.id,
+    })
     .select("id")
     .single();
 
@@ -55,7 +77,17 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
   const supabase = await createClient();
 
   // If unit is changing, fetch current values and convert qty + costs
-  const patch: Record<string, unknown> = { ...parsed.data, updated_by: profile.id };
+  const patch: Record<string, unknown> = {
+    ...parsed.data,
+    default_purchase_cost: parsed.data.default_purchase_cost ?? null,
+    // Default cost carries its own unit (may differ from the item's unit, e.g.
+    // cost entered "per kg" for a gram-based item) — it's independent of the
+    // item's own unit and doesn't need converting when that unit changes.
+    default_purchase_cost_unit: parsed.data.default_purchase_cost != null
+      ? (parsed.data.default_purchase_cost_unit ?? parsed.data.unit)
+      : null,
+    updated_by: profile.id,
+  };
 
   const { data: current } = await supabase
     .from("items")
@@ -222,6 +254,7 @@ const productSchema = z.object({
   is_sellable: z.boolean().default(false),
   sell_price: z.coerce.number().nonnegative().nullable().optional(),
   is_addon: z.boolean().default(false),
+  image_url: z.string().url().nullable().optional(),
   set_products: z.array(z.object({ id: z.string().uuid(), qty: z.coerce.number().positive() })).optional(),
 }).refine(
   (d) => d.status === "draft" || d.name.length > 0,
@@ -286,13 +319,13 @@ export async function createProductItem(input: unknown): Promise<ActionResult> {
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, set_products = [] } = parsed.data;
+  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, image_url, set_products = [] } = parsed.data;
 
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("items")
-    .insert({ name, category_id, unit, type: "product", product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, updated_by: profile.id })
+    .insert({ name, category_id, unit, type: "product", product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, image_url: image_url ?? null, updated_by: profile.id })
     .select("id")
     .single();
 
@@ -316,13 +349,13 @@ export async function updateProductItem(id: string, input: unknown): Promise<Act
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, set_products = [] } = parsed.data;
+  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, image_url, set_products = [] } = parsed.data;
 
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("items")
-    .update({ name, category_id, unit, product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, updated_by: profile.id })
+    .update({ name, category_id, unit, product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, image_url: image_url ?? null, updated_by: profile.id })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };
@@ -438,13 +471,22 @@ export type IngredientDrawerData = {
   available: number;
   stockMode: "full" | "available" | "none";
   itemPageUrl: string;
+  last_purchase_cost: number | null;
+  avg_purchase_cost: number | null;
+  default_purchase_cost: number | null;
+  default_purchase_cost_unit: string | null;
+  purchase_unit: string | null;
+  purchase_unit_qty: number | null;
+  computedCost: ComputedRecipeCost | null;
+  usedInRecipes: { id: string; name: string; quantity: number; unit: string }[];
+  producedByRecipe: { id: string; name: string } | null;
 };
 
 export async function getIngredientDrawerData(itemId: string): Promise<IngredientDrawerData | null> {
   const supabase = await createClient();
   const { data: item } = await supabase
     .from("items")
-    .select("id, name, type, unit, on_hand, reserved, categories(name)")
+    .select("id, name, type, unit, on_hand, reserved, categories(name), last_purchase_cost, avg_purchase_cost, default_purchase_cost, default_purchase_cost_unit, purchase_unit, purchase_unit_qty")
     .eq("id", itemId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -474,6 +516,29 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);
 
+  const hasDirectCost = item.avg_purchase_cost != null || item.last_purchase_cost != null || item.default_purchase_cost != null;
+  const computedCost = item.type === "prep_item" && !hasDirectCost
+    ? await resolveComputedRecipeCost(supabase, item.id, item.unit)
+    : null;
+
+  const { data: usages } = await supabase
+    .from("recipe_items")
+    .select("quantity, unit, recipe:recipes(id, name)")
+    .eq("item_id", item.id);
+  const usedInRecipes = ((usages ?? []) as unknown as { quantity: number; unit: string; recipe: { id: string; name: string } | null }[])
+    .filter((u) => u.recipe)
+    .map((u) => ({ id: u.recipe!.id, name: u.recipe!.name, quantity: u.quantity, unit: u.unit }));
+
+  let producedByRecipe: { id: string; name: string } | null = null;
+  if (item.type === "prep_item") {
+    const { data: producingRecipe } = await supabase
+      .from("recipes")
+      .select("id, name")
+      .eq("product_id", item.id)
+      .maybeSingle();
+    producedByRecipe = producingRecipe ?? null;
+  }
+
   return {
     id: item.id,
     name: item.name,
@@ -485,6 +550,15 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
     available: onHand - reserved,
     stockMode: stockMode[item.type] ?? "none",
     itemPageUrl: `/inventory/${slug}/${item.id}`,
+    last_purchase_cost: item.last_purchase_cost,
+    avg_purchase_cost: item.avg_purchase_cost,
+    default_purchase_cost: item.default_purchase_cost,
+    default_purchase_cost_unit: item.default_purchase_cost_unit,
+    purchase_unit: item.purchase_unit,
+    purchase_unit_qty: item.purchase_unit_qty,
+    computedCost,
+    usedInRecipes,
+    producedByRecipe,
   };
 }
 

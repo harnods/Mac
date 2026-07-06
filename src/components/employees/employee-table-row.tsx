@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TableCell } from "@/components/ui/table";
+import { TableCell, STICKY_ACTION_CELL } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatDate, updaterName } from "@/lib/format";
 import { EmployeeDeleteDialog } from "@/components/employees/employee-delete-dialog";
@@ -20,9 +20,19 @@ import type { EmployeeWithRelations } from "@/lib/supabase/types";
 export function EmployeeTableRow({
   employee,
   canWrite,
+  showDepartment = true,
+  showJobPosition = true,
+  showJobLevel = true,
+  showStatus = true,
+  showLastUpdated = true,
 }: {
   employee: EmployeeWithRelations;
   canWrite: boolean;
+  showDepartment?: boolean;
+  showJobPosition?: boolean;
+  showJobLevel?: boolean;
+  showStatus?: boolean;
+  showLastUpdated?: boolean;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -32,23 +42,33 @@ export function EmployeeTableRow({
         <TableCell className="font-medium">
           <span className="truncate block">{employee.name}</span>
         </TableCell>
-        <TableCell className="text-sm">
-          {employee.departments?.name ?? <span className="text-muted-foreground">—</span>}
-        </TableCell>
-        <TableCell className="text-sm">
-          {employee.job_positions?.name ?? <span className="text-muted-foreground">—</span>}
-        </TableCell>
-        <TableCell className="text-sm">
-          {employee.job_levels?.name ?? <span className="text-muted-foreground">—</span>}
-        </TableCell>
-        <TableCell className="text-sm">
-          {employee.employment_statuses?.name ?? <span className="text-muted-foreground">—</span>}
-        </TableCell>
-        <TableCell>
-          <div className="text-sm">{formatDate(employee.updated_at)}</div>
-          <div className="text-xs text-muted-foreground">{updaterName(employee.updater)}</div>
-        </TableCell>
-        <TableCell className="w-12">
+        {showDepartment && (
+          <TableCell className="text-sm">
+            {employee.departments?.name ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showJobPosition && (
+          <TableCell className="text-sm">
+            {employee.job_positions?.name ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showJobLevel && (
+          <TableCell className="text-sm">
+            {employee.job_levels?.name ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showStatus && (
+          <TableCell className="text-sm">
+            {employee.employment_statuses?.name ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showLastUpdated && (
+          <TableCell>
+            <div className="text-sm">{formatDate(employee.updated_at)}</div>
+            <div className="text-xs text-muted-foreground">{updaterName(employee.updater)}</div>
+          </TableCell>
+        )}
+        <TableCell className={`w-12 ${STICKY_ACTION_CELL}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8">

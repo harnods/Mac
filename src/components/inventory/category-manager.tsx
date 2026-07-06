@@ -29,10 +29,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  STICKY_ACTION_HEAD,
+  STICKY_ACTION_CELL,
 } from "@/components/ui/table";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/use-column-visibility";
 import { updateCategory, deleteCategory } from "@/app/actions/inventory";
 import { formatDate, updaterName } from "@/lib/format";
 import type { CategoryWithUpdater } from "@/lib/supabase/types";
+
+export const CATEGORY_COLUMNS: ColumnDef[] = [{ key: "lastUpdated", label: "Last updated", defaultHidden: true }];
 
 type ModalState =
   | { type: "edit"; category: CategoryWithUpdater }
@@ -48,6 +53,7 @@ export function CategoryManager({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const { isVisible } = useColumnVisibility("categories", CATEGORY_COLUMNS);
   const [modal, setModal] = useState<ModalState>(null);
   const [editName, setEditName] = useState("");
 
@@ -90,19 +96,20 @@ export function CategoryManager({
   return (
     <>
       <div className="border table-outer rounded-lg overflow-hidden">
-        <Table className="table-fixed w-full">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               <TableHead className="w-52">Name</TableHead>
-              <TableHead className="w-48">Last updated</TableHead>
+              {isVisible("lastUpdated") && <TableHead className="w-48">Last updated</TableHead>}
               <TableHead></TableHead>
-              {isAdmin && <TableHead className="w-12" />}
+              {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {categories.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium truncate">{c.name}</TableCell>
+                {isVisible("lastUpdated") && (
                 <TableCell>
                   {c.is_default ? (
                     <span className="text-muted-foreground text-sm">—</span>
@@ -113,9 +120,10 @@ export function CategoryManager({
                     </>
                   )}
                 </TableCell>
+                )}
                 <TableCell />
                 {isAdmin && (
-                  <TableCell>
+                  <TableCell className={STICKY_ACTION_CELL}>
                     {!c.is_default && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

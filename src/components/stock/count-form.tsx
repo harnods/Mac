@@ -121,7 +121,7 @@ export function CountForm({ items }: { items: Item[] }) {
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-hidden">
-          <Table className="table-fixed w-full">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
                 <TableHead>Item</TableHead>

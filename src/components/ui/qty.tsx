@@ -1,7 +1,7 @@
 "use client";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { convert, upConversionTarget, formatNum } from "@/lib/units";
+import { convert, downConversionTarget, formatNum } from "@/lib/units";
 import type { UnitCode } from "@/lib/supabase/types";
 
 /**
@@ -17,7 +17,7 @@ export function Qty({
   unit: string;
   className?: string;
 }) {
-  const otherUnit = upConversionTarget(unit as UnitCode);
+  const otherUnit = downConversionTarget(unit as UnitCode);
   const converted = otherUnit != null ? convert(value, unit as UnitCode, otherUnit) : null;
 
   if (converted == null || otherUnit == null) {

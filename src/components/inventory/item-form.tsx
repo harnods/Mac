@@ -1,27 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DecimalInput } from "@/components/ui/decimal-input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryCombobox } from "./category-combobox";
+import { UnitCombobox } from "./unit-combobox";
 import { ITEM_TYPE_CONFIG } from "@/lib/item-types";
-import { compatibleUnits } from "@/lib/units";
+import { compatibleUnits, parseDecimal } from "@/lib/units";
 import { createItem, updateItem } from "@/app/actions/inventory";
-import { createUnit } from "@/app/actions/units";
 import type { Category, Item } from "@/lib/supabase/types";
 import type { ItemTypeSlug } from "@/lib/item-types";
 import type { UnitCode } from "@/lib/supabase/types";
@@ -47,35 +38,42 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   const [name, setName] = useState(item?.name ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(item?.category_id ?? null);
   const [unit, setUnit] = useState<string>(item?.unit ?? defaultUnitFor(itemTypeSlug));
-  const [unitOpen, setUnitOpen] = useState(false);
-  const [unitSearch, setUnitSearch] = useState("");
+  const [defaultCost, setDefaultCost] = useState(
+    item?.default_purchase_cost != null ? String(item.default_purchase_cost) : "",
+  );
+  const [defaultCostUnit, setDefaultCostUnit] = useState<string>(
+    item?.default_purchase_cost_unit ?? item?.unit ?? defaultUnitFor(itemTypeSlug),
+  );
+  const [purchaseUnit, setPurchaseUnit] = useState<string>(item?.purchase_unit ?? "");
+  const [purchaseUnitQty, setPurchaseUnitQty] = useState(
+    item?.purchase_unit_qty != null ? String(item.purchase_unit_qty) : "",
+  );
   const [units, setUnits] = useState(initialUnits);
-  const [creatingUnit, startCreateUnit] = useTransition();
 
   const isEdit = !!item;
   const config = ITEM_TYPE_CONFIG[itemTypeSlug];
+  const showDefaultCost = itemTypeSlug === "ingredients";
 
   const lockedUnits = unitLocked
     ? units.filter((u) => compatibleUnits(item!.unit as UnitCode).includes(u as UnitCode))
     : units;
   const fullyLocked = unitLocked && lockedUnits.length <= 1;
-
   const visibleUnits = unitLocked ? lockedUnits : units;
-  const exactMatch = visibleUnits.some((u) => u.toLowerCase() === unitSearch.toLowerCase());
 
-  function handleQuickAddUnit() {
-    if (!unitSearch.trim() || exactMatch || unitLocked) return;
-    const code = unitSearch.trim();
-    startCreateUnit(async () => {
-      const res = await createUnit({ code });
-      if (!res.ok) { toast.error(res.error); return; }
-      setUnits((prev) => [...prev, code].sort());
-      setUnit(code);
-      setUnitSearch("");
-      setUnitOpen(false);
-      toast.success(`Unit "${code}" created`);
-    });
-  }
+  // Default cost can be denominated in a unit compatible with the item's own
+  // unit (e.g. g ↔ kg, but never g ↔ l), or in its custom purchase unit
+  // (e.g. "bungkus") if one is set.
+  const costUnitOptions = [
+    ...compatibleUnits(unit as UnitCode),
+    ...(purchaseUnit ? [purchaseUnit] : []),
+  ];
+
+  useEffect(() => {
+    if (!costUnitOptions.includes(defaultCostUnit)) {
+      setDefaultCostUnit(unit);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unit, purchaseUnit]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,6 +83,10 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
         category_id: hasCategories ? categoryId : null,
         unit,
         type: config.dbType,
+        default_purchase_cost: showDefaultCost && defaultCost.trim() ? parseDecimal(defaultCost) : null,
+        default_purchase_cost_unit: showDefaultCost && defaultCost.trim() ? defaultCostUnit : null,
+        purchase_unit: purchaseUnit || null,
+        purchase_unit_qty: purchaseUnit && purchaseUnitQty.trim() ? parseDecimal(purchaseUnitQty) : null,
       };
       const res = isEdit ? await updateItem(item!.id, payload) : await createItem(payload);
       if (!res.ok) { toast.error(res.error); return; }
@@ -133,69 +135,14 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
           </div>
         ) : (
           <>
-            <Popover open={unitOpen} onOpenChange={setUnitOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={unitOpen}
-                  className="w-full justify-between font-normal"
-                >
-                  <span className={cn(!unit && "text-muted-foreground")}>
-                    {unit || "Select unit"}
-                  </span>
-                  <ChevronsUpDown className="size-4 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command>
-                  <CommandInput
-                    placeholder={unitLocked ? "Search units..." : "Search or create unit..."}
-                    value={unitSearch}
-                    onValueChange={setUnitSearch}
-                  />
-                  <CommandList>
-                    <CommandEmpty>
-                      {!unitLocked && unitSearch.trim() ? (
-                        <button
-                          type="button"
-                          className="w-full px-4 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
-                          onClick={handleQuickAddUnit}
-                          disabled={creatingUnit}
-                        >
-                          <Plus className="size-3.5" />
-                          {creatingUnit ? "Creating..." : `Create "${unitSearch.trim()}"`}
-                        </button>
-                      ) : "No units found."}
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {visibleUnits.map((u) => (
-                        <CommandItem
-                          key={u}
-                          value={u}
-                          onSelect={() => { setUnit(u); setUnitSearch(""); setUnitOpen(false); }}
-                        >
-                          <Check className={cn("size-4", unit === u ? "opacity-100" : "opacity-0")} />
-                          {u}
-                        </CommandItem>
-                      ))}
-                      {!unitLocked && unitSearch.trim() && !exactMatch && (
-                        <CommandItem
-                          value={`__create__${unitSearch}`}
-                          onSelect={handleQuickAddUnit}
-                          disabled={creatingUnit}
-                          className="text-muted-foreground"
-                        >
-                          <Plus className="size-4" />
-                          {creatingUnit ? "Creating..." : `Create "${unitSearch.trim()}"`}
-                        </CommandItem>
-                      )}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <UnitCombobox
+              units={visibleUnits}
+              onUnitsChange={setUnits}
+              value={unit}
+              onChange={setUnit}
+              placeholder="Select unit"
+              allowCreate={!unitLocked}
+            />
             {unitLocked && (
               <p className="text-xs text-muted-foreground">
                 Only compatible units shown — has existing transactions.
@@ -204,6 +151,72 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
           </>
         )}
       </div>
+
+      {showDefaultCost && (
+      <div className="space-y-2">
+        <Label>Purchase unit (optional)</Label>
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <UnitCombobox
+              units={units.filter((u) => u !== unit)}
+              onUnitsChange={setUnits}
+              value={purchaseUnit}
+              onChange={setPurchaseUnit}
+              placeholder="None"
+            />
+          </div>
+          {purchaseUnit && (
+            <>
+              <span className="text-sm text-muted-foreground shrink-0">=</span>
+              <DecimalInput
+                value={purchaseUnitQty}
+                onValueChange={setPurchaseUnitQty}
+                placeholder="qty"
+                className="w-24 shrink-0"
+              />
+              <span className="text-sm text-muted-foreground shrink-0">{unit || "unit"}</span>
+            </>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          For packaging bought as a different unit than it&apos;s tracked in, e.g. 1 bungkus = 5000 g.
+        </p>
+      </div>
+      )}
+
+      {showDefaultCost && (
+        <div className="space-y-2">
+          <Label htmlFor="default-purchase-cost">Default purchase cost</Label>
+          <div className="flex items-center gap-2">
+            <DecimalInput
+              id="default-purchase-cost"
+              min="0"
+              step="1"
+              value={defaultCost}
+              onValueChange={setDefaultCost}
+              className="flex-1"
+            />
+            {costUnitOptions.length > 1 ? (
+              <Select value={defaultCostUnit} onValueChange={setDefaultCostUnit}>
+                <SelectTrigger id="default-purchase-cost-unit" className="w-24 shrink-0">
+                  <span className="text-muted-foreground text-sm mr-0.5">/</span>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {costUnitOptions.map((u) => (
+                    <SelectItem key={u} value={u}>{u}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="text-sm text-muted-foreground shrink-0">/ {unit || "unit"}</span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Estimated cost per {defaultCostUnit || unit || "unit"}, used before any purchase is recorded.
+          </p>
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>

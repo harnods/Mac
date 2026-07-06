@@ -544,7 +544,7 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
             })()}
 
             <div className="border rounded-lg overflow-auto max-h-[360px]">
-              <Table className="table-fixed w-full">
+              <Table className="w-full">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>

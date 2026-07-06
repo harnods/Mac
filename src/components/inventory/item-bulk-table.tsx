@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Table, TableBody, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableHead, TableHeader, TableRow, STICKY_ACTION_HEAD,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,8 @@ import {
 import { Trash2, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { ItemTableRow } from "./item-table-row";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { getItemColumns } from "@/lib/item-columns";
 import { bulkDeleteItems, bulkUpdateItems } from "@/app/actions/inventory";
 import type { ItemWithCategory } from "@/lib/supabase/types";
 import type { ItemTypeSlug, StockMode } from "@/lib/item-types";
@@ -30,13 +32,14 @@ type Props = {
   stockMode: StockMode;
   showCost: boolean;
   showSellable?: boolean;
+  showDefaultCost?: boolean;
   linkedRecipeProductIds?: Set<string>;
 };
 
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, isAdmin, itemTypeSlug, showCategory, stockMode, showCost, showSellable, linkedRecipeProductIds,
+  items, categories, isAdmin, itemTypeSlug, showCategory, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -44,6 +47,11 @@ export function ItemBulkTable({
   const [editOpen, setEditOpen] = useState(false);
   const [editCategoryId, setEditCategoryId] = useState<string>("");
   const [pending, startTransition] = useTransition();
+  const columns = getItemColumns({
+    showCategory, stockMode, showCost, showSellable, showDefaultCost,
+    hasRecipeColumn: !!linkedRecipeProductIds,
+  });
+  const { isVisible } = useColumnVisibility(`items-${itemTypeSlug}`, columns);
 
   const allIds = items.map((i) => i.id);
   const allSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
@@ -119,7 +127,7 @@ export function ItemBulkTable({
       )}
 
       <div className="border table-outer rounded-lg overflow-x-auto hidden md:block">
-        <Table className="table-fixed w-full">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               {isAdmin && (
@@ -136,19 +144,20 @@ export function ItemBulkTable({
                 </TableHead>
               )}
               <TableHead className="w-48">Name</TableHead>
-              {showCategory && <TableHead className="w-36">Category</TableHead>}
-              {stockMode === "full" && <TableHead className="w-32">On hand</TableHead>}
-              {stockMode === "full" && <TableHead className="w-32">Reserved</TableHead>}
-              {stockMode !== "none" && <TableHead className="w-32">Available</TableHead>}
-              {showCost && <TableHead className="w-32 text-right">Last cost</TableHead>}
-              {showCost && <TableHead className="w-32 text-right">Avg. cost</TableHead>}
-              {showSellable && <TableHead className="w-28">Sellable</TableHead>}
-              {showSellable && <TableHead className="w-32 text-right">Selling price</TableHead>}
-              {showSellable && <TableHead className="w-28">Add-on</TableHead>}
-              {linkedRecipeProductIds && <TableHead className="w-24">Recipe</TableHead>}
-              <TableHead className="w-44">Last updated</TableHead>
+              {showCategory && isVisible("category") && <TableHead className="w-36">Category</TableHead>}
+              {stockMode === "full" && isVisible("onHand") && <TableHead className="w-32">On hand</TableHead>}
+              {stockMode === "full" && isVisible("reserved") && <TableHead className="w-32">Reserved</TableHead>}
+              {stockMode !== "none" && isVisible("available") && <TableHead className="w-32">Available</TableHead>}
+              {showCost && isVisible("lastCost") && <TableHead className="w-32 text-right">Last cost</TableHead>}
+              {showCost && isVisible("avgCost") && <TableHead className="w-32 text-right">Avg. cost</TableHead>}
+              {showDefaultCost && isVisible("defaultCost") && <TableHead className="w-32 text-right">Default cost</TableHead>}
+              {showSellable && isVisible("sellable") && <TableHead className="w-28">Sellable</TableHead>}
+              {showSellable && isVisible("sellingPrice") && <TableHead className="w-32 text-right">Selling price</TableHead>}
+              {showSellable && isVisible("addOn") && <TableHead className="w-28">Add-on</TableHead>}
+              {linkedRecipeProductIds && isVisible("recipe") && <TableHead className="w-24">Recipe</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
               <TableHead />
-              <TableHead className="w-12" />
+              <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -158,10 +167,18 @@ export function ItemBulkTable({
                 item={item}
                 isAdmin={isAdmin}
                 itemTypeSlug={itemTypeSlug}
-                showCategory={showCategory}
-                stockMode={stockMode}
-                showCost={showCost}
-                showSellable={showSellable}
+                showCategory={showCategory && isVisible("category")}
+                showOnHand={stockMode === "full" && isVisible("onHand")}
+                showReserved={stockMode === "full" && isVisible("reserved")}
+                showAvailable={stockMode !== "none" && isVisible("available")}
+                showLastCost={showCost && isVisible("lastCost")}
+                showAvgCost={showCost && isVisible("avgCost")}
+                showDefaultCost={showDefaultCost && isVisible("defaultCost")}
+                showSellable={showSellable && isVisible("sellable")}
+                showSellingPrice={showSellable && isVisible("sellingPrice")}
+                showAddOn={showSellable && isVisible("addOn")}
+                showRecipe={isVisible("recipe")}
+                showLastUpdated={isVisible("lastUpdated")}
                 isSelected={selected.has(item.id)}
                 onToggleSelect={isAdmin ? () => toggleOne(item.id) : undefined}
                 hasRecipe={linkedRecipeProductIds ? linkedRecipeProductIds.has(item.id) : undefined}

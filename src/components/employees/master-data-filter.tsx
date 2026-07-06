@@ -3,8 +3,21 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition, useCallback } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { getMasterDataColumns, masterDataTableId } from "@/components/employees/master-data-manager";
 
-export function MasterDataFilter({ placeholder = "Search..." }: { placeholder?: string }) {
+export function MasterDataFilter({
+  placeholder = "Search...",
+  title,
+  showSortOrder = false,
+}: {
+  placeholder?: string;
+  title: string;
+  showSortOrder?: boolean;
+}) {
+  const columns = getMasterDataColumns(showSortOrder);
+  const { isVisible, toggle } = useColumnVisibility(masterDataTableId(title), columns);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -20,7 +33,8 @@ export function MasterDataFilter({ placeholder = "Search..." }: { placeholder?: 
   );
 
   return (
-    <div className="flex justify-end">
+    <div className="flex justify-end gap-2">
+      <ColumnsMenu columns={columns} isVisible={isVisible} toggle={toggle} />
       <Input
         placeholder={placeholder}
         defaultValue={params.get("q") ?? ""}

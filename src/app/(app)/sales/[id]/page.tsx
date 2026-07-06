@@ -99,7 +99,7 @@ export default async function SalesEntryDetailPage({
           <p className="text-sm text-muted-foreground py-2">No products recorded.</p>
         ) : (
           <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="table-fixed w-full">
+            <Table className="w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8">#</TableHead>

@@ -8,6 +8,7 @@ type Row = {
   name: string;
   unit: string;
   sell_price: number | null;
+  image_url: string | null;
   categories: { name: string } | null;
 };
 
@@ -15,7 +16,7 @@ export default async function MenuPage() {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("items")
-    .select("id, name, unit, sell_price, categories(name)")
+    .select("id, name, unit, sell_price, image_url, categories(name)")
     .eq("is_sellable", true)
     .is("deleted_at", null)
     .order("name");
@@ -32,6 +33,7 @@ export default async function MenuPage() {
       name: r.name,
       unit: r.unit,
       price: Number(r.sell_price ?? 0),
+      imageUrl: r.image_url,
     });
     byCategory.set(cat, list);
   }

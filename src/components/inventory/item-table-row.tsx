@@ -11,9 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TableCell } from "@/components/ui/table";
+import { TableCell, STICKY_ACTION_CELL } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
-import { compatibleUnits, convert, upConversionTarget, formatNum } from "@/lib/units";
+import { compatibleUnits, convert, downConversionTarget, formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, updaterName } from "@/lib/format";
@@ -21,16 +21,24 @@ import { ItemDeleteDialog } from "@/components/inventory/item-delete-dialog";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { QuickAdjustDialog } from "@/components/inventory/quick-adjust-dialog";
 import type { ItemWithCategory, UnitCode } from "@/lib/supabase/types";
-import type { ItemTypeSlug, StockMode } from "@/lib/item-types";
+import type { ItemTypeSlug } from "@/lib/item-types";
 
 export function ItemTableRow({
   item,
   isAdmin,
   itemTypeSlug,
   showCategory = true,
-  stockMode = 'full',
-  showCost = false,
+  showOnHand = true,
+  showReserved = true,
+  showAvailable = true,
+  showLastCost = false,
+  showAvgCost = false,
+  showDefaultCost = false,
   showSellable = false,
+  showSellingPrice = false,
+  showAddOn = false,
+  showRecipe = true,
+  showLastUpdated = true,
   isSelected = false,
   onToggleSelect,
   hasRecipe,
@@ -39,9 +47,17 @@ export function ItemTableRow({
   isAdmin: boolean;
   itemTypeSlug: string;
   showCategory?: boolean;
-  stockMode?: StockMode;
-  showCost?: boolean;
+  showOnHand?: boolean;
+  showReserved?: boolean;
+  showAvailable?: boolean;
+  showLastCost?: boolean;
+  showAvgCost?: boolean;
+  showDefaultCost?: boolean;
   showSellable?: boolean;
+  showSellingPrice?: boolean;
+  showAddOn?: boolean;
+  showRecipe?: boolean;
+  showLastUpdated?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
   hasRecipe?: boolean;
@@ -83,7 +99,7 @@ export function ItemTableRow({
             {item.categories?.name ?? <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {stockMode === 'full' && (
+        {showOnHand && (
           <TableCell className="tabular-nums text-sm">
             {isAdmin ? (
               <OnHandButton value={onHand} unit={viewUnit} onClick={() => setAdjustOpen(true)} />
@@ -92,19 +108,26 @@ export function ItemTableRow({
             )}
           </TableCell>
         )}
-        {stockMode === 'full' && <TableCell className="tabular-nums text-sm"><Qty value={reserved} unit={viewUnit} /></TableCell>}
-        {stockMode !== 'none' && <TableCell className="tabular-nums text-sm"><Qty value={available} unit={viewUnit} /></TableCell>}
-        {showCost && (
+        {showReserved && <TableCell className="tabular-nums text-sm"><Qty value={reserved} unit={viewUnit} /></TableCell>}
+        {showAvailable && <TableCell className="tabular-nums text-sm"><Qty value={available} unit={viewUnit} /></TableCell>}
+        {showLastCost && (
           <TableCell className="tabular-nums text-right text-sm">
             {item.last_purchase_cost != null
               ? <>Rp{formatNum(item.last_purchase_cost)}<span className="text-muted-foreground text-xs">/{item.unit}</span></>
               : <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {showCost && (
+        {showAvgCost && (
           <TableCell className="tabular-nums text-right text-sm">
             {item.avg_purchase_cost != null
               ? <>Rp{formatNum(item.avg_purchase_cost)}<span className="text-muted-foreground text-xs">/{item.unit}</span></>
+              : <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showDefaultCost && (
+          <TableCell className="tabular-nums text-right text-sm">
+            {item.default_purchase_cost != null
+              ? <>Rp{formatNum(item.default_purchase_cost)}<span className="text-muted-foreground text-xs">/{item.default_purchase_cost_unit ?? item.unit}</span></>
               : <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
@@ -115,33 +138,35 @@ export function ItemTableRow({
               : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {showSellable && (
+        {showSellingPrice && (
           <TableCell className="tabular-nums text-right text-sm">
             {item.sell_price != null
               ? <>Rp{formatNum(item.sell_price)}</>
               : <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {showSellable && (
+        {showAddOn && (
           <TableCell>
             {item.is_addon
               ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
               : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {hasRecipe !== undefined && (
+        {hasRecipe !== undefined && showRecipe && (
           <TableCell>
             {hasRecipe
               ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
               : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
-        <TableCell>
-          <div className="text-sm">{formatDate(item.updated_at)}</div>
-          <div className="text-xs text-muted-foreground">{updaterName(item.updater)}</div>
-        </TableCell>
+        {showLastUpdated && (
+          <TableCell>
+            <div className="text-sm">{formatDate(item.updated_at)}</div>
+            <div className="text-xs text-muted-foreground">{updaterName(item.updater)}</div>
+          </TableCell>
+        )}
         <TableCell />
-        <TableCell>
+        <TableCell className={STICKY_ACTION_CELL}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8">
@@ -214,7 +239,7 @@ export function ItemTableRow({
 
 /** On-hand cell button with optional conversion tooltip */
 function OnHandButton({ value, unit, onClick }: { value: number; unit: string; onClick: () => void }) {
-  const otherUnit = upConversionTarget(unit as UnitCode);
+  const otherUnit = downConversionTarget(unit as UnitCode);
   const converted = otherUnit != null ? convert(value, unit as UnitCode, otherUnit) : null;
 
   const btn = (

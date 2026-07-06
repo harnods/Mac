@@ -3,9 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
+import { Check, ChevronsUpDown, ImagePlus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,11 @@ import { CategoryCombobox } from "./category-combobox";
 import { parseDecimal } from "@/lib/units";
 import { createProductItem, updateProductItem } from "@/app/actions/inventory";
 import { createUnit } from "@/app/actions/units";
+import { createClient } from "@/lib/supabase/client";
 import type { Item } from "@/lib/supabase/types";
 import type { SetProductEntry, ProductFormData } from "@/app/actions/inventory";
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 type ProductKind = "ala_carte" | "set";
 
@@ -68,6 +71,26 @@ export function ProductForm({
     itemAny?.sell_price != null ? String(itemAny.sell_price) : "",
   );
   const [isAddon, setIsAddon] = useState(itemAny?.is_addon ?? false);
+  const [imageUrl, setImageUrl] = useState<string | null>(item?.image_url ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > MAX_IMAGE_BYTES) { toast.error("Image must be under 5MB"); return; }
+
+    setUploadingImage(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${item?.id ?? crypto.randomUUID()}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
+    setUploadingImage(false);
+    if (error) { toast.error(error.message); return; }
+    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+    setImageUrl(data.publicUrl);
+  }
 
   function handleKindChange(kind: ProductKind) {
     setProductKind(kind);
@@ -125,6 +148,7 @@ export function ProductForm({
         is_sellable: isSellable,
         sell_price: isSellable && sellPrice.trim() ? parseDecimal(sellPrice) : null,
         is_addon: isAddon,
+        image_url: imageUrl,
         set_products: productKind === "set" ? setProducts : [],
       };
 
@@ -181,6 +205,46 @@ export function ProductForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+      </div>
+
+      {/* Photo */}
+      <div className="space-y-2">
+        <Label>Photo</Label>
+        <div className="flex items-center gap-3">
+          <div className="size-20 rounded-lg border bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt={name || "Product"} className="size-full object-cover" />
+            ) : (
+              <ImagePlus className="size-6 text-muted-foreground" />
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="product-image" className="cursor-pointer">
+              <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+                {uploadingImage ? "Uploading..." : imageUrl ? "Change photo" : "Upload photo"}
+              </span>
+              <input
+                id="product-image"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={uploadingImage}
+                onChange={handleImageChange}
+              />
+            </Label>
+            {imageUrl && (
+              <button
+                type="button"
+                onClick={() => setImageUrl(null)}
+                className="text-xs text-muted-foreground hover:text-foreground text-left"
+              >
+                Remove photo
+              </button>
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">Shown on the customer order menu. PNG, JPEG, or WebP, up to 5MB.</p>
       </div>
 
       {/* Category */}

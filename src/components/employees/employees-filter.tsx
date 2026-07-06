@@ -12,6 +12,9 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { EMPLOYEE_COLUMNS } from "@/components/employees/employee-table";
 
 const ALL = "__all__";
 
@@ -20,6 +23,7 @@ export function EmployeesFilter({
 }: {
   departments: { id: string; name: string }[];
 }) {
+  const { isVisible, toggle } = useColumnVisibility("employees", EMPLOYEE_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -71,12 +75,15 @@ export function EmployeesFilter({
           </Button>
         )}
       </div>
-      <Input
-        placeholder="Search employees..."
-        defaultValue={q}
-        onChange={(e) => push({ q: e.target.value })}
-        className="w-full sm:w-56"
-      />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <ColumnsMenu columns={EMPLOYEE_COLUMNS} isVisible={isVisible} toggle={toggle} />
+        <Input
+          placeholder="Search employees..."
+          defaultValue={q}
+          onChange={(e) => push({ q: e.target.value })}
+          className="w-full sm:w-56"
+        />
+      </div>
     </div>
   );
 }

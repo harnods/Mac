@@ -29,10 +29,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  STICKY_ACTION_HEAD,
+  STICKY_ACTION_CELL,
 } from "@/components/ui/table";
+import { useColumnVisibility, type ColumnDef } from "@/hooks/use-column-visibility";
 import { formatDate, updaterName } from "@/lib/format";
 import type { Updater } from "@/lib/supabase/types";
 import type { ActionResult } from "@/app/actions/employees";
+
+export function masterDataTableId(title: string) {
+  return `master-data-${title.toLowerCase().replace(/\s+/g, "-")}`;
+}
+
+export function getMasterDataColumns(showSortOrder: boolean): ColumnDef[] {
+  return [
+    ...(showSortOrder ? [{ key: "sortOrder", label: "Sort order" }] : []),
+    { key: "lastUpdated", label: "Last updated", defaultHidden: true },
+  ];
+}
 
 type Item = {
   id: string;
@@ -69,6 +83,8 @@ export function MasterDataManager({
   const [modal, setModal] = useState<ModalState>(null);
   const [editName, setEditName] = useState("");
   const [editSortOrder, setEditSortOrder] = useState("0");
+  const columns = getMasterDataColumns(showSortOrder);
+  const { isVisible } = useColumnVisibility(masterDataTableId(title), columns);
 
   function openEdit(item: Item) {
     setEditName(item.name);
@@ -101,23 +117,25 @@ export function MasterDataManager({
     });
   }
 
+  const colCount = 1 + (showSortOrder && isVisible("sortOrder") ? 1 : 0) + (isVisible("lastUpdated") ? 1 : 0) + (isAdmin ? 1 : 0);
+
   return (
     <>
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="table-fixed w-full">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              {showSortOrder && <TableHead className="w-28">Sort order</TableHead>}
-              <TableHead className="w-44">Last updated</TableHead>
-              {isAdmin && <TableHead className="w-12" />}
+              {showSortOrder && isVisible("sortOrder") && <TableHead className="w-28">Sort order</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
+              {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={isAdmin ? (showSortOrder ? 4 : 3) : (showSortOrder ? 3 : 2)}
+                  colSpan={colCount}
                   className="text-center text-sm text-muted-foreground py-8"
                 >
                   No {title.toLowerCase()} yet.
@@ -127,11 +145,12 @@ export function MasterDataManager({
             {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="font-medium truncate">{item.name}</TableCell>
-                {showSortOrder && (
+                {showSortOrder && isVisible("sortOrder") && (
                   <TableCell className="text-sm tabular-nums text-muted-foreground">
                     {item.sort_order ?? 0}
                   </TableCell>
                 )}
+                {isVisible("lastUpdated") && (
                 <TableCell>
                   {item.updated_at && (
                     <>
@@ -140,8 +159,9 @@ export function MasterDataManager({
                     </>
                   )}
                 </TableCell>
+                )}
                 {isAdmin && (
-                  <TableCell>
+                  <TableCell className={STICKY_ACTION_CELL}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="size-8">

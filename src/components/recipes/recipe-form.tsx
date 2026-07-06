@@ -21,7 +21,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { compatibleUnits, parseDecimal } from "@/lib/units";
 import { UNITS } from "@/lib/units";
 import { createRecipe, updateRecipe } from "@/app/actions/recipes";
-import { createUnit } from "@/app/actions/units";
 import { createItem } from "@/app/actions/inventory";
 import { QuickCreateItemDialog } from "./quick-create-item-dialog";
 import type { Item, Recipe, RecipeItemWithItem, UnitCode } from "@/lib/supabase/types";
@@ -107,9 +106,7 @@ export function RecipeForm({
   const [yieldQty, setYieldQty] = useState(String(recipe?.yield_qty ?? 1));
   const [yieldUnit, setYieldUnit] = useState<string>(recipe?.unit ?? "pcs");
   const [yieldUnitOpen, setYieldUnitOpen] = useState(false);
-  const [yieldUnitSearch, setYieldUnitSearch] = useState("");
-  const [units, setUnits] = useState(initialUnits);
-  const [creatingUnit, startCreateUnit] = useTransition();
+  const [units] = useState(initialUnits);
   const [productOpen, setProductOpen] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [creatingOutput, startCreateOutput] = useTransition();
@@ -135,6 +132,11 @@ export function RecipeForm({
     ...products.filter((p) => recipeType === "wip" ? p.type === "prep_item" : p.type === "product"),
     ...extraOutputItems.filter((p) => recipeType === "wip" ? p.type === "prep_item" : p.type === "product"),
   ];
+  const selectedOutputItem = filteredOutputItems.find((p) => p.id === productId);
+  // WIP yield unit must be compatible with the produced item's own unit
+  // (e.g. an ml-based prep item can only yield in ml/l, never g/kg) — a
+  // mismatch here silently breaks that prep item's cost-per-unit math.
+  const yieldUnitOptions = selectedOutputItem ? compatibleUnits(selectedOutputItem.unit) : units;
   const outputExactMatch = filteredOutputItems.some(
     (p) => p.name.toLowerCase() === productSearch.toLowerCase()
   );
@@ -183,24 +185,6 @@ export function RecipeForm({
     }
     return [newRow()];
   });
-
-  const exactUnitMatch = units.some(
-    (u) => u.toLowerCase() === yieldUnitSearch.toLowerCase()
-  );
-
-  function handleQuickAddUnit() {
-    if (!yieldUnitSearch.trim() || exactUnitMatch) return;
-    const code = yieldUnitSearch.trim();
-    startCreateUnit(async () => {
-      const res = await createUnit({ code });
-      if (!res.ok) { toast.error(res.error); return; }
-      setUnits((prev) => [...prev, code].sort());
-      setYieldUnit(code);
-      setYieldUnitSearch("");
-      setYieldUnitOpen(false);
-      toast.success(`Unit "${code}" created`);
-    });
-  }
 
   function removeRow(key: string) {
     setRows((prev) => {
@@ -328,7 +312,7 @@ export function RecipeForm({
                 className="accent-primary"
               />
               <span className="text-sm font-medium">
-                {t === "wip" ? "WIP (prep item)" : "Product"}
+                {t === "wip" ? "For prep item" : "Product"}
               </span>
             </label>
           ))}
@@ -336,7 +320,7 @@ export function RecipeForm({
         <p className="text-xs text-muted-foreground">
           {recipeType === "wip"
             ? "Recipe for a prep item — ingredients are raw ingredients, output is a prep item."
-            : "Recipe for a finished product — ingredients can include prep items (WIP)."}
+            : "Recipe for a finished product — ingredients can include prep items."}
         </p>
       </div>
 
@@ -463,49 +447,21 @@ export function RecipeForm({
                     <ChevronsUpDown className="size-3.5 opacity-50 shrink-0" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-48 p-0" align="start">
+                <PopoverContent className="w-40 p-0" align="start">
                   <Command>
-                    <CommandInput
-                      placeholder="Search or create..."
-                      value={yieldUnitSearch}
-                      onValueChange={setYieldUnitSearch}
-                    />
                     <CommandList>
-                      <CommandEmpty>
-                        {yieldUnitSearch.trim() ? (
-                          <button
-                            type="button"
-                            className="w-full px-4 py-2 text-sm text-left hover:bg-accent flex items-center gap-2"
-                            onClick={handleQuickAddUnit}
-                            disabled={creatingUnit}
-                          >
-                            <Plus className="size-3.5" />
-                            {creatingUnit ? "Creating..." : `Create "${yieldUnitSearch.trim()}"`}
-                          </button>
-                        ) : "No units found."}
-                      </CommandEmpty>
+                      <CommandEmpty>No compatible units.</CommandEmpty>
                       <CommandGroup>
-                        {units.map((u) => (
+                        {yieldUnitOptions.map((u) => (
                           <CommandItem
                             key={u}
                             value={u}
-                            onSelect={() => { setYieldUnit(u); setYieldUnitSearch(""); setYieldUnitOpen(false); }}
+                            onSelect={() => { setYieldUnit(u); setYieldUnitOpen(false); }}
                           >
                             <Check className={cn("size-4", yieldUnit === u ? "opacity-100" : "opacity-0")} />
                             {u}
                           </CommandItem>
                         ))}
-                        {yieldUnitSearch.trim() && !exactUnitMatch && (
-                          <CommandItem
-                            value={`__create__${yieldUnitSearch}`}
-                            onSelect={handleQuickAddUnit}
-                            disabled={creatingUnit}
-                            className="text-muted-foreground"
-                          >
-                            <Plus className="size-4" />
-                            {creatingUnit ? "Creating..." : `Create "${yieldUnitSearch.trim()}"`}
-                          </CommandItem>
-                        )}
                       </CommandGroup>
                     </CommandList>
                   </Command>

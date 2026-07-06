@@ -9,7 +9,7 @@ import { formatRp } from "@/lib/format";
 import { createCustomerOrder } from "@/app/actions/orders";
 import { toast } from "sonner";
 
-export type MenuItem = { id: string; name: string; unit: string; price: number };
+export type MenuItem = { id: string; name: string; unit: string; price: number; imageUrl: string | null };
 export type MenuCategory = { name: string; items: MenuItem[] };
 export type TableInfo = { id: string; name: string; code: string };
 
@@ -94,6 +94,12 @@ export function MenuClient({ categories, table }: { categories: MenuCategory[]; 
               if (!item) return null;
               return (
                 <div key={id} className="flex items-center gap-3 px-4 py-3">
+                  <div className="size-10 rounded-md bg-muted overflow-hidden shrink-0">
+                    {item.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{item.name}</div>
                     {item.price > 0 && (
@@ -175,6 +181,12 @@ export function MenuClient({ categories, table }: { categories: MenuCategory[]; 
                 const qty = cart[item.id] ?? 0;
                 return (
                   <div key={item.id} className="flex items-center gap-3 px-3 py-3">
+                    <div className="size-12 rounded-md bg-muted overflow-hidden shrink-0">
+                      {item.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                      )}
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{item.name}</div>
                       <div className="text-sm text-muted-foreground tabular-nums">

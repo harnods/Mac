@@ -43,10 +43,15 @@ export type Item = {
   updated_at: string;
   last_purchase_cost: number | null;
   avg_purchase_cost: number | null;
+  default_purchase_cost: number | null;
+  default_purchase_cost_unit: UnitCode | null;
+  purchase_unit: UnitCode | null;
+  purchase_unit_qty: number | null;
   deleted_at: string | null;
   is_sellable: boolean;
   sell_price: number | null;
   is_addon: boolean;
+  image_url: string | null;
 };
 
 export type ItemWithCategory = Item & {

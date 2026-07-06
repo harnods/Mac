@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { convert } from "@/lib/units";
+import { convertToItemUnit } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -239,14 +239,14 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
   const itemIds = [...new Set(items.map((it) => it.item_id))];
   const { data: dbItems } = await supabase
     .from("items")
-    .select("id, unit, on_hand, reserved")
+    .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty")
     .in("id", itemIds);
 
   if (dbItems) {
     for (const it of items) {
       const dbItem = dbItems.find((d) => d.id === it.item_id);
       if (!dbItem) continue;
-      const delta = convert(it.qty_purchased, it.unit, dbItem.unit) ?? it.qty_purchased;
+      const delta = convertToItemUnit(it.qty_purchased, it.unit, dbItem);
       const newOnHand = Number(dbItem.on_hand) + delta;
       const currentReserved = Number(dbItem.reserved);
 
@@ -254,7 +254,7 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
       let lastCost: number | null = null;
       const costTotal = it.cost_total ?? (it.cost_per_unit != null ? it.cost_per_unit * it.qty_purchased : null);
       if (costTotal != null && costTotal > 0) {
-        const qtyInItemUnit = convert(it.qty_purchased, it.unit, dbItem.unit) ?? it.qty_purchased;
+        const qtyInItemUnit = convertToItemUnit(it.qty_purchased, it.unit, dbItem);
         if (qtyInItemUnit > 0) lastCost = costTotal / qtyInItemUnit;
       }
 
@@ -271,7 +271,7 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
         for (const pi of allPurchaseItems) {
           const piCostTotal = pi.cost_total ?? (pi.cost_per_unit != null ? pi.cost_per_unit * Number(pi.qty_purchased) : null);
           if (piCostTotal == null || piCostTotal <= 0) continue;
-          const piQtyBase = convert(Number(pi.qty_purchased), pi.unit, dbItem.unit) ?? Number(pi.qty_purchased);
+          const piQtyBase = convertToItemUnit(Number(pi.qty_purchased), pi.unit, dbItem);
           totalCost += piCostTotal;
           totalQty += piQtyBase;
         }

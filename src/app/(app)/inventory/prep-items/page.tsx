@@ -3,21 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ImportItemsButton } from "@/components/inventory/import-items-button";
 import { ItemsFilter } from "@/components/inventory/items-filter";
+import { PrepItemsTable } from "@/components/inventory/prep-items-table";
 import { Plus } from "lucide-react";
-import { formatNum } from "@/lib/units";
-import { formatDate, updaterName } from "@/lib/format";
+import { ITEM_TYPE_CONFIG } from "@/lib/item-types";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +38,7 @@ export default async function PrepItemsPage({
     .select("id, name, unit, on_hand, reserved, updated_at, updater:profiles!updated_by(full_name,email)")
     .eq("type", "prep_item")
     .is("deleted_at", null)
-    .order("updated_at", { ascending: false });
+    .order("name");
 
   if (q.trim()) {
     itemsQuery = itemsQuery.ilike("name", `%${q.trim()}%`);
@@ -76,7 +67,18 @@ export default async function PrepItemsPage({
       </div>
 
       <Suspense fallback={null}>
-        <ItemsFilter categories={[]} label="prep items" />
+        <ItemsFilter
+          categories={[]}
+          label="prep items"
+          itemTypeSlug="prep-items"
+          columnFlags={{
+            showCategory: ITEM_TYPE_CONFIG["prep-items"].hasCategories,
+            stockMode: ITEM_TYPE_CONFIG["prep-items"].stockMode,
+            showCost: ITEM_TYPE_CONFIG["prep-items"].showCost,
+            showSellable: ITEM_TYPE_CONFIG["prep-items"].showSellable,
+            showDefaultCost: ITEM_TYPE_CONFIG["prep-items"].showDefaultCost,
+          }}
+        />
       </Suspense>
 
       {list.length === 0 ? (
@@ -90,38 +92,7 @@ export default async function PrepItemsPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="w-36">On hand</TableHead>
-                <TableHead className="w-44">Last updated</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((item) => {
-                const available = Number(item.on_hand) - Number(item.reserved);
-
-                return (
-                  <ClickableTableRow key={item.id} href={`/inventory/prep-items/${item.id}`}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {formatNum(available)}{" "}
-                      <span className="text-muted-foreground">{item.unit}</span>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      <div>{updaterName(item.updater)}</div>
-                      <div className="text-xs text-muted-foreground">{formatDate(item.updated_at)}</div>
-                    </TableCell>
-                    <TableCell />
-                  </ClickableTableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <PrepItemsTable list={list} />
       )}
     </div>
   );

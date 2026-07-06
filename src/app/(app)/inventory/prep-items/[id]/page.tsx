@@ -15,6 +15,7 @@ import {
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ItemActions } from "@/components/inventory/item-actions";
 import { SellableToggleButton } from "@/components/inventory/sellable-toggle-button";
+import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
@@ -43,7 +44,7 @@ export default async function PrepItemDetailPage({
   const isAdmin = can(profile, P.INVENTORY_WRITE);
   const supabase = await createClient();
 
-  const [{ data: itemData, error }, { data: ordersData }] =
+  const [{ data: itemData, error }, { data: ordersData }, { data: recipeData }] =
     await Promise.all([
       supabase
         .from("items")
@@ -56,12 +57,18 @@ export default async function PrepItemDetailPage({
         .select("id, status, target_qty, qty_to_prep, yield_variance_reason, planned_date")
         .eq("product_id", id)
         .order("planned_date", { ascending: false }),
+      supabase
+        .from("recipes")
+        .select("id, name")
+        .eq("product_id", id)
+        .maybeSingle(),
     ]);
 
   if (error || !itemData) notFound();
 
   const item = itemData as unknown as { id: string; name: string; unit: string; on_hand: number; reserved: number; is_sellable: boolean; updated_at: string; updater: Updater | null };
   const orders = (ordersData ?? []) as PrepOrder[];
+  const recipe = recipeData as { id: string; name: string } | null;
 
   const available = Number(item.on_hand) - Number(item.reserved);
 
@@ -95,6 +102,17 @@ export default async function PrepItemDetailPage({
       <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm max-w-sm">
         <span className="text-muted-foreground">On hand</span>
         <span className="tabular-nums"><Qty value={available} unit={item.unit} /></span>
+        <span className="text-muted-foreground">Recipe</span>
+        {recipe ? (
+          <RecipeDrawerTrigger recipeId={recipe.id} recipeName={recipe.name} />
+        ) : (
+          <span className="text-muted-foreground">
+            No recipe yet.{" "}
+            <Link href={`/recipes/new?name=${encodeURIComponent(item.name)}&type=wip`} className="underline hover:text-foreground">
+              Create recipe
+            </Link>
+          </span>
+        )}
         <span className="text-muted-foreground">Last updated</span>
         <span>{updaterName(item.updater)} · {formatDate(item.updated_at)}</span>
       </div>
@@ -106,7 +124,7 @@ export default async function PrepItemDetailPage({
           <p className="text-sm text-muted-foreground py-2">No prep orders yet.</p>
         ) : (
           <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="table-fixed w-full">
+            <Table className="w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-28">No</TableHead>

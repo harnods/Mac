@@ -57,7 +57,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "group border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
@@ -70,7 +70,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle text-xs text-muted-foreground whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "h-10 px-4 text-left align-middle text-xs text-muted-foreground whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -83,7 +83,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "py-2 px-4 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -103,6 +103,11 @@ function TableCaption({
     />
   )
 }
+
+// Applied to the rightmost "actions" column (header + cells) so it stays
+// pinned in place when a wide table scrolls horizontally.
+export const STICKY_ACTION_HEAD = "sticky right-0 z-10 bg-muted/50"
+export const STICKY_ACTION_CELL = "sticky right-0 z-10 bg-background group-hover:bg-muted/50"
 
 export {
   Table,

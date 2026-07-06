@@ -28,19 +28,21 @@ export function compatibleUnits(unit: UnitCode): UnitCode[] {
 }
 
 /**
- * Returns the next larger unit to convert *up* to (e.g. g → kg, ml → l),
- * or null if the unit is already the largest in its group (kg, l) or has
- * no conversions. Used to decide whether to show a conversion tooltip.
+ * Returns the next smaller unit to convert *down* to (e.g. kg → g, l → ml),
+ * or null if the unit is already the smallest in its group (g, ml) or has
+ * no conversions. Used to decide whether to show a conversion tooltip —
+ * the smaller unit is the practically useful breakdown to show (e.g.
+ * "1.5 kg" → tooltip "1500 g"), not the other way around.
  */
-export function upConversionTarget(unit: UnitCode): UnitCode | null {
+export function downConversionTarget(unit: UnitCode): UnitCode | null {
   const g = findGroup(unit);
   if (!g) return null;
   const current = g.members[unit];
   if (current == null) return null;
-  const larger = Object.entries(g.members)
-    .filter(([, factor]) => factor > current)
-    .sort((a, b) => a[1] - b[1])[0];
-  return larger ? (larger[0] as UnitCode) : null;
+  const smaller = Object.entries(g.members)
+    .filter(([, factor]) => factor < current)
+    .sort((a, b) => b[1] - a[1])[0];
+  return smaller ? (smaller[0] as UnitCode) : null;
 }
 
 export function convert(value: number, from: UnitCode, to: UnitCode): number | null {
@@ -49,6 +51,26 @@ export function convert(value: number, from: UnitCode, to: UnitCode): number | n
   if (!g || !(to in g.members)) return null;
   const inBase = value * g.members[from];
   return inBase / g.members[to];
+}
+
+/**
+ * Converts a quantity into an item's own unit, falling back to the item's
+ * custom purchase-unit ratio (e.g. "1 bungkus = 5000 g") when the universal
+ * g/kg or ml/l conversion doesn't apply. That ratio is specific to this
+ * item's packaging, not a general unit-to-unit conversion.
+ */
+export function convertToItemUnit(
+  value: number,
+  from: UnitCode,
+  item: { unit: UnitCode; purchase_unit?: UnitCode | null; purchase_unit_qty?: number | null },
+): number {
+  if (from === item.unit) return value;
+  const viaGroup = convert(value, from, item.unit);
+  if (viaGroup != null) return viaGroup;
+  if (item.purchase_unit && from === item.purchase_unit && item.purchase_unit_qty) {
+    return value * item.purchase_unit_qty;
+  }
+  return value;
 }
 
 /**

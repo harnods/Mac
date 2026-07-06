@@ -42,7 +42,7 @@ export default async function JobLevelsPage({
       </div>
 
       <Suspense fallback={null}>
-        <MasterDataFilter placeholder="Search job levels..." />
+        <MasterDataFilter placeholder="Search job levels..." title="Job level" showSortOrder />
       </Suspense>
 
       <MasterDataManager

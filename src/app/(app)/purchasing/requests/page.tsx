@@ -4,15 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
-import { PurchaseRequestRow } from "@/components/purchasing/purchase-request-row";
+import { PurchaseRequestsTable } from "@/components/purchasing/purchase-requests-table";
 import { PurchaseRequestsFilter } from "@/components/purchasing/purchase-requests-filter";
 import type { PurchaseRequestStatus, Updater } from "@/lib/supabase/types";
 import { PaginationBar } from "@/components/ui/pagination-bar";
@@ -91,36 +84,7 @@ export default async function PurchaseRequestsPage({
           .
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-28">ID</TableHead>
-                <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-20">Items</TableHead>
-                <TableHead className="w-56">Note</TableHead>
-                <TableHead className="w-44">Created</TableHead>
-                <TableHead />
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((r) => (
-                <PurchaseRequestRow
-                  key={r.id}
-                  id={r.id}
-                  status={r.status}
-                  itemCount={r.purchase_request_items.length}
-                  note={r.note}
-                  creator={r.creator}
-                  createdAt={r.created_at}
-                  isAdmin={isAdmin}
-                  isOwn={r.created_by === profile?.id}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <PurchaseRequestsTable list={list} isAdmin={isAdmin} currentProfileId={profile?.id} />
       )}
       <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>

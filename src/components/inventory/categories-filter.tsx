@@ -3,8 +3,12 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition, useCallback } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { CATEGORY_COLUMNS } from "@/components/inventory/category-manager";
 
 export function CategoriesFilter() {
+  const { isVisible, toggle } = useColumnVisibility("categories", CATEGORY_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -21,7 +25,8 @@ export function CategoriesFilter() {
   );
 
   return (
-    <div className="flex items-center justify-end">
+    <div className="flex items-center justify-end gap-2">
+      <ColumnsMenu columns={CATEGORY_COLUMNS} isVisible={isVisible} toggle={toggle} />
       <Input
         placeholder="Search categories..."
         defaultValue={q}

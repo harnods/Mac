@@ -9,6 +9,7 @@ type Row = {
   name: string;
   unit: string;
   sell_price: number | null;
+  image_url: string | null;
   categories: { name: string } | null;
 };
 
@@ -26,7 +27,7 @@ export default async function TableOrderPage({ params }: { params: Promise<{ cod
 
   const { data } = await supabase
     .from("items")
-    .select("id, name, unit, sell_price, categories(name)")
+    .select("id, name, unit, sell_price, image_url, categories(name)")
     .eq("is_sellable", true)
     .is("deleted_at", null)
     .order("name");
@@ -37,7 +38,7 @@ export default async function TableOrderPage({ params }: { params: Promise<{ cod
   for (const r of rows) {
     const cat = r.categories?.name ?? "Lainnya";
     const list = byCategory.get(cat) ?? [];
-    list.push({ id: r.id, name: r.name, unit: r.unit, price: Number(r.sell_price ?? 0) });
+    list.push({ id: r.id, name: r.name, unit: r.unit, price: Number(r.sell_price ?? 0), imageUrl: r.image_url });
     byCategory.set(cat, list);
   }
 

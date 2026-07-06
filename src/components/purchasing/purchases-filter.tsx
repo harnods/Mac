@@ -3,8 +3,12 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTransition } from "react";
 import { Input } from "@/components/ui/input";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { PURCHASE_COLUMNS } from "@/components/purchasing/purchases-table";
 
 export function PurchasesFilter() {
+  const { isVisible, toggle } = useColumnVisibility("purchases", PURCHASE_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -19,7 +23,8 @@ export function PurchasesFilter() {
   }
 
   return (
-    <div className="flex justify-end">
+    <div className="flex justify-end gap-2">
+      <ColumnsMenu columns={PURCHASE_COLUMNS} isVisible={isVisible} toggle={toggle} />
       <Input
         placeholder="Search purchases..."
         defaultValue={searchParams.get("q") ?? ""}

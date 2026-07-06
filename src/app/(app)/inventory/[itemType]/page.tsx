@@ -46,7 +46,7 @@ export default async function ItemTypePage({
     .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)", { count: "exact" })
     .eq("type", config.dbType)
     .is("deleted_at", null)
-    .order("updated_at", { ascending: false })
+    .order("name")
     .range(from, to);
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
@@ -97,7 +97,19 @@ export default async function ItemTypePage({
       </div>
 
       <Suspense fallback={null}>
-        <ItemsFilter categories={cats} label={config.label.toLowerCase()} />
+        <ItemsFilter
+          categories={cats}
+          label={config.label.toLowerCase()}
+          itemTypeSlug={itemType as ItemTypeSlug}
+          columnFlags={{
+            showCategory: config.hasCategories,
+            stockMode: config.stockMode,
+            showCost: config.showCost,
+            showSellable: config.showSellable,
+            showDefaultCost: config.showDefaultCost,
+            hasRecipeColumn: config.dbType === "product",
+          }}
+        />
       </Suspense>
 
       {list.length === 0 ? (
@@ -129,6 +141,7 @@ export default async function ItemTypePage({
             stockMode={config.stockMode}
             showCost={config.showCost}
             showSellable={config.showSellable}
+            showDefaultCost={config.showDefaultCost}
             linkedRecipeProductIds={config.dbType === "product" ? linkedRecipeProductIds : undefined}
           />
 

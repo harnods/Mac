@@ -167,7 +167,7 @@ export default async function PrepOrderDetailPage({
           <p className="text-sm text-muted-foreground py-2">No ingredients.</p>
         ) : (
           <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="table-fixed w-full">
+            <Table className="w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8">#</TableHead>

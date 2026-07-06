@@ -12,17 +12,27 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { getItemColumns, type ItemColumnFlags } from "@/lib/item-columns";
 import type { Category } from "@/lib/supabase/types";
+import type { ItemTypeSlug } from "@/lib/item-types";
 
 const ALL = "__all__";
 
 export function ItemsFilter({
   categories,
   label = "items",
+  itemTypeSlug,
+  columnFlags,
 }: {
   categories: Pick<Category, "id" | "name">[];
   label?: string;
+  itemTypeSlug: ItemTypeSlug;
+  columnFlags: ItemColumnFlags;
 }) {
+  const columns = getItemColumns(columnFlags);
+  const { isVisible, toggle } = useColumnVisibility(`items-${itemTypeSlug}`, columns);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -74,12 +84,15 @@ export function ItemsFilter({
           </Button>
         )}
       </div>
-      <Input
-        placeholder={`Search ${label}...`}
-        defaultValue={q}
-        onChange={(e) => push({ q: e.target.value })}
-        className="w-full sm:w-56"
-      />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <ColumnsMenu columns={columns} isVisible={isVisible} toggle={toggle} />
+        <Input
+          placeholder={`Search ${label}...`}
+          defaultValue={q}
+          onChange={(e) => push({ q: e.target.value })}
+          className="w-full sm:w-56"
+        />
+      </div>
     </div>
   );
 }

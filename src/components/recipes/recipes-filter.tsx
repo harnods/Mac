@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { RECIPE_COLUMNS } from "@/components/recipes/recipe-bulk-table";
 
 const ALL = "__all__";
 
 export function RecipesFilter() {
+  const { isVisible, toggle } = useColumnVisibility("recipes", RECIPE_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -47,7 +51,7 @@ export function RecipesFilter() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All types</SelectItem>
-            <SelectItem value="wip">WIP</SelectItem>
+            <SelectItem value="wip">For prep item</SelectItem>
             <SelectItem value="product">Product</SelectItem>
           </SelectContent>
         </Select>
@@ -62,12 +66,15 @@ export function RecipesFilter() {
           </Button>
         )}
       </div>
-      <Input
-        placeholder="Search recipes..."
-        defaultValue={q}
-        onChange={(e) => push({ q: e.target.value })}
-        className="w-full sm:w-56"
-      />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <ColumnsMenu columns={RECIPE_COLUMNS} isVisible={isVisible} toggle={toggle} />
+        <Input
+          placeholder="Search recipes..."
+          defaultValue={q}
+          onChange={(e) => push({ q: e.target.value })}
+          className="w-full sm:w-56"
+        />
+      </div>
     </div>
   );
 }

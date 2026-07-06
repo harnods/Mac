@@ -11,8 +11,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { PURCHASE_REQUEST_COLUMNS } from "@/components/purchasing/purchase-requests-table";
 
 export function PurchaseRequestsFilter() {
+  const { isVisible, toggle } = useColumnVisibility("purchase-requests", PURCHASE_REQUEST_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -50,6 +54,7 @@ export function PurchaseRequestsFilter() {
         </Button>
       )}
       <div className="flex-1" />
+      <ColumnsMenu columns={PURCHASE_REQUEST_COLUMNS} isVisible={isVisible} toggle={toggle} />
       <Input
         placeholder="Search requests..."
         defaultValue={q}

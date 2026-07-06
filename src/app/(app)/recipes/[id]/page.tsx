@@ -6,13 +6,23 @@ import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
 import { formatNum } from "@/lib/units";
+import { formatRp } from "@/lib/format";
 import { Qty } from "@/components/ui/qty";
 import { RecipeDeleteButton } from "@/components/recipes/recipe-delete-button";
 import { ProductDrawerTrigger } from "@/components/inventory/product-drawer";
 import { IngredientDrawerTrigger } from "@/components/inventory/ingredient-drawer";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
+import type { CostableItem } from "@/lib/cogs";
+import { calculateRecipeCostRecursive, type RecipeCostSource } from "@/lib/cogs-server";
 import type { RecipeWithItems } from "@/lib/supabase/types";
+
+const SOURCE_LABEL: Record<RecipeCostSource, string> = {
+  avg: "avg cost",
+  last: "last cost",
+  default: "est.",
+  recipe: "from recipe",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -28,19 +38,38 @@ export default async function RecipeDetailPage({
   const { data, error } = await supabase
     .from("recipes")
     .select(
-      "*, recipe_items(id, item_id, quantity, unit, item:items(id,name,unit,deleted_at)), updater:profiles!updated_by(full_name,email), product:items!product_id(id,name,unit,type)"
+      "*, recipe_items(id, item_id, quantity, unit, item:items(id,name,unit,type,deleted_at,last_purchase_cost,avg_purchase_cost,default_purchase_cost,default_purchase_cost_unit,purchase_unit,purchase_unit_qty)), updater:profiles!updated_by(full_name,email), product:items!product_id(id,name,unit,type,sell_price)"
     )
     .eq("id", id)
     .maybeSingle();
 
   if (error || !data) notFound();
-  const recipe = data as RecipeWithItems & { recipe_type?: string | null; unit?: string | null; weight_per_pcs?: number | null; weight_unit?: string | null; product: { id: string; name: string; unit: string; type: string } | null };
+  type RecipeItemWithCost = {
+    id: string;
+    item_id: string;
+    quantity: number;
+    unit: string;
+    item: (CostableItem & { id: string; name: string; type: string; deleted_at: string | null }) | null;
+  };
+  const recipe = data as Omit<RecipeWithItems, "recipe_items"> & {
+    recipe_items: RecipeItemWithCost[];
+    recipe_type?: string | null;
+    unit?: string | null;
+    weight_per_pcs?: number | null;
+    weight_unit?: string | null;
+    product: { id: string; name: string; unit: string; type: string; sell_price: number | null } | null;
+  };
   const recipeType: "wip" | "product" =
     recipe.recipe_type === "product" ? "product"
     : recipe.recipe_type === "wip"    ? "wip"
     : recipe.product?.type === "prep_item" ? "wip" : "product";
   const isWip = recipeType === "wip";
   const isAdmin = can(profile, P.RECIPES_WRITE);
+
+  const cogs = await calculateRecipeCostRecursive(supabase, recipe.recipe_items, recipe.yield_qty);
+  const sellPrice = recipe.product?.sell_price ?? null;
+  const cogsPercent = !isWip && sellPrice != null && sellPrice > 0 ? (cogs.costPerYieldUnit / sellPrice) * 100 : null;
+  const yieldUnit = isWip ? (recipe.unit ?? recipe.product?.unit ?? null) : (recipe.product?.unit ?? null);
 
   return (
     <div className="space-y-4">
@@ -64,12 +93,16 @@ export default async function RecipeDetailPage({
       <div className="max-w-2xl space-y-4">
         <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
           <span className="text-muted-foreground">Type</span>
-          <span>{isWip ? "WIP (prep item)" : "Product"}</span>
+          <span>{isWip ? "For prep item" : "Product"}</span>
         </div>
         {recipe.product && (
           <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <span className="text-muted-foreground">Output</span>
-            <ProductDrawerTrigger productId={recipe.product.id} productName={recipe.product.name} />
+            {isWip ? (
+              <IngredientDrawerTrigger itemId={recipe.product.id} itemName={recipe.product.name} />
+            ) : (
+              <ProductDrawerTrigger productId={recipe.product.id} productName={recipe.product.name} />
+            )}
             <>
               <span className="text-muted-foreground">Yield</span>
               <span className="tabular-nums">
@@ -91,25 +124,71 @@ export default async function RecipeDetailPage({
           <p className="text-sm text-muted-foreground">No ingredients.</p>
         ) : (
           <div>
-            <div className="grid grid-cols-[2rem_12rem_auto] gap-x-6 py-2 border-b text-xs text-muted-foreground">
+            <div className="grid grid-cols-[2rem_12rem_auto_7rem] gap-x-6 py-2 border-b text-xs text-muted-foreground">
               <span />
               <span className="pl-3">Ingredient</span>
               <span>Qty</span>
+              <span className="text-right">Cost</span>
             </div>
-            {recipe.recipe_items.map((ri, idx) => (
-              <div key={ri.id} className="grid grid-cols-[2rem_12rem_auto] gap-x-6 items-center py-2 border-b last:border-0">
-                <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
-                <span className="font-medium text-sm pl-3 flex items-center gap-1.5">
-                  {ri.item && !ri.item.deleted_at
-                    ? <IngredientDrawerTrigger itemId={ri.item.id} itemName={ri.item.name} />
-                    : ri.item?.name ?? "—"}
-                  {ri.item?.deleted_at && <DeletedItemBadge />}
-                </span>
-                <span className="tabular-nums text-sm">
-                  <Qty value={ri.quantity} unit={ri.unit} />
-                </span>
-              </div>
-            ))}
+            {recipe.recipe_items.map((ri, idx) => {
+              const line = cogs.lines[idx];
+              return (
+                <div key={ri.id} className="grid grid-cols-[2rem_12rem_auto_7rem] gap-x-6 items-center py-2 border-b last:border-0">
+                  <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
+                  <span className="font-medium text-sm pl-3 flex items-center gap-1.5">
+                    {ri.item && !ri.item.deleted_at
+                      ? <IngredientDrawerTrigger itemId={ri.item.id} itemName={ri.item.name} />
+                      : ri.item?.name ?? "—"}
+                    {ri.item?.deleted_at && <DeletedItemBadge />}
+                  </span>
+                  <span className="tabular-nums text-sm">
+                    <Qty value={ri.quantity} unit={ri.unit} />
+                  </span>
+                  <span className="tabular-nums text-sm text-right">
+                    {line.cost != null ? (
+                      <>
+                        {formatRp(line.cost)}
+                        {line.source && line.source !== "avg" && (
+                          <span className="text-muted-foreground text-xs"> ({SOURCE_LABEL[line.source]})</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {recipe.recipe_items.length > 0 && (
+          <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm pt-2 border-t">
+            <span className="text-muted-foreground">Total COGS</span>
+            <span className="tabular-nums font-medium">
+              {formatRp(cogs.totalCost)}
+              {cogs.hasIncompleteCost && (
+                <span className="text-muted-foreground text-xs font-normal"> (incomplete — some ingredients have no cost data)</span>
+              )}
+            </span>
+            {recipe.yield_qty !== 1 && yieldUnit && (
+              <>
+                <span className="text-muted-foreground">Cost per {yieldUnit}</span>
+                <span className="tabular-nums">{formatRp(cogs.costPerYieldUnit)}</span>
+              </>
+            )}
+            {sellPrice != null && (
+              <>
+                <span className="text-muted-foreground">Sell price</span>
+                <span className="tabular-nums">{formatRp(sellPrice)}</span>
+              </>
+            )}
+            {cogsPercent != null && (
+              <>
+                <span className="text-muted-foreground">COGS %</span>
+                <span className="tabular-nums">{formatNum(cogsPercent)}%</span>
+              </>
+            )}
           </div>
         )}
       </div>

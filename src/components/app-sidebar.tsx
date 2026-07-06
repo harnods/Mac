@@ -89,7 +89,7 @@ export function AppSidebar() {
   return (
     <div className="hidden md:flex shrink-0">
       {/* App rail */}
-      <nav className="w-[68px] bg-[#e9eef6] flex flex-col items-center pt-[72px] gap-2">
+      <nav className="w-[68px] bg-[#e9eef6] flex flex-col items-center pt-[72px] gap-4">
         {RAIL.map((app) => {
           const active = app.match(pathname);
           const Icon = app.icon;

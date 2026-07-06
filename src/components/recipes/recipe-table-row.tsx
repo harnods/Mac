@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TableCell } from "@/components/ui/table";
+import { TableCell, STICKY_ACTION_CELL } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatDate, updaterName } from "@/lib/format";
 import { RecipeDeleteDialog } from "./recipe-delete-dialog";
@@ -28,15 +28,22 @@ type Props = {
   isAdmin: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
+  showType?: boolean;
+  showOutput?: boolean;
+  showIngredients?: boolean;
+  showLastUpdated?: boolean;
 };
 
-export function RecipeTableRowClient({ id, name, product, productType, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect }: Props) {
+export function RecipeTableRowClient({
+  id, name, product, productType, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect,
+  showType = true, showOutput = true, showIngredients = true, showLastUpdated = true,
+}: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const typeLabel =
-    productType === "wip"      ? "WIP"
+    productType === "wip"      ? "For prep item"
     : productType === "product"  ? "Product"
-    : productType === "prep_item" ? "WIP"      // legacy: inferred from item type
+    : productType === "prep_item" ? "For prep item"      // legacy: inferred from item type
     : null;
 
   return (
@@ -50,17 +57,21 @@ export function RecipeTableRowClient({ id, name, product, productType, ingredien
           </TableCell>
         )}
         <TableCell className="font-medium truncate">{name}</TableCell>
-        <TableCell className="text-sm">
-          {typeLabel ?? <span className="text-muted-foreground">—</span>}
-        </TableCell>
-        <TableCell>{product ?? <span className="text-muted-foreground">—</span>}</TableCell>
-        <TableCell className="tabular-nums">{ingredientCount}</TableCell>
-        <TableCell>
-          <div className="text-sm">{formatDate(updatedAt)}</div>
-          <div className="text-xs text-muted-foreground">{updaterName(updater)}</div>
-        </TableCell>
+        {showType && (
+          <TableCell className="text-sm">
+            {typeLabel ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showOutput && <TableCell>{product ?? <span className="text-muted-foreground">—</span>}</TableCell>}
+        {showIngredients && <TableCell className="tabular-nums">{ingredientCount}</TableCell>}
+        {showLastUpdated && (
+          <TableCell>
+            <div className="text-sm">{formatDate(updatedAt)}</div>
+            <div className="text-xs text-muted-foreground">{updaterName(updater)}</div>
+          </TableCell>
+        )}
         <TableCell />
-        <TableCell>
+        <TableCell className={STICKY_ACTION_CELL}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8">

@@ -19,7 +19,7 @@ export default async function EmploymentStatusesPage({
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
   const supabase = await createClient();
 
-  let query = supabase.from("employment_statuses").select("id,name,updated_at,updater:profiles!updated_by(full_name,email)").order("updated_at", { ascending: false });
+  let query = supabase.from("employment_statuses").select("id,name,updated_at,updater:profiles!updated_by(full_name,email)").order("name");
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   const { data } = await query;
   const items = (data ?? []) as unknown as { id: string; name: string; updated_at: string; updater: { full_name: string | null; email: string } | null }[];
@@ -32,7 +32,7 @@ export default async function EmploymentStatusesPage({
       </div>
 
       <Suspense fallback={null}>
-        <MasterDataFilter placeholder="Search employment statuses..." />
+        <MasterDataFilter placeholder="Search employment statuses..." title="Employment status" />
       </Suspense>
 
       <MasterDataManager

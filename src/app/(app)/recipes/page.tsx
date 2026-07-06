@@ -48,7 +48,7 @@ export default async function RecipesPage({
   let query = supabase
     .from("recipes")
     .select(`id, name, recipe_type, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`, { count: "exact" })
-    .order("updated_at", { ascending: false })
+    .order("name")
     .range(from, to);
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);

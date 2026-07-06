@@ -20,7 +20,7 @@ export default async function NewPurchasePage() {
   const [{ data: ingredients }, { data: requests }] = await Promise.all([
     supabase
       .from("items")
-      .select("id, name, unit, on_hand, reserved")
+      .select("id, name, unit, on_hand, reserved, purchase_unit")
       .eq("type", "ingredient")
       .is("deleted_at", null)
       .order("name"),

@@ -38,7 +38,7 @@ import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
 import { formatId, formatDate } from "@/lib/format";
 import { createPurchase } from "@/app/actions/purchasing";
 
-type Ingredient = { id: string; name: string; unit: string };
+type Ingredient = { id: string; name: string; unit: string; purchase_unit: string | null };
 
 type ApprovedRequest = {
   id: string;
@@ -473,7 +473,9 @@ function PurchaseRowField({
   const [unitOpen, setUnitOpen] = useState(false);
 
   const selectedItem = ingredients.find((i) => i.id === row.item_id) ?? null;
-  const units = selectedItem ? compatibleUnits(selectedItem.unit) : [];
+  const units = selectedItem
+    ? [...compatibleUnits(selectedItem.unit), ...(selectedItem.purchase_unit ? [selectedItem.purchase_unit] : [])]
+    : [];
 
   const showRowNote =
     row.qty_requested !== null &&

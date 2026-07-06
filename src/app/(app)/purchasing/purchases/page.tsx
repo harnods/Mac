@@ -4,16 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { PurchasesFilter } from "@/components/purchasing/purchases-filter";
-import { PurchaseRow } from "@/components/purchasing/purchase-row";
+import { PurchasesTable } from "@/components/purchasing/purchases-table";
 import type { Updater } from "@/lib/supabase/types";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 
@@ -90,27 +83,7 @@ export default async function PurchasesPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-28">ID</TableHead>
-                <TableHead className="w-32">From request</TableHead>
-                <TableHead className="w-16">Items</TableHead>
-                <TableHead className="w-36">Transaction date</TableHead>
-                <TableHead className="w-44">Recorded</TableHead>
-                <TableHead className="w-56">Note</TableHead>
-                <TableHead />
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((p) => (
-                <PurchaseRow key={p.id} {...p} />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <PurchasesTable list={list} />
       )}
       <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
     </div>
