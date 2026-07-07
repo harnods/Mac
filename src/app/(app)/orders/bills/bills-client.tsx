@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { formatRp } from "@/lib/format";
+import { formatRate, PBJT_RATE, SERVICE_CHARGE_RATE } from "@/lib/order-charges";
 import { closeTableBill } from "@/app/actions/orders";
 
 type OpenOrder = {
@@ -29,6 +30,9 @@ type TableBill = {
 type OrderDetail = {
   id: string;
   order_number: string;
+  subtotal: number;
+  service_charge: number;
+  tax_total: number;
   total: number;
   order_items: { name_snapshot: string; qty: number; unit_price: number; line_total: number }[];
 };
@@ -56,7 +60,7 @@ function groupByTable(orders: OpenOrder[]): TableBill[] {
 
 export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
   const router = useRouter();
-  const [bills, setBills] = useState<TableBill[]>(groupByTable(initialOrders));
+  const bills = useMemo(() => groupByTable(initialOrders), [initialOrders]);
   const [closing, startClose] = useTransition();
   const [selectedBill, setSelectedBill] = useState<TableBill | null>(null);
   const [orderDetails, setOrderDetails] = useState<OrderDetail[]>([]);
@@ -64,25 +68,22 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
   const supabase = useRef(createClient());
 
   useEffect(() => {
-    const channel = supabase.current
+    const client = supabase.current;
+    const channel = client
       .channel("bills-board")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
         router.refresh();
       })
       .subscribe();
-    return () => { supabase.current.removeChannel(channel); };
+    return () => { client.removeChannel(channel); };
   }, [router]);
-
-  useEffect(() => {
-    setBills(groupByTable(initialOrders));
-  }, [initialOrders]);
 
   async function openBillDialog(bill: TableBill) {
     setSelectedBill(bill);
     setLoadingDetails(true);
     const { data } = await supabase.current
       .from("orders")
-      .select("id, order_number, total, order_items(name_snapshot, qty, unit_price, line_total)")
+      .select("id, order_number, subtotal, service_charge, tax_total, total, order_items(name_snapshot, qty, unit_price, line_total)")
       .eq("table_id", bill.tableId)
       .in("status", ["new", "preparing", "ready"])
       .order("created_at", { ascending: true });
@@ -98,7 +99,7 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
       if (!res.ok) {
         toast.error(res.error);
       } else {
-        toast.success(`Bill ${tableName} ditutup`);
+        toast.success(`Bill ${tableName} closed`);
         setSelectedBill(null);
         router.refresh();
       }
@@ -108,12 +109,15 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
   if (bills.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-        Tidak ada bill yang terbuka.
+        No open bills.
       </div>
     );
   }
 
-  const grandTotal = orderDetails.reduce((s, o) => s + o.total, 0);
+  const subtotal = orderDetails.reduce((s, o) => s + Number(o.subtotal), 0);
+  const serviceCharge = orderDetails.reduce((s, o) => s + Number(o.service_charge), 0);
+  const taxTotal = orderDetails.reduce((s, o) => s + Number(o.tax_total), 0);
+  const grandTotal = orderDetails.reduce((s, o) => s + Number(o.total), 0);
 
   return (
     <>
@@ -123,7 +127,7 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
             <div className="min-w-0">
               <div className="font-semibold">{bill.tableName}</div>
               <div className="text-sm text-muted-foreground">
-                {bill.orderCount} pesanan ·{" "}
+                {bill.orderCount} order{bill.orderCount === 1 ? "" : "s"} ·{" "}
                 {bill.statuses.map((s) => (
                   <Badge key={s} variant="secondary" className="mr-1 text-xs capitalize">
                     {s}
@@ -148,13 +152,13 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
           </DialogHeader>
 
           {loadingDetails ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Memuat...</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
           ) : (
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
               {orderDetails.map((order, i) => (
                 <div key={order.id} className="space-y-1">
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Pesanan #{i + 1} · {order.order_number}
+                    Order #{i + 1} · {order.order_number}
                   </div>
                   {order.order_items.map((item, j) => (
                     <div key={j} className="flex justify-between text-sm gap-2">
@@ -168,6 +172,21 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
 
               <Separator />
 
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="tabular-nums">{formatRp(subtotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Service charge ({formatRate(SERVICE_CHARGE_RATE)})</span>
+                  <span className="tabular-nums">{formatRp(serviceCharge)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">PBJT ({formatRate(PBJT_RATE)})</span>
+                  <span className="tabular-nums">{formatRp(taxTotal)}</span>
+                </div>
+              </div>
+
               <div className="flex justify-between font-bold text-base">
                 <span>Total</span>
                 <span className="tabular-nums">{formatRp(grandTotal)}</span>
@@ -177,10 +196,10 @@ export function BillsClient({ initialOrders }: { initialOrders: OpenOrder[] }) {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setSelectedBill(null)}>
-              Batal
+              Cancel
             </Button>
             <Button onClick={confirmClose} disabled={closing || loadingDetails}>
-              {closing ? "Menutup..." : "Konfirmasi Close Bill"}
+              {closing ? "Closing..." : "Confirm Close Bill"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -6,6 +6,7 @@ import { ArrowLeft, Minus, Plus, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRp } from "@/lib/format";
+import { calculateOrderCharges, formatRate, PBJT_RATE, SERVICE_CHARGE_RATE } from "@/lib/order-charges";
 import { createCustomerOrder } from "@/app/actions/orders";
 import { toast } from "sonner";
 
@@ -15,20 +16,22 @@ export type TableInfo = { id: string; name: string; code: string };
 
 export function MenuClient({ categories, table }: { categories: MenuCategory[]; table?: TableInfo }) {
   const router = useRouter();
-  const [phone, setPhone] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [phone] = useState<string | null>(() => {
+    if (table || typeof window === "undefined") return null;
+    return sessionStorage.getItem("order_phone");
+  });
+  const [name] = useState(() => {
+    if (table || typeof window === "undefined") return "";
+    return sessionStorage.getItem("order_name") ?? "";
+  });
   const [cart, setCart] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState("");
   const [view, setView] = useState<"menu" | "review">("menu");
   const [submitting, startSubmit] = useTransition();
 
   useEffect(() => {
-    if (table) return;
-    const p = sessionStorage.getItem("order_phone");
-    if (!p) { router.replace("/order"); return; }
-    setPhone(p);
-    setName(sessionStorage.getItem("order_name") ?? "");
-  }, [router, table]);
+    if (!table && !phone) router.replace("/order");
+  }, [phone, router, table]);
 
   const allItems = useMemo(
     () => Object.fromEntries(categories.flatMap((c) => c.items).map((i) => [i.id, i])),
@@ -46,7 +49,8 @@ export function MenuClient({ categories, table }: { categories: MenuCategory[]; 
 
   const lines = Object.entries(cart);
   const totalQty = lines.reduce((s, [, q]) => s + q, 0);
-  const totalPrice = lines.reduce((s, [id, q]) => s + (allItems[id]?.price ?? 0) * q, 0);
+  const subtotal = lines.reduce((s, [id, q]) => s + (allItems[id]?.price ?? 0) * q, 0);
+  const orderCharges = calculateOrderCharges(subtotal);
 
   function confirm() {
     if (totalQty === 0) return;
@@ -123,9 +127,21 @@ export function MenuClient({ categories, table }: { categories: MenuCategory[]; 
                 </div>
               );
             })}
+            <div className="flex justify-between px-4 py-3 text-sm">
+              <span>Subtotal</span>
+              <span className="tabular-nums">{formatRp(orderCharges.subtotal)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-3 text-sm">
+              <span>Service charge ({formatRate(SERVICE_CHARGE_RATE)})</span>
+              <span className="tabular-nums">{formatRp(orderCharges.serviceCharge)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-3 text-sm">
+              <span>PBJT ({formatRate(PBJT_RATE)})</span>
+              <span className="tabular-nums">{formatRp(orderCharges.taxTotal)}</span>
+            </div>
             <div className="flex justify-between px-4 py-3 font-semibold">
               <span>Total</span>
-              <span className="tabular-nums">{formatRp(totalPrice)}</span>
+              <span className="tabular-nums">{formatRp(orderCharges.total)}</span>
             </div>
           </div>
 
@@ -227,7 +243,7 @@ export function MenuClient({ categories, table }: { categories: MenuCategory[]; 
                 <ShoppingBag className="size-5" />
                 {totalQty} item · Review Pesanan
               </span>
-              <span className="tabular-nums">{formatRp(totalPrice)}</span>
+              <span className="tabular-nums">{formatRp(orderCharges.total)}</span>
             </Button>
           </div>
         </div>

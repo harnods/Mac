@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ComponentType, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { OrderShiftSidebar } from "@/components/orders/order-shift-sidebar";
+import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   OrdersIcon,
   OfficeIcon,
@@ -69,12 +70,26 @@ const MENU: MenuNode[] = [
   },
 ];
 
+const ORDERS_MENU: MenuNode[] = [
+  { label: "POS", icon: OrdersIcon, href: "/orders" },
+  {
+    label: "Pipeline",
+    icon: OrdersIcon,
+    children: [
+      { label: "Bar", href: "/orders/bar" },
+      { label: "Kitchen", href: "/orders/kitchen" },
+    ],
+  },
+  { label: "Settings", icon: SettingsIcon, href: "/orders/settings" },
+];
+
 const RAIL = [
   { label: "Orders", icon: OrdersIcon, href: "/orders", match: (p: string) => p.startsWith("/orders") },
   { label: "Office", icon: OfficeIcon, href: "/inventory/ingredients", match: (p: string) => !p.startsWith("/orders") },
 ];
 
 function isLeafActive(pathname: string, href: string) {
+  if (href === "/orders") return pathname === href;
   return pathname === href || pathname.startsWith(href + "/");
 }
 
@@ -85,43 +100,73 @@ function isNodeActive(pathname: string, node: MenuNode) {
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const isOrders = pathname.startsWith("/orders");
+  const menu = isOrders ? ORDERS_MENU : MENU;
+  const title = "Mac";
+  const homeHref = isOrders ? "/orders" : "/inventory/ingredients";
 
   return (
     <div className="hidden md:flex shrink-0">
       {/* App rail */}
-      <nav className="w-[68px] bg-[#e9eef6] flex flex-col items-center pt-[72px] gap-4">
-        {RAIL.map((app) => {
-          const active = app.match(pathname);
-          const Icon = app.icon;
-          return (
-            <Link
-              key={app.label}
-              href={app.href}
-              className={cn(
-                "w-[60px] h-[48px] flex flex-col items-center justify-center gap-1 rounded-[8px] text-[#0a0a0a] transition-colors",
-                active ? "bg-[#d3e4fe]" : "hover:bg-[#d3e4fe]",
-              )}
-            >
-              <Icon className="size-5" strokeWidth={1.75} />
-              <span className="text-[11px] leading-none">{app.label}</span>
-            </Link>
-          );
-        })}
+      <nav className="w-[68px] bg-[#f8fafe] flex flex-col items-center">
+        <div className="h-[72px] flex items-center justify-center">
+          <button
+            type="button"
+            aria-label={sidebarVisible ? "Hide sidebar menu" : "Show sidebar menu"}
+            title={sidebarVisible ? "Hide sidebar menu" : "Show sidebar menu"}
+            onClick={() => setSidebarVisible((visible) => !visible)}
+            className="size-10 flex items-center justify-center rounded-[8px] text-[#0a0a0a] transition-colors hover:bg-[#d3e4fe]"
+          >
+            {sidebarVisible ? (
+              <PanelLeftClose className="size-5" strokeWidth={1.75} />
+            ) : (
+              <PanelLeftOpen className="size-5" strokeWidth={1.75} />
+            )}
+          </button>
+        </div>
+        <div className="flex flex-col items-center gap-4">
+          {RAIL.map((app) => {
+            const active = app.match(pathname);
+            const Icon = app.icon;
+            return (
+              <Link
+                key={app.label}
+                href={app.href}
+                className={cn(
+                  "w-[60px] h-[48px] flex flex-col items-center justify-center gap-1 rounded-[8px] text-[#0a0a0a] transition-colors",
+                  active ? "bg-[#d3e4fe]" : "hover:bg-[#d3e4fe]",
+                )}
+              >
+                <Icon className="size-5" strokeWidth={1.75} />
+                <span className="text-[11px] leading-none">{app.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
 
-      {/* Sidebar menu */}
-      <aside className="w-64 bg-[#f8fafe] flex flex-col">
-        <Link
-          href="/inventory/ingredients"
-          className="h-[72px] shrink-0 flex items-center px-4 text-2xl font-bold tracking-tight text-[#0a0a0a]"
-        >
-          Mac
-        </Link>
-        <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-          {MENU.map((node) => (
-            <MenuItem key={node.label} node={node} pathname={pathname} />
-          ))}
-        </nav>
+      <aside
+        className={cn(
+          "bg-[#f8fafe] flex flex-col overflow-hidden transition-[width,opacity,transform] duration-300 ease-out",
+          sidebarVisible ? "w-64 translate-x-0 opacity-100" : "w-0 -translate-x-2 opacity-0",
+        )}
+        aria-hidden={!sidebarVisible}
+      >
+        <div className="w-64 flex min-h-0 flex-1 flex-col">
+          <Link
+            href={homeHref}
+            className="h-[72px] shrink-0 flex items-center px-4 text-2xl font-bold tracking-tight text-[#0a0a0a]"
+          >
+            {title}
+          </Link>
+          <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+            {menu.map((node) => (
+              <MenuItem key={node.label} node={node} pathname={pathname} />
+            ))}
+          </nav>
+          {isOrders && <OrderShiftSidebar />}
+        </div>
       </aside>
     </div>
   );

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getCurrentProfile } from "@/lib/auth";
 import { getLoyaltySettings } from "@/app/actions/loyalty";
+import { calculateOrderCharges } from "@/lib/order-charges";
 
 type ActionResult = { ok: true; id: string } | { ok: false; error: string };
 type CreateOrderResult =
@@ -99,7 +100,8 @@ export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResu
       line_total: unitPrice * qty,
     };
   });
-  const total = lines.reduce((sum, l) => sum + l.line_total, 0);
+  const subtotal = lines.reduce((sum, l) => sum + l.line_total, 0);
+  const { serviceCharge, taxTotal, total } = calculateOrderCharges(subtotal);
   const { rpPerPoint } = await getLoyaltySettings();
   const pointsEarned = Math.floor(total / rpPerPoint);
 
@@ -112,6 +114,9 @@ export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResu
       table_id: tableId || null,
       table_name_snapshot: tableNameSnapshot,
       notes: notes || null,
+      subtotal,
+      service_charge: serviceCharge,
+      tax_total: taxTotal,
       total,
       points_earned: pointsEarned,
     })
@@ -141,6 +146,8 @@ export async function updateOrderStatus(orderId: string, status: string): Promis
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/orders");
+  revalidatePath("/orders/bar");
+  revalidatePath("/orders/kitchen");
   return { ok: true, id: orderId };
 }
 
@@ -149,16 +156,33 @@ export async function closeTableBill(tableId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const service = createServiceClient();
+  const closedAt = new Date().toISOString();
+  const { data: ordersToClose, error: findError } = await service
+    .from("orders")
+    .select("id")
+    .eq("table_id", tableId)
+    .in("status", ["new", "preparing", "ready"]);
+
+  if (findError) return { ok: false, error: findError.message };
+
+  const orderIds = (ordersToClose ?? []).map((order) => order.id as string);
+  if (orderIds.length > 0) {
+    const { error: itemError } = await service
+      .from("order_items")
+      .update({ closed_at: closedAt, closed_by: profile.id })
+      .in("order_id", orderIds)
+      .is("closed_at", null);
+    if (itemError) return { ok: false, error: itemError.message };
+  }
+
+  const { error } = await service
     .from("orders")
     .update({ status: "completed" })
     .eq("table_id", tableId)
     .in("status", ["new", "preparing", "ready"]);
   if (error) return { ok: false, error: error.message };
 
-  // Void unclaimed points — use service client to bypass RLS
-  const service = createServiceClient();
   await service
     .from("orders")
     .update({ points_void: true })
@@ -168,7 +192,61 @@ export async function closeTableBill(tableId: string): Promise<ActionResult> {
 
   revalidatePath("/orders");
   revalidatePath("/orders/bills");
+  revalidatePath("/orders/bar");
+  revalidatePath("/orders/kitchen");
   return { ok: true, id: tableId };
+}
+
+export async function closeOrderItems(orderItemIds: string[]): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+
+  const parsed = z.array(z.string().uuid()).min(1).safeParse(orderItemIds);
+  if (!parsed.success) return { ok: false, error: "Select at least one item" };
+
+  const service = createServiceClient();
+  const closedAt = new Date().toISOString();
+  const { data: items, error: itemFindError } = await service
+    .from("order_items")
+    .select("id, order_id")
+    .in("id", parsed.data)
+    .is("closed_at", null);
+
+  if (itemFindError) return { ok: false, error: itemFindError.message };
+  if (!items || items.length === 0) return { ok: false, error: "Selected items are already closed" };
+
+  const itemIds = items.map((item) => item.id as string);
+  const orderIds = [...new Set(items.map((item) => item.order_id as string))];
+
+  const { error: closeError } = await service
+    .from("order_items")
+    .update({ closed_at: closedAt, closed_by: profile.id })
+    .in("id", itemIds);
+
+  if (closeError) return { ok: false, error: closeError.message };
+
+  for (const orderId of orderIds) {
+    const { count, error: countError } = await service
+      .from("order_items")
+      .select("id", { count: "exact", head: true })
+      .eq("order_id", orderId)
+      .is("closed_at", null);
+
+    if (countError) return { ok: false, error: countError.message };
+    if ((count ?? 0) === 0) {
+      const { error: orderError } = await service
+        .from("orders")
+        .update({ status: "completed" })
+        .eq("id", orderId);
+      if (orderError) return { ok: false, error: orderError.message };
+    }
+  }
+
+  revalidatePath("/orders");
+  revalidatePath("/orders/bills");
+  revalidatePath("/orders/bar");
+  revalidatePath("/orders/kitchen");
+  return { ok: true, id: itemIds[0] };
 }
 
 /** Mark an order as printed (called by the print station after a successful print). */
@@ -183,4 +261,52 @@ export async function markOrderPrinted(orderId: string): Promise<ActionResult> {
     .eq("id", orderId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, id: orderId };
+}
+
+export async function openOrderShift(): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+  const { data: openShift } = await supabase
+    .from("order_shifts")
+    .select("id")
+    .is("closed_at", null)
+    .maybeSingle();
+
+  if (openShift) return { ok: false, error: "A shift is already open" };
+
+  const { data, error } = await supabase
+    .from("order_shifts")
+    .insert({ opened_by: profile.id })
+    .select("id")
+    .single();
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders");
+  return { ok: true, id: data.id as string };
+}
+
+export async function closeOrderShift(): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+
+  const supabase = await createClient();
+  const { data: openShift, error: findError } = await supabase
+    .from("order_shifts")
+    .select("id")
+    .is("closed_at", null)
+    .maybeSingle();
+
+  if (findError) return { ok: false, error: findError.message };
+  if (!openShift) return { ok: false, error: "No open shift to close" };
+
+  const { error } = await supabase
+    .from("order_shifts")
+    .update({ closed_at: new Date().toISOString(), closed_by: profile.id })
+    .eq("id", openShift.id);
+
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders");
+  return { ok: true, id: openShift.id as string };
 }

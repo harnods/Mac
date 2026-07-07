@@ -14,49 +14,16 @@ import {
 } from "@/components/ui/table";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
-import { formatQty } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
-import { formatDate, updaterName } from "@/lib/format";
+import { updaterName } from "@/lib/format";
 import { ItemActions } from "@/components/inventory/item-actions";
 import { ProductStatusButton } from "@/components/inventory/product-status-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
+import { ItemUsageTabs, type LedgerRow, type UsedInRecipeRow } from "@/components/inventory/item-usage-tabs";
 import type { ItemWithCategory } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
-
-const TYPE_LABEL: Record<string, string> = {
-  purchase: "Purchase",
-  pr_approved: "PR Approved",
-  pr_rejected: "PR Rejected",
-  adjustment_in: "Stock in",
-  adjustment_out: "Stock out",
-  prep_consumption: "Prep consumption",
-  prep_output: "Prep output",
-  count_adjustment: "Stock count",
-  reservation: "Reservation",
-  reservation_release: "Reservation release",
-};
-
-const TYPE_HREF: Record<string, (refId: string) => string> = {
-  purchase: (id) => `/purchasing/purchases/${id}`,
-  pr_approved: (id) => `/purchasing/requests/${id}`,
-  pr_rejected: (id) => `/purchasing/requests/${id}`,
-  prep_consumption: (id) => `/prep-orders/${id}`,
-  prep_output: (id) => `/prep-orders/${id}`,
-  count_adjustment: (id) => `/stock/counts/${id}`,
-};
-
-type LedgerRow = {
-  id: string;
-  type: string;
-  ref_id: string | null;
-  qty_delta: number;
-  on_hand_after: number;
-  reserved_after: number;
-  note: string | null;
-  created_at: string;
-};
 
 export default async function ItemDetailPage({
   params,
@@ -70,7 +37,7 @@ export default async function ItemDetailPage({
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const [{ data, error }, { data: ledgerData }, { data: setItemsData }, { data: recipeData }] = await Promise.all([
+  const [{ data, error }, { data: ledgerData }, { data: setItemsData }, { data: recipeData }, { data: usageData }] = await Promise.all([
     supabase
       .from("items")
       .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)")
@@ -99,6 +66,12 @@ export default async function ItemDetailPage({
           .eq("recipe_type", "product")
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    config.dbType === 'ingredient'
+      ? supabase
+          .from("recipe_items")
+          .select("quantity, unit, recipe:recipes(id, name, recipe_type, product:items!product_id(id, name, type, unit))")
+          .eq("item_id", id)
+      : Promise.resolve({ data: [] }),
   ]);
 
   if (error || !data) notFound();
@@ -106,6 +79,25 @@ export default async function ItemDetailPage({
   const isAdmin = can(profile, P.INVENTORY_WRITE);
   const ledger = (ledgerData ?? []) as LedgerRow[];
   const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
+  const usedInRecipes = ((usageData ?? []) as unknown as {
+    quantity: number;
+    unit: string;
+    recipe: {
+      id: string;
+      name: string;
+      recipe_type: string;
+      product: { id: string; name: string; type: string; unit: string } | null;
+    } | null;
+  }[])
+    .filter((row) => row.recipe)
+    .map((row) => ({
+      id: row.recipe!.id,
+      name: row.recipe!.name,
+      recipeType: row.recipe!.recipe_type,
+      quantity: row.quantity,
+      unit: row.unit,
+      product: row.recipe!.product,
+    })) satisfies UsedInRecipeRow[];
 
   type RecipeIngredient = { id: string; quantity: number; unit: string; item: { id: string; name: string; deleted_at: string | null } | null };
   type LinkedRecipe = { id: string; name: string; recipe_items: RecipeIngredient[] };
@@ -113,7 +105,6 @@ export default async function ItemDetailPage({
 
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);
-  const available = onHand - reserved;
 
   return (
     <div className="space-y-6">
@@ -266,64 +257,14 @@ export default async function ItemDetailPage({
         </div>
       )}
 
-      {/* Stock ledger — only for items with stock */}
-      {config.stockMode !== 'none' && <div className="space-y-2">
-        <h2 className="text-sm font-medium">Stock movements</h2>
-        {ledger.length === 0 ? (
-          <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
-            No transactions recorded yet.
-          </div>
-        ) : (
-          <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-32">Date</TableHead>
-                  <TableHead className="w-28">Number</TableHead>
-                  <TableHead className="w-28">Type</TableHead>
-                  <TableHead className="w-28 text-right">Qty</TableHead>
-                  <TableHead className="w-28 text-right">On hand</TableHead>
-                  <TableHead className="w-28 text-right">Reserved</TableHead>
-                  <TableHead className="w-28 text-right">Available</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ledger.map((row) => {
-                  const availableAfter = Number(row.on_hand_after) - Number(row.reserved_after);
-                  const delta = Number(row.qty_delta);
-                  const href = row.ref_id && TYPE_HREF[row.type]
-                    ? TYPE_HREF[row.type](row.ref_id)
-                    : null;
-                  return (
-                    <TableRow key={row.id}>
-                      <TableCell className="text-sm">{formatDate(row.created_at)}</TableCell>
-                      <TableCell className="text-sm font-medium tabular-nums">
-                        {href && row.ref_id ? (
-                          <Link href={href} className="underline text-muted-foreground hover:text-foreground">
-                            #{row.ref_id.slice(0, 8)}
-                          </Link>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        <div>{TYPE_LABEL[row.type] ?? row.type}</div>
-                        {row.note && <div className="text-xs text-muted-foreground">{row.note}</div>}
-                      </TableCell>
-                      <TableCell className={`text-sm tabular-nums text-right font-medium ${delta >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {delta >= 0 ? "+" : ""}<Qty value={Math.abs(delta)} unit={item.unit} />
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums text-right"><Qty value={Number(row.on_hand_after)} unit={item.unit} /></TableCell>
-                      <TableCell className="text-sm tabular-nums text-right"><Qty value={Number(row.reserved_after)} unit={item.unit} /></TableCell>
-                      <TableCell className="text-sm tabular-nums text-right"><Qty value={availableAfter} unit={item.unit} /></TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </div>}
+      {/* Stock and usage — only for items with stock */}
+      {config.stockMode !== 'none' && (
+        <ItemUsageTabs
+          ledger={ledger}
+          itemUnit={item.unit}
+          usedInRecipes={config.dbType === "ingredient" ? usedInRecipes : undefined}
+        />
+      )}
     </div>
   );
 }

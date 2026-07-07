@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
+import { useEffect, useMemo, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Clock } from "lucide-react";
@@ -21,27 +21,94 @@ export type Order = {
   notes: string | null;
   printed_at: string | null;
   created_at: string;
-  order_items: { id: string; name_snapshot: string; qty: number; line_total: number }[];
+  order_items: OrderItem[];
 };
 
+type OrderItem = {
+  id: string;
+  name_snapshot: string;
+  qty: number;
+  line_total: number;
+  item: {
+    id: string;
+    name: string;
+    categories: { name: string } | null;
+  } | null;
+};
+
+export type BoardView = "all" | "bar" | "kitchen";
+
 const COLUMNS: { key: Order["status"]; label: string; next: string; nextLabel: string }[] = [
-  { key: "new", label: "Baru", next: "preparing", nextLabel: "Siapkan" },
-  { key: "preparing", label: "Disiapkan", next: "ready", nextLabel: "Siap" },
-  { key: "ready", label: "Siap diambil", next: "completed", nextLabel: "Selesai" },
+  { key: "new", label: "New", next: "preparing", nextLabel: "Prepare" },
+  { key: "preparing", label: "Preparing", next: "ready", nextLabel: "Ready" },
+  { key: "ready", label: "Ready for pickup", next: "completed", nextLabel: "Complete" },
 ];
 
 function timeAgo(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return "baru saja";
-  if (mins < 60) return `${mins} mnt lalu`;
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
   const h = Math.floor(mins / 60);
-  return `${h} jam lalu`;
+  return `${h} hr ago`;
 }
 
-export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
+const BAR_CATEGORY_KEYWORDS = ["espresso", "coffee", "matcha", "non coffee", "drink", "beverage", "tea"];
+const BAR_ITEM_KEYWORDS = [
+  "affogato",
+  "americano",
+  "brew",
+  "cappuccino",
+  "chamomile",
+  "coffee",
+  "espresso",
+  "fizz",
+  "float",
+  "latte",
+  "matcha",
+  "mocha",
+  "ocha",
+  "soda",
+  "tea",
+  "ube coffee",
+  "yuzu",
+];
+
+function isBarItem(item: OrderItem) {
+  const category = item.item?.categories?.name?.toLowerCase() ?? "";
+  const name = (item.item?.name ?? item.name_snapshot).toLowerCase();
+  return (
+    BAR_CATEGORY_KEYWORDS.some((keyword) => category.includes(keyword)) ||
+    BAR_ITEM_KEYWORDS.some((keyword) => name.includes(keyword))
+  );
+}
+
+function getOrderItemsForView(order: Order, view: BoardView) {
+  if (view === "all") return order.order_items;
+  return order.order_items.filter((item) =>
+    view === "bar" ? isBarItem(item) : !isBarItem(item),
+  );
+}
+
+function getOrderTotalForView(order: Order, view: BoardView) {
+  if (view === "all") return Number(order.total);
+  return getOrderItemsForView(order, view).reduce((sum, item) => sum + Number(item.line_total), 0);
+}
+
+export function OrdersBoard({ initialOrders, view = "all" }: { initialOrders: Order[]; view?: BoardView }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const knownIds = useRef<Set<string>>(new Set(initialOrders.map((o) => o.id)));
+  const visibleOrders = useMemo(
+    () =>
+      initialOrders
+        .map((order) => ({
+          ...order,
+          order_items: getOrderItemsForView(order, view),
+          total: getOrderTotalForView(order, view),
+        }))
+        .filter((order) => order.order_items.length > 0),
+    [initialOrders, view],
+  );
 
   useEffect(() => {
     const supabase = createClient();
@@ -54,7 +121,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
           const row = payload.new as { id?: string } | null;
           if (payload.eventType === "INSERT" && row?.id && !knownIds.current.has(row.id)) {
             knownIds.current.add(row.id);
-            toast.success("Pesanan baru masuk");
+            toast.success("New order received");
             try {
               const ctx = new AudioContext();
               const osc = ctx.createOscillator();
@@ -87,7 +154,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       {COLUMNS.map((col) => {
-        const orders = initialOrders.filter((o) => o.status === col.key);
+        const orders = visibleOrders.filter((o) => o.status === col.key);
         return (
           <div key={col.key} className="space-y-3">
             <div className="flex items-center justify-between">
@@ -99,7 +166,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
             <div className="space-y-3">
               {orders.length === 0 && (
                 <div className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-                  Kosong
+                  Empty
                 </div>
               )}
               {orders.map((order) => (
@@ -107,10 +174,10 @@ export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="text-lg font-bold tabular-nums leading-none">
-                        {order.order_number}
+                        {order.table_name_snapshot ?? order.customer_name ?? order.customer_phone ?? "—"}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {order.table_name_snapshot ?? order.customer_name ?? order.customer_phone ?? "—"}
+                        {order.order_number}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -144,7 +211,7 @@ export function OrdersBoard({ initialOrders }: { initialOrders: Order[] }) {
                         className="h-8 text-xs text-muted-foreground"
                         onClick={() => advance(order.id, "cancelled")}
                       >
-                        Batal
+                        Cancel
                       </Button>
                       <Button size="sm" className="h-8 text-xs" onClick={() => advance(order.id, col.next)}>
                         {col.nextLabel}

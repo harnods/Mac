@@ -43,7 +43,7 @@ async function findWriteCharacteristic(server: any): Promise<any> {
       if (ch.properties.write || ch.properties.writeWithoutResponse) return ch;
     }
   }
-  throw new Error("Tidak menemukan karakteristik tulis pada printer");
+  throw new Error("Could not find a writable printer characteristic");
 }
 
 async function writeBytes(characteristic: any, bytes: Uint8Array) {
@@ -63,8 +63,12 @@ async function writeBytes(characteristic: any, bytes: Uint8Array) {
 
 export function PrintStationClient() {
   const supabase = useRef(createClient());
-  const [supported, setSupported] = useState(true);
-  const [secure, setSecure] = useState(true);
+  const [supported] = useState(() =>
+    typeof navigator === "undefined" ? true : !!("bluetooth" in navigator),
+  );
+  const [secure] = useState(() =>
+    typeof window === "undefined" ? true : window.isSecureContext,
+  );
   const [connected, setConnected] = useState(false);
   const [deviceName, setDeviceName] = useState<string | null>(null);
   const [autoPrint, setAutoPrint] = useState(true);
@@ -72,13 +76,10 @@ export function PrintStationClient() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const charRef = useRef<any>(null);
   const autoPrintRef = useRef(autoPrint);
-  autoPrintRef.current = autoPrint;
 
   useEffect(() => {
-    setSecure(window.isSecureContext);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setSupported(!!(navigator as any).bluetooth);
-  }, []);
+    autoPrintRef.current = autoPrint;
+  }, [autoPrint]);
 
   const fetchOrders = useCallback(async () => {
     const { data } = await supabase.current
@@ -94,7 +95,7 @@ export function PrintStationClient() {
 
   const printOrder = useCallback(async (order: OrderRow, silent = false) => {
     if (!charRef.current) {
-      if (!silent) toast.error("Printer belum tersambung");
+      if (!silent) toast.error("Printer is not connected");
       return;
     }
     try {
@@ -110,18 +111,19 @@ export function PrintStationClient() {
       };
       await writeBytes(charRef.current, buildDocket(docket));
       await markOrderPrinted(order.id);
-      toast.success(`Tercetak: ${order.order_number}`);
+      toast.success(`Printed: ${order.order_number}`);
       fetchOrders();
     } catch (err) {
-      toast.error(`Gagal cetak: ${(err as Error).message}`);
+      toast.error(`Print failed: ${(err as Error).message}`);
     }
   }, [fetchOrders]);
 
   // Initial load + realtime subscription.
   useEffect(() => {
+    const client = supabase.current;
     fetchOrders();
     const known = new Set<string>();
-    const channel = supabase.current
+    const channel = client
       .channel("print-station")
       .on(
         "postgres_changes",
@@ -145,7 +147,7 @@ export function PrintStationClient() {
       )
       .subscribe();
     return () => {
-      supabase.current.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [fetchOrders, printOrder]);
 
@@ -164,10 +166,10 @@ export function PrintStationClient() {
       charRef.current = await findWriteCharacteristic(server);
       setDeviceName(device.name ?? "Printer");
       setConnected(true);
-      toast.success("Printer tersambung");
+      toast.success("Printer connected");
     } catch (err) {
       const msg = (err as Error).message;
-      if (!/cancelled|User cancelled/i.test(msg)) toast.error(`Gagal sambung: ${msg}`);
+      if (!/cancelled|User cancelled/i.test(msg)) toast.error(`Connection failed: ${msg}`);
     }
   }
 
@@ -176,8 +178,8 @@ export function PrintStationClient() {
       <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground flex gap-3">
         <AlertTriangle className="size-5 shrink-0 text-amber-500" />
         <div>
-          Web Bluetooth hanya berfungsi pada koneksi aman (HTTPS). Buka halaman ini lewat URL
-          produksi (Vercel, HTTPS) di tablet Android — bukan via alamat IP lokal.
+          Web Bluetooth only works on secure connections (HTTPS). Open this page from the
+          production URL (Vercel, HTTPS) on an Android tablet, not from a local IP address.
         </div>
       </div>
     );
@@ -194,31 +196,31 @@ export function PrintStationClient() {
               <Bluetooth className="size-5 text-muted-foreground" />
             )}
             <span className="text-sm">
-              {connected ? `Tersambung — ${deviceName}` : "Printer belum tersambung"}
+              {connected ? `Connected — ${deviceName}` : "Printer is not connected"}
             </span>
           </div>
           <Button onClick={connect} variant={connected ? "outline" : "default"} disabled={!supported}>
-            {connected ? "Sambung ulang" : "Sambungkan printer"}
+            {connected ? "Reconnect" : "Connect printer"}
           </Button>
         </div>
         {!supported && (
           <p className="text-xs text-muted-foreground">
-            Browser ini tidak mendukung Web Bluetooth. Gunakan Chrome di Android.
+            This browser does not support Web Bluetooth. Use Chrome on Android.
           </p>
         )}
         <div className="flex items-center gap-2">
           <Switch id="auto" checked={autoPrint} onCheckedChange={setAutoPrint} />
           <Label htmlFor="auto" className="text-sm cursor-pointer">
-            Cetak otomatis saat pesanan baru masuk
+            Automatically print new orders
           </Label>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold">Pesanan aktif</h2>
+        <h2 className="text-sm font-semibold">Active orders</h2>
         {orders.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-            Belum ada pesanan.
+            No orders yet.
           </div>
         ) : (
           <div className="divide-y rounded-lg border">
@@ -229,7 +231,7 @@ export function PrintStationClient() {
                     <span className="font-bold tabular-nums">{o.order_number}</span>
                     {o.printed_at && (
                       <Badge variant="secondary" className="text-xs">
-                        Tercetak
+                        Printed
                       </Badge>
                     )}
                   </div>
@@ -238,7 +240,7 @@ export function PrintStationClient() {
                   </div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => printOrder(o)} disabled={!connected}>
-                  <Printer className="size-4" /> Cetak
+                  <Printer className="size-4" /> Print
                 </Button>
               </div>
             ))}

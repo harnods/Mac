@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Bring up the full local stack for testing:
 #   1. local Supabase (Docker) — start if not already running
-#   2. seed admin/staff users — only if the DB has none (keeps passwords stable)
+#   2. sync admin/staff demo users — keeps login-page credentials stable
 #   3. Next.js dev server on :4321 — restart fresh so it uses local .env.local
 #
 # Usage: bash scripts/run-local.sh
@@ -29,13 +29,8 @@ if [ -n "$ANON_JWT" ] && [ -n "$SVC_JWT" ]; then
 fi
 
 echo "▶ Users…"
-COUNT=$(psql "$DB" -tA -c "select count(*) from profiles;" 2>/dev/null || echo 0)
-if [ "$COUNT" = "0" ]; then
-  echo "  seeding (none found)…"
-  node scripts/seed-users.mjs | grep -E "email:|password:" || true
-else
-  echo "  $COUNT user(s) already seeded — passwords unchanged"
-fi
+echo "  syncing demo login users…"
+node scripts/seed-users.mjs | grep -E "email:|password:" || true
 
 echo "▶ Dev server on :$PORT…"
 EXISTING=$(lsof -ti:$PORT 2>/dev/null || true)

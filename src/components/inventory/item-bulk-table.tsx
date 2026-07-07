@@ -68,7 +68,11 @@ export function ItemBulkTable({
   function toggleOne(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
@@ -131,8 +135,8 @@ export function ItemBulkTable({
           <TableHeader>
             <TableRow>
               {isAdmin && (
-                <TableHead className="w-10 px-0">
-                  <label className="flex items-center justify-center w-full py-3 cursor-pointer">
+                <TableHead className="w-12 pl-3 pr-0">
+                  <label className="flex items-center justify-start w-full py-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={allSelected}
