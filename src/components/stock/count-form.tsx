@@ -1,14 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DecimalInput } from "@/components/ui/decimal-input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -17,187 +14,217 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatNum, parseDecimal } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 import { createStockCount } from "@/app/actions/stock";
+import { formatDateTime } from "@/lib/format";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-type Item = { id: string; name: string; unit: string; type: string; on_hand: number };
+const ALL_CATEGORIES = "__all__";
+const UNCATEGORIZED = "__uncategorized__";
 
-type CountRow = {
-  item_id: string;
-  item_name: string;
+type Item = {
+  id: string;
+  name: string;
   unit: string;
-  qty_system: number;
-  qty_counted: string;
+  type: string;
+  on_hand: number;
+  category_id: string | null;
+  categories: { id: string; name: string } | null;
+  last_counted_at: string | null;
 };
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
+type CategoryOption = {
+  id: string;
+  name: string;
+};
 
-export function CountForm({ items }: { items: Item[] }) {
+export function CountForm({
+  items,
+  categories,
+}: {
+  items: Item[];
+  categories: CategoryOption[];
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState(ALL_CATEGORIES);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
-  const [countDate, setCountDate] = useState(today());
-  const [note, setNote] = useState("");
+  const filteredItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return items.filter((item) => {
+      const matchesQuery = !q || item.name.toLowerCase().includes(q);
+      const matchesCategory =
+        category === ALL_CATEGORIES ||
+        (category === UNCATEGORIZED ? item.category_id == null : item.category_id === category);
+      return matchesQuery && matchesCategory;
+    });
+  }, [category, items, query]);
 
-  const [rows, setRows] = useState<CountRow[]>(
-    items.map((it) => ({
-      item_id: it.id,
-      item_name: it.name,
-      unit: it.unit,
-      qty_system: Number(it.on_hand),
-      qty_counted: "",
-    }))
-  );
+  const selectedItems = items.filter((item) => selected.has(item.id));
+  const allFilteredSelected =
+    filteredItems.length > 0 && filteredItems.every((item) => selected.has(item.id));
 
-  function updateCounted(item_id: string, value: string) {
-    setRows((prev) =>
-      prev.map((r) => (r.item_id === item_id ? { ...r, qty_counted: value } : r))
-    );
+  function toggleItem(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
-  function submit(complete: boolean) {
-    if (complete) {
-      const anyEmpty = rows.some((r) => r.qty_counted === "");
-      if (anyEmpty) {
-        toast.error("Fill in counted qty for all items before completing");
-        return;
+  function toggleFiltered() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredItems.forEach((item) => next.delete(item.id));
+      } else {
+        filteredItems.forEach((item) => next.add(item.id));
       }
+      return next;
+    });
+  }
+
+  function submit() {
+    if (selected.size === 0) {
+      toast.error("Select at least one ingredient to count");
+      return;
     }
 
     start(async () => {
       const res = await createStockCount({
-        count_date: countDate,
-        note: note.trim() || undefined,
-        items: rows.map((r) => ({
-          item_id: r.item_id,
-          qty_system: r.qty_system,
-          qty_counted: r.qty_counted !== "" ? parseDecimal(r.qty_counted) : null,
-          unit: r.unit,
-        })),
-        complete,
+        items: selectedItems.map((item) => ({ item_id: item.id })),
       });
 
-      if (!res.ok) { toast.error(res.error); return; }
-      toast.success(complete ? "Stock count completed — on_hand updated" : "Draft saved");
-      router.push(complete ? `/stock/counts/${res.id}` : "/stock/counts");
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+
+      toast.success("Cycle count task created");
+      router.push(`/stock/counts/${res.id}`);
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-6">
-      {/* Header fields */}
-      <div className="max-w-lg space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="count-date">Count date</Label>
-          <Input
-            id="count-date"
-            type="date"
-            required
-            value={countDate}
-            onChange={(e) => setCountDate(e.target.value)}
-          />
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold">Ingredients to count</h2>
+          <p className="text-sm text-muted-foreground">
+            {selected.size} selected
+          </p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="count-note">Note <span className="text-muted-foreground font-normal">(optional)</span></Label>
-          <Textarea
-            id="count-note"
-            placeholder="e.g. Month-end stockopname"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            maxLength={500}
-            rows={2}
-          />
-          <p className="text-xs text-muted-foreground text-right">{note.length}/500</p>
+        <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
+              <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative w-full sm:ml-auto sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search ingredients..."
+              className="pl-9"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Items table */}
-      {rows.length === 0 ? (
-        <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
-          No active items found.
+      {items.length === 0 ? (
+        <div className="rounded-lg border p-10 text-center text-sm text-muted-foreground">
+          No active ingredients found.
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-hidden">
+        <div className="table-outer overflow-hidden rounded-lg border">
           <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="w-20">Unit</TableHead>
-                <TableHead className="w-32 text-right">System qty</TableHead>
-                <TableHead className="w-36 text-center">Counted qty</TableHead>
-                <TableHead className="w-32 text-right">Discrepancy</TableHead>
+                <TableHead className="w-12 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={toggleFiltered}
+                    aria-label="Select visible ingredients"
+                    className="size-4 rounded border-border"
+                  />
+                </TableHead>
+                <TableHead>Ingredient</TableHead>
+                <TableHead className="w-44">Category</TableHead>
+                <TableHead className="w-24">Unit</TableHead>
+                <TableHead className="w-36 text-right">Current on hand</TableHead>
+                <TableHead className="w-44">Last counted</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
-                const counted = row.qty_counted !== "" ? parseDecimal(row.qty_counted) : null;
-                const discrepancy = counted != null ? counted - row.qty_system : null;
-                return (
-                  <TableRow key={row.item_id}>
-                    <TableCell className="font-medium truncate">{row.item_name}</TableCell>
-                    <TableCell>{row.unit}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatNum(row.qty_system)}
-                    </TableCell>
-                    <TableCell>
-                      <DecimalInput
-                        min="0"
-                        step="any"
-                        placeholder="—"
-                        value={row.qty_counted}
-                        onValueChange={(v) => updateCounted(row.item_id, v)}
-                        className="w-full text-center"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {discrepancy == null ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <span
-                          className={cn(
-                            "font-medium",
-                            discrepancy > 0
-                              ? "text-green-600 dark:text-green-400"
-                              : discrepancy < 0
-                              ? "text-destructive"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {discrepancy > 0 ? "+" : ""}
-                          {formatNum(discrepancy)}
-                        </span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {filteredItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="pl-4">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(item.id)}
+                      onChange={() => toggleItem(item.id)}
+                      aria-label={`Select ${item.name}`}
+                      className="size-4 rounded border-border"
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="text-sm">
+                    {item.categories?.name ?? (
+                      <span className="text-muted-foreground">Uncategorized</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{item.unit}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    <Qty value={Number(item.on_hand)} unit={item.unit} />
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {item.last_counted_at ? (
+                      formatDateTime(item.last_counted_at)
+                    ) : (
+                      <span className="text-muted-foreground">Never counted</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {filteredItems.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-sm text-muted-foreground">
+                    No ingredients match your search.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancel
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          onClick={() => submit(false)}
-        >
-          {pending ? "Saving..." : "Save as draft"}
-        </Button>
-        <Button
-          type="button"
-          disabled={pending}
-          onClick={() => submit(true)}
-        >
-          {pending ? "Saving..." : "Complete count"}
+        <Button type="button" disabled={pending || selected.size === 0} onClick={submit}>
+          {pending ? "Creating..." : "Create count task"}
         </Button>
       </div>
     </div>

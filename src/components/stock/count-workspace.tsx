@@ -1,0 +1,366 @@
+"use client";
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Check, Play, Printer, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
+import { compatibleUnits, convert, formatNum, parseDecimal } from "@/lib/units";
+import { Button } from "@/components/ui/button";
+import { DecimalInput } from "@/components/ui/decimal-input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Qty } from "@/components/ui/qty";
+import { finishStockCount, saveStockCountDraft, startStockCount } from "@/app/actions/stock";
+
+type CountStatus = "draft" | "counting" | "completed";
+
+type CountItem = {
+  id: string;
+  item_id: string;
+  qty_system: number;
+  qty_counted: number | null;
+  unit: string;
+  note: string | null;
+  item: { name: string; unit: string } | null;
+};
+
+type CountWorkspaceProps = {
+  count: {
+    id: string;
+    status: CountStatus;
+    note: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+  };
+  items: CountItem[];
+  canEdit: boolean;
+};
+
+type RowState = CountItem & {
+  qty_counted_text: string;
+  note_text: string;
+};
+
+function toPayload(id: string, note: string, rows: RowState[]) {
+  return {
+    id,
+    note: note.trim() || undefined,
+    items: rows.map((row) => ({
+      item_id: row.item_id,
+      qty_counted:
+        row.qty_counted_text.trim() === "" ? null : parseDecimal(row.qty_counted_text),
+      unit: row.unit,
+      note: row.note_text.trim() || undefined,
+    })),
+  };
+}
+
+function baseUnit(row: RowState) {
+  return row.item?.unit ?? row.unit;
+}
+
+function systemQtyForSelectedUnit(row: RowState) {
+  return convert(Number(row.qty_system), baseUnit(row), row.unit) ?? Number(row.qty_system);
+}
+
+export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [note, setNote] = useState(count.note ?? "");
+  const [rows, setRows] = useState<RowState[]>(
+    items.map((item) => ({
+      ...item,
+      qty_counted_text: item.qty_counted == null ? "" : String(item.qty_counted),
+      note_text: item.note ?? "",
+    }))
+  );
+
+  const isCompleted = count.status === "completed";
+  const isCounting = count.status === "counting";
+  const canInput = canEdit && isCounting && !isCompleted;
+  const missingCount = rows.some((row) => row.qty_counted_text.trim() === "");
+  const countedRows = rows.filter((row) => row.qty_counted_text.trim() !== "").length;
+
+  const totals = useMemo(() => {
+    let positive = 0;
+    let negative = 0;
+    for (const row of rows) {
+      if (row.qty_counted_text.trim() === "") continue;
+      const counted = parseDecimal(row.qty_counted_text);
+      if (!Number.isFinite(counted)) continue;
+      const variance = counted - systemQtyForSelectedUnit(row);
+      if (variance > 0) positive += 1;
+      if (variance < 0) negative += 1;
+    }
+    return { positive, negative };
+  }, [rows]);
+
+  function updateRow(itemId: string, patch: Partial<RowState>) {
+    setRows((prev) =>
+      prev.map((row) => (row.item_id === itemId ? { ...row, ...patch } : row))
+    );
+  }
+
+  function handleStart() {
+    startTransition(async () => {
+      const res = await startStockCount(count.id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Counting started");
+      router.refresh();
+    });
+  }
+
+  function handleSave() {
+    startTransition(async () => {
+      const res = await saveStockCountDraft(toPayload(count.id, note, rows));
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Draft saved");
+      router.refresh();
+    });
+  }
+
+  function handleFinish() {
+    if (missingCount) {
+      toast.error("Enter counted qty for every ingredient before finishing");
+      return;
+    }
+
+    startTransition(async () => {
+      const res = await finishStockCount(toPayload(count.id, note, rows));
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Counting finished — on hand updated");
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <div>
+            <span className="text-muted-foreground">Progress </span>
+            <span className="font-medium">{countedRows}/{rows.length}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Positive variance </span>
+            <span className="font-medium">{totals.positive}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Negative variance </span>
+            <span className="font-medium">{totals.negative}</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => window.print()}>
+            <Printer className="size-4" /> Print stock cards
+          </Button>
+          {canEdit && count.status === "draft" && (
+            <Button type="button" onClick={handleStart} disabled={pending}>
+              <Play className="size-4" /> {pending ? "Starting..." : "Start counting"}
+            </Button>
+          )}
+          {canInput && (
+            <>
+              <Button type="button" variant="outline" onClick={handleSave} disabled={pending}>
+                <Save className="size-4" /> {pending ? "Saving..." : "Save draft"}
+              </Button>
+              <Button type="button" onClick={handleFinish} disabled={pending}>
+                <Check className="size-4" /> {pending ? "Finishing..." : "Finish counting"}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {!isCompleted && !isCounting && (
+        <div className="no-print rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+          Print the stock cards first, then start counting to unlock quantity inputs and capture the start timestamp.
+        </div>
+      )}
+
+      <div className="no-print space-y-2">
+        <label htmlFor="global-note" className="text-sm font-medium">
+          Global note
+        </label>
+        <Textarea
+          id="global-note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          disabled={!canInput}
+          maxLength={500}
+          rows={2}
+          placeholder="Add notes for this cycle count"
+        />
+      </div>
+
+      <div className="no-print table-outer overflow-x-auto rounded-lg border">
+        <Table className="w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ingredient</TableHead>
+              <TableHead className="w-32 text-right">System qty</TableHead>
+              <TableHead className="w-52 text-right">Counted qty</TableHead>
+              <TableHead className="w-32 text-right">Variance</TableHead>
+              <TableHead className="w-64">Note</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => {
+              const unitOptions = compatibleUnits(baseUnit(row));
+              const systemQty = systemQtyForSelectedUnit(row);
+              const counted =
+                row.qty_counted_text.trim() === "" ? null : parseDecimal(row.qty_counted_text);
+              const variance =
+                counted != null && Number.isFinite(counted)
+                  ? counted - systemQty
+                  : null;
+
+              return (
+                <TableRow key={row.id}>
+                  <TableCell className="min-w-56 font-medium">
+                    {row.item?.name ?? "Deleted ingredient"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    <Qty value={systemQty} unit={row.unit} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <DecimalInput
+                        min="0"
+                        step="any"
+                        value={row.qty_counted_text}
+                        onValueChange={(value) =>
+                          updateRow(row.item_id, { qty_counted_text: value })
+                        }
+                        disabled={!canInput}
+                        placeholder="0"
+                        className="text-right"
+                      />
+                      {canInput && unitOptions.length > 1 ? (
+                        <Select
+                          value={row.unit}
+                          onValueChange={(unit) => updateRow(row.item_id, { unit })}
+                        >
+                          <SelectTrigger className="w-20 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unitOptions.map((unit) => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="w-20 shrink-0 text-left text-sm text-muted-foreground">
+                          {row.unit}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {variance == null ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      <span
+                        className={cn(
+                          "font-medium",
+                          variance > 0
+                            ? "text-green-600 dark:text-green-400"
+                            : variance < 0
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                        )}
+                      >
+                        {variance > 0 ? "+" : ""}
+                        {formatNum(variance)}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Textarea
+                      value={row.note_text}
+                      onChange={(e) => updateRow(row.item_id, { note_text: e.target.value })}
+                      disabled={!canInput}
+                      maxLength={300}
+                      rows={1}
+                      placeholder="Optional note"
+                      className="min-h-9 resize-none"
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="hidden print:block">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold">Stock Cards</h1>
+          <p className="text-sm text-muted-foreground">
+            {count.started_at ? `Started ${formatDateTime(count.started_at)}` : "Not started"}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {rows.map((row) => (
+            <div key={row.id} className="break-inside-avoid rounded-lg border p-4">
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold">{row.item?.name ?? "Deleted ingredient"}</h2>
+                  <p className="text-sm text-muted-foreground">Unit: {row.unit}</p>
+                </div>
+                <div className="text-right text-sm">
+                  <div className="text-muted-foreground">System qty</div>
+                  <div className="font-medium">{formatNum(systemQtyForSelectedUnit(row))} {row.unit}</div>
+                </div>
+              </div>
+              <div className="space-y-5 text-sm">
+                <div className="border-b pb-5">Counted qty:</div>
+                <div className="border-b pb-5">Counter:</div>
+                <div className="border-b pb-5">Note:</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          body {
+            background: white !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}

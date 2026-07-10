@@ -5,21 +5,10 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, formatDateTime, updaterName } from "@/lib/format";
-import { formatNum } from "@/lib/units";
-import { Qty } from "@/components/ui/qty";
-import { cn } from "@/lib/utils";
 import type { Updater } from "@/lib/supabase/types";
-import { CompleteCountButton } from "@/components/stock/complete-count-button";
+import { CountWorkspace } from "@/components/stock/count-workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -30,18 +19,28 @@ type CountItemRecord = {
   qty_counted: number | null;
   unit: string;
   note: string | null;
-  item: { name: string } | null;
+  item: { name: string; unit: string } | null;
 };
 
 type CountRecord = {
   id: string;
-  count_date: string;
-  status: "draft" | "completed";
+  count_date: string | null;
+  status: "draft" | "counting" | "completed";
   note: string | null;
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
   creator: Updater | null;
+  starter: Updater | null;
+  completer: Updater | null;
   stock_count_items: CountItemRecord[];
 };
+
+function statusBadge(status: CountRecord["status"]) {
+  if (status === "completed") return <Badge variant="success">Completed</Badge>;
+  if (status === "counting") return <Badge>Counting</Badge>;
+  return <Badge variant="outline">Draft</Badge>;
+}
 
 export default async function StockCountDetailPage({
   params,
@@ -56,11 +55,13 @@ export default async function StockCountDetailPage({
   const { data } = await supabase
     .from("stock_counts")
     .select(`
-      id, count_date, status, note, created_at,
+      id, count_date, status, note, started_at, completed_at, created_at,
       creator:profiles!created_by(full_name, email),
+      starter:profiles!started_by(full_name, email),
+      completer:profiles!completed_by(full_name, email),
       stock_count_items(
         id, item_id, qty_system, qty_counted, unit, note,
-        item:items(name)
+        item:items(name, unit)
       )
     `)
     .eq("id", id)
@@ -90,29 +91,42 @@ export default async function StockCountDetailPage({
       {/* Metadata */}
       <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm max-w-md">
         <span className="text-muted-foreground">Status</span>
-        <span>
-          <Badge variant={count.status === "completed" ? "success" : "outline"}>
-            {count.status === "completed" ? "Completed" : "Draft"}
-          </Badge>
-        </span>
+        <span>{statusBadge(count.status)}</span>
         <span className="text-muted-foreground">Count date</span>
-        <span>{formatDate(count.count_date)}</span>
-        <span className="text-muted-foreground">Recorded by</span>
+        <span>
+          {count.count_date ? (
+            formatDate(count.count_date)
+          ) : (
+            <span className="text-muted-foreground">Not started</span>
+          )}
+        </span>
+        <span className="text-muted-foreground">Created by</span>
         <span>{updaterName(count.creator)}</span>
         <span className="text-muted-foreground">Created at</span>
         <span>{formatDateTime(count.created_at)}</span>
+        {count.started_at && (
+          <>
+            <span className="text-muted-foreground">Started by</span>
+            <span>{updaterName(count.starter)}</span>
+            <span className="text-muted-foreground">Started at</span>
+            <span>{formatDateTime(count.started_at)}</span>
+          </>
+        )}
+        {count.completed_at && (
+          <>
+            <span className="text-muted-foreground">Finished by</span>
+            <span>{updaterName(count.completer)}</span>
+            <span className="text-muted-foreground">Finished at</span>
+            <span>{formatDateTime(count.completed_at)}</span>
+          </>
+        )}
         {count.note && (
           <>
-            <span className="text-muted-foreground">Note</span>
+            <span className="text-muted-foreground">Global note</span>
             <span>{count.note}</span>
           </>
         )}
       </div>
-
-      {/* Complete button for draft counts (admin only) */}
-      {count.status === "draft" && isAdmin && (
-        <CompleteCountButton countId={count.id} />
-      )}
 
       {/* Items table */}
       {items.length === 0 ? (
@@ -120,68 +134,7 @@ export default async function StockCountDetailPage({
           No items in this count.
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="w-20">Unit</TableHead>
-                <TableHead className="w-32 text-right">System qty</TableHead>
-                <TableHead className="w-32 text-right">Counted qty</TableHead>
-                <TableHead className="w-32 text-right">Discrepancy</TableHead>
-                <TableHead className="w-48">Note</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((row) => {
-                const discrepancy =
-                  row.qty_counted != null
-                    ? Number(row.qty_counted) - Number(row.qty_system)
-                    : null;
-                return (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium truncate">
-                      {row.item?.name ?? "—"}
-                    </TableCell>
-                    <TableCell>{row.unit}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <Qty value={Number(row.qty_system)} unit={row.unit} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {row.qty_counted != null ? (
-                        <Qty value={Number(row.qty_counted)} unit={row.unit} />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {discrepancy == null ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <span
-                          className={cn(
-                            "font-medium",
-                            discrepancy > 0
-                              ? "text-green-600 dark:text-green-400"
-                              : discrepancy < 0
-                              ? "text-destructive"
-                              : "text-muted-foreground"
-                          )}
-                        >
-                          {discrepancy > 0 ? "+" : ""}
-                          <Qty value={Math.abs(discrepancy)} unit={row.unit} />
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="truncate text-sm">
-                      {row.note ?? <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <CountWorkspace count={count} items={items} canEdit={isAdmin} />
       )}
     </div>
   );

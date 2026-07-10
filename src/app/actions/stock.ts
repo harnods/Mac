@@ -99,19 +99,13 @@ export async function createStockAdjustment(raw: unknown): Promise<ActionResult>
 
 // ─── Stock Count ─────────────────────────────────────────────────────────────
 
-const countItemSchema = z.object({
+const countTaskItemSchema = z.object({
   item_id: z.string().uuid(),
-  qty_system: z.coerce.number(),
-  qty_counted: z.coerce.number().nullable().optional(),
-  unit: z.string().min(1),
-  note: z.string().max(300).optional().nullable(),
 });
 
 const createCountSchema = z.object({
-  count_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
   note: z.string().max(500).optional(),
-  items: z.array(countItemSchema).min(1, "Count must include at least one item"),
-  complete: z.boolean().optional(),
+  items: z.array(countTaskItemSchema).min(1, "Count must include at least one item"),
 });
 
 export async function createStockCount(raw: unknown): Promise<ActionResult> {
@@ -121,24 +115,32 @@ export async function createStockCount(raw: unknown): Promise<ActionResult> {
 
   const parsed = createCountSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { count_date, note, items, complete } = parsed.data;
+  const { note, items } = parsed.data;
 
-  if (complete) {
-    // All items must have qty_counted when completing
-    const missing = items.some((it) => it.qty_counted == null);
-    if (missing) return { ok: false, error: "All items must have a counted quantity to complete the count" };
+  const itemIds = items.map((it) => it.item_id);
+  if (new Set(itemIds).size !== itemIds.length) {
+    return { ok: false, error: "Duplicate items are not allowed" };
   }
 
   const supabase = await createClient();
 
-  const status = complete ? "completed" : "draft";
+  const { data: dbItems } = await supabase
+    .from("items")
+    .select("id, unit, on_hand")
+    .is("deleted_at", null)
+    .in("id", itemIds);
+
+  if (!dbItems || dbItems.length !== itemIds.length) {
+    return { ok: false, error: "One or more items are no longer available" };
+  }
+  const dbItemsById = new Map(dbItems.map((item) => [item.id, item]));
+  const orderedDbItems = itemIds.map((id) => dbItemsById.get(id)).filter((item): item is NonNullable<typeof item> => Boolean(item));
 
   const { data: count, error: countError } = await supabase
     .from("stock_counts")
     .insert({
-      count_date,
       note: note?.trim() || null,
-      status,
+      status: "draft",
       created_by: profile.id,
     })
     .select("id")
@@ -147,62 +149,36 @@ export async function createStockCount(raw: unknown): Promise<ActionResult> {
   if (countError || !count) return { ok: false, error: countError?.message ?? "Failed to create stock count" };
 
   const { error: itemsError } = await supabase.from("stock_count_items").insert(
-    items.map((it) => ({
+    orderedDbItems.map((it) => ({
       count_id: count.id,
-      item_id: it.item_id,
-      qty_system: it.qty_system,
-      qty_counted: it.qty_counted ?? null,
+      item_id: it.id,
+      qty_system: Number(it.on_hand),
+      qty_counted: null,
       unit: it.unit,
-      note: it.note?.trim() || null,
+      note: null,
     }))
   );
 
   if (itemsError) return { ok: false, error: itemsError.message };
 
-  // If completing, apply discrepancies to on_hand + stock_ledger
-  if (complete) {
-    for (const it of items) {
-      if (it.qty_counted == null) continue;
-
-      const discrepancy = it.qty_counted - it.qty_system;
-      if (discrepancy === 0) continue;
-
-      // Fetch item to get current on_hand and reserved
-      const { data: dbItem } = await supabase
-        .from("items")
-        .select("id, unit, on_hand, reserved")
-        .eq("id", it.item_id)
-        .maybeSingle();
-
-      if (!dbItem) continue;
-
-      const newOnHand = Number(dbItem.on_hand) + discrepancy;
-      const currentReserved = Number(dbItem.reserved);
-
-      await supabase
-        .from("items")
-        .update({ on_hand: newOnHand, updated_by: profile.id })
-        .eq("id", it.item_id);
-
-      await supabase.from("stock_ledger").insert({
-        item_id: it.item_id,
-        type: discrepancy > 0 ? "adjustment_in" : "adjustment_out",
-        ref_id: count.id,
-        qty_delta: discrepancy,
-        on_hand_after: newOnHand,
-        reserved_after: currentReserved,
-        note: it.note?.trim() || null,
-        created_by: profile.id,
-      });
-    }
-  }
-
   revalidatePath("/stock/counts");
-  revalidatePath("/inventory", "layout");
   return { ok: true, id: count.id };
 }
 
-export async function completeStockCount(id: string): Promise<ActionResult> {
+const updateCountSchema = z.object({
+  id: z.string().uuid(),
+  note: z.string().max(500).optional(),
+  items: z.array(
+    z.object({
+      item_id: z.string().uuid(),
+      qty_counted: z.coerce.number().nullable().optional(),
+      unit: z.string().min(1),
+      note: z.string().max(300).optional().nullable(),
+    })
+  ).min(1, "Count must include at least one item"),
+});
+
+export async function startStockCount(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
@@ -216,7 +192,95 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
     .maybeSingle();
 
   if (!count) return { ok: false, error: "Stock count not found" };
-  if (count.status !== "draft") return { ok: false, error: "Only draft counts can be completed" };
+  if (count.status === "completed") return { ok: false, error: "Completed counts cannot be started again" };
+
+  const { error } = await supabase
+    .from("stock_counts")
+    .update({
+      count_date: new Date().toISOString().slice(0, 10),
+      status: "counting",
+      started_at: new Date().toISOString(),
+      started_by: profile.id,
+    })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/stock/counts");
+  revalidatePath(`/stock/counts/${id}`);
+  return { ok: true, id };
+}
+
+export async function saveStockCountDraft(raw: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+
+  const parsed = updateCountSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { id, note, items } = parsed.data;
+
+  const supabase = await createClient();
+  const { data: count } = await supabase
+    .from("stock_counts")
+    .select("id, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!count) return { ok: false, error: "Stock count not found" };
+  if (count.status === "completed") return { ok: false, error: "Completed counts cannot be edited" };
+
+  const { error: countError } = await supabase
+    .from("stock_counts")
+    .update({ note: note?.trim() || null })
+    .eq("id", id);
+
+  if (countError) return { ok: false, error: countError.message };
+
+  for (const it of items) {
+    const { error } = await supabase
+      .from("stock_count_items")
+      .update({
+        qty_counted: it.qty_counted ?? null,
+        unit: it.unit,
+        note: it.note?.trim() || null,
+      })
+      .eq("count_id", id)
+      .eq("item_id", it.item_id);
+
+    if (error) return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/stock/counts");
+  revalidatePath(`/stock/counts/${id}`);
+  return { ok: true, id };
+}
+
+export async function finishStockCount(raw: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+
+  const parsed = updateCountSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { id, note, items } = parsed.data;
+
+  const hasMissingInput = items.some((it) => it.qty_counted == null);
+  if (hasMissingInput) return { ok: false, error: "All items must have a counted quantity before finishing" };
+
+  const supabase = await createClient();
+
+  const { data: count } = await supabase
+    .from("stock_counts")
+    .select("id, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!count) return { ok: false, error: "Stock count not found" };
+  if (count.status === "completed") return { ok: false, error: "Stock count is already completed" };
+
+  const saveResult = await saveStockCountDraft({ id, note, items });
+  if (!saveResult.ok) return saveResult;
 
   const { data: countItems } = await supabase
     .from("stock_count_items")
@@ -225,14 +289,12 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
 
   if (!countItems || countItems.length === 0) return { ok: false, error: "No items found for this count" };
 
-  const missing = countItems.some((it) => it.qty_counted == null);
-  if (missing) return { ok: false, error: "All items must have a counted quantity before completing" };
+  const hasMissingSavedQty = countItems.some((it) => it.qty_counted == null);
+  if (hasMissingSavedQty) return { ok: false, error: "All items must have a counted quantity before completing" };
 
   // Apply discrepancies
   for (const it of countItems) {
     if (it.qty_counted == null) continue;
-    const discrepancy = Number(it.qty_counted) - Number(it.qty_system);
-    if (discrepancy === 0) continue;
 
     const { data: dbItem } = await supabase
       .from("items")
@@ -242,7 +304,9 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
 
     if (!dbItem) continue;
 
-    const newOnHand = Number(dbItem.on_hand) + discrepancy;
+    const convertedQty = convert(Number(it.qty_counted), it.unit, dbItem.unit) ?? Number(it.qty_counted);
+    const newOnHand = convertedQty;
+    const discrepancy = newOnHand - Number(dbItem.on_hand);
     const currentReserved = Number(dbItem.reserved);
 
     await supabase
@@ -252,19 +316,23 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
 
     await supabase.from("stock_ledger").insert({
       item_id: it.item_id,
-      type: discrepancy > 0 ? "adjustment_in" : "adjustment_out",
+      type: "count_adjustment",
       ref_id: id,
       qty_delta: discrepancy,
       on_hand_after: newOnHand,
       reserved_after: currentReserved,
-      note: it.note?.trim() || null,
+      note: it.note?.trim() || note?.trim() || null,
       created_by: profile.id,
     });
   }
 
   const { error } = await supabase
     .from("stock_counts")
-    .update({ status: "completed" })
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      completed_by: profile.id,
+    })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };
@@ -273,4 +341,14 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
   revalidatePath(`/stock/counts/${id}`);
   revalidatePath("/inventory", "layout");
   return { ok: true, id };
+}
+
+export async function completeStockCount(id: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: countItems } = await supabase
+    .from("stock_count_items")
+    .select("item_id, qty_counted, unit, note")
+    .eq("count_id", id);
+
+  return finishStockCount({ id, items: countItems ?? [] });
 }

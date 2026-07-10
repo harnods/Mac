@@ -48,6 +48,7 @@ export function CountsFilter() {
           <SelectContent>
             <SelectItem value={ALL}>All statuses</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="counting">Counting</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>

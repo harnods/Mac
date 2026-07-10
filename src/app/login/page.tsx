@@ -9,6 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 
+const DEMO_ACCOUNTS = [
+  { label: "Admin", email: "admin@machimoto.local", password: "mac-admin-2025" },
+  { label: "Staff", email: "staff@machimoto.local", password: "mac-staff-2025" },
+];
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -21,44 +26,82 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+    } catch {
+      toast.error("Could not reach Supabase. Check that local Supabase is running.");
       return;
+    } finally {
+      setLoading(false);
     }
+
     router.replace(next);
     router.refresh();
   }
 
+  function fillDemoAccount(account: (typeof DEMO_ACCOUNTS)[number]) {
+    setEmail(account.email);
+    setPassword(account.password);
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Signing in..." : "Sign in"}
+        </Button>
+      </form>
+
+      <div className="border rounded-md px-3 py-2.5 space-y-2 bg-muted/40">
+        <p className="text-xs font-medium text-muted-foreground">Demo accounts</p>
+        <div className="space-y-2">
+          {DEMO_ACCOUNTS.map((account) => (
+            <div key={account.email} className="flex items-center justify-between gap-2 text-xs">
+              <div className="min-w-0">
+                <div className="font-medium">{account.label}</div>
+                <div className="truncate font-mono select-all">{account.email}</div>
+                <div className="truncate font-mono select-all text-muted-foreground">{account.password}</div>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0 text-xs"
+                onClick={() => fillDemoAccount(account)}
+              >
+                Use
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Signing in..." : "Sign in"}
-      </Button>
-    </form>
+    </>
   );
 }
 
@@ -74,23 +117,6 @@ export default function LoginPage() {
           <Suspense fallback={null}>
             <LoginForm />
           </Suspense>
-          <div className="border rounded-md px-3 py-2.5 space-y-2 bg-muted/40">
-            <p className="text-xs font-medium text-muted-foreground">Demo accounts</p>
-            <div className="space-y-1">
-              <div className="text-xs">
-                <span className="text-muted-foreground">Admin · </span>
-                <span className="font-mono select-all">admin@machimoto.local</span>
-                <span className="text-muted-foreground"> / </span>
-                <span className="font-mono select-all">mac-admin-2025</span>
-              </div>
-              <div className="text-xs">
-                <span className="text-muted-foreground">Staff · </span>
-                <span className="font-mono select-all">staff@machimoto.local</span>
-                <span className="text-muted-foreground"> / </span>
-                <span className="font-mono select-all">mac-staff-2025</span>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

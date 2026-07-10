@@ -25,13 +25,21 @@ const PAGE_SIZE = 25;
 
 type CountRecord = {
   id: string;
-  count_date: string;
-  status: "draft" | "completed";
+  count_date: string | null;
+  status: "draft" | "counting" | "completed";
   note: string | null;
+  started_at: string | null;
+  completed_at: string | null;
   created_at: string;
   creator: Updater | null;
   stock_count_items: { id: string }[];
 };
+
+function statusBadge(status: CountRecord["status"]) {
+  if (status === "completed") return <Badge variant="success">Completed</Badge>;
+  if (status === "counting") return <Badge>Counting</Badge>;
+  return <Badge variant="outline">Draft</Badge>;
+}
 
 export default async function StockCountsPage({
   searchParams,
@@ -49,11 +57,11 @@ export default async function StockCountsPage({
 
   let query = supabase
     .from("stock_counts")
-    .select("id, count_date, status, note, created_at, creator:profiles!created_by(full_name, email), stock_count_items(id)", { count: "exact" })
+    .select("id, count_date, status, note, started_at, completed_at, created_at, creator:profiles!created_by(full_name, email), stock_count_items(id)", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (status === "draft" || status === "completed") {
+  if (status === "draft" || status === "counting" || status === "completed") {
     query = query.eq("status", status);
   }
   if (q.trim()) {
@@ -79,7 +87,7 @@ export default async function StockCountsPage({
         {isAdmin && (
           <Button asChild>
             <Link href="/stock/counts/new">
-              <Plus className="size-4" /> New count
+              <Plus className="size-4" /> New cycle count
             </Link>
           </Button>
         )}
@@ -105,19 +113,22 @@ export default async function StockCountsPage({
                 <TableHead className="w-28">Status</TableHead>
                 <TableHead className="w-20"># Items</TableHead>
                 <TableHead>Note</TableHead>
-                <TableHead className="w-44">Recorded by</TableHead>
+                <TableHead className="w-44">Created</TableHead>
+                <TableHead className="w-44">Timing</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {list.map((count) => (
                 <TableRow key={count.id}>
-                  <TableCell>{formatDate(count.count_date)}</TableCell>
                   <TableCell>
-                    <Badge variant={count.status === "completed" ? "success" : "outline"}>
-                      {count.status === "completed" ? "Completed" : "Draft"}
-                    </Badge>
+                    {count.count_date ? (
+                      formatDate(count.count_date)
+                    ) : (
+                      <span className="text-muted-foreground">Not started</span>
+                    )}
                   </TableCell>
+                  <TableCell>{statusBadge(count.status)}</TableCell>
                   <TableCell>{count.stock_count_items.length}</TableCell>
                   <TableCell className="truncate text-sm">
                     {count.note ?? <span className="text-muted-foreground">—</span>}
@@ -126,9 +137,20 @@ export default async function StockCountsPage({
                     <div>{updaterName(count.creator)}</div>
                     <div className="text-xs text-muted-foreground">{formatDate(count.created_at)}</div>
                   </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {count.completed_at ? (
+                      <>Finished {formatDate(count.completed_at)}</>
+                    ) : count.started_at ? (
+                      <>Started {formatDate(count.started_at)}</>
+                    ) : (
+                      "Not started"
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/stock/counts/${count.id}`}>View</Link>
+                      <Link href={`/stock/counts/${count.id}`}>
+                        {count.status === "completed" ? "View" : "Continue"}
+                      </Link>
                     </Button>
                   </TableCell>
                 </TableRow>
