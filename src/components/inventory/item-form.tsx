@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ type Props = {
   onCancel?: () => void;
 };
 
-function defaultUnitFor(_slug: ItemTypeSlug): string {
+function defaultUnitFor(): string {
   return "pcs";
 }
 
@@ -37,13 +37,14 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   const [pending, start] = useTransition();
   const [name, setName] = useState(item?.name ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(item?.category_id ?? null);
-  const [unit, setUnit] = useState<string>(item?.unit ?? defaultUnitFor(itemTypeSlug));
+  const [unit, setUnit] = useState<string>(item?.unit ?? defaultUnitFor());
   const [defaultCost, setDefaultCost] = useState(
     item?.default_purchase_cost != null ? String(item.default_purchase_cost) : "",
   );
   const [defaultCostUnit, setDefaultCostUnit] = useState<string>(
-    item?.default_purchase_cost_unit ?? item?.unit ?? defaultUnitFor(itemTypeSlug),
+    item?.default_purchase_cost_unit ?? item?.unit ?? defaultUnitFor(),
   );
+  const [usePurchaseUnit, setUsePurchaseUnit] = useState(Boolean(item?.purchase_unit));
   const [purchaseUnit, setPurchaseUnit] = useState<string>(item?.purchase_unit ?? "");
   const [purchaseUnitQty, setPurchaseUnitQty] = useState(
     item?.purchase_unit_qty != null ? String(item.purchase_unit_qty) : "",
@@ -65,15 +66,18 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   // (e.g. "bungkus") if one is set.
   const costUnitOptions = [
     ...compatibleUnits(unit as UnitCode),
-    ...(purchaseUnit ? [purchaseUnit] : []),
+    ...(usePurchaseUnit && purchaseUnit ? [purchaseUnit] : []),
   ];
+  const selectedDefaultCostUnit = costUnitOptions.includes(defaultCostUnit) ? defaultCostUnit : unit;
 
-  useEffect(() => {
-    if (!costUnitOptions.includes(defaultCostUnit)) {
-      setDefaultCostUnit(unit);
+  function handleUsePurchaseUnitChange(checked: boolean) {
+    setUsePurchaseUnit(checked);
+    if (!checked) {
+      setPurchaseUnit("");
+      setPurchaseUnitQty("");
+      if (selectedDefaultCostUnit === purchaseUnit) setDefaultCostUnit(unit);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unit, purchaseUnit]);
+  }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,9 +88,9 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
         unit,
         type: config.dbType,
         default_purchase_cost: showDefaultCost && defaultCost.trim() ? parseDecimal(defaultCost) : null,
-        default_purchase_cost_unit: showDefaultCost && defaultCost.trim() ? defaultCostUnit : null,
-        purchase_unit: purchaseUnit || null,
-        purchase_unit_qty: purchaseUnit && purchaseUnitQty.trim() ? parseDecimal(purchaseUnitQty) : null,
+        default_purchase_cost_unit: showDefaultCost && defaultCost.trim() ? selectedDefaultCostUnit : null,
+        purchase_unit: usePurchaseUnit && purchaseUnit ? purchaseUnit : null,
+        purchase_unit_qty: usePurchaseUnit && purchaseUnit && purchaseUnitQty.trim() ? parseDecimal(purchaseUnitQty) : null,
       };
       const res = isEdit ? await updateItem(item!.id, payload) : await createItem(payload);
       if (!res.ok) { toast.error(res.error); return; }
@@ -153,20 +157,29 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
       </div>
 
       {showDefaultCost && (
-      <div className="space-y-2">
-        <Label>Purchase unit (optional)</Label>
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <UnitCombobox
-              units={units.filter((u) => u !== unit)}
-              onUnitsChange={setUnits}
-              value={purchaseUnit}
-              onChange={setPurchaseUnit}
-              placeholder="None"
-            />
-          </div>
-          {purchaseUnit && (
-            <>
+      <div className="space-y-3 rounded-lg border p-3">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={usePurchaseUnit}
+            onChange={(event) => handleUsePurchaseUnitChange(event.target.checked)}
+            className="size-4 rounded border-input accent-primary"
+          />
+          Use purchase unit
+        </label>
+        {usePurchaseUnit && (
+          <div className="space-y-2">
+            <Label>Purchase unit</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <UnitCombobox
+                  units={units.filter((u) => u !== unit)}
+                  onUnitsChange={setUnits}
+                  value={purchaseUnit}
+                  onChange={setPurchaseUnit}
+                  placeholder="Select unit"
+                />
+              </div>
               <span className="text-sm text-muted-foreground shrink-0">=</span>
               <DecimalInput
                 value={purchaseUnitQty}
@@ -175,12 +188,12 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
                 className="w-24 shrink-0"
               />
               <span className="text-sm text-muted-foreground shrink-0">{unit || "unit"}</span>
-            </>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
+            </div>
+          </div>
+        )}
+        <div className="text-xs text-muted-foreground">
           For packaging bought as a different unit than it&apos;s tracked in, e.g. 1 bungkus = 5000 g.
-        </p>
+        </div>
       </div>
       )}
 
@@ -197,7 +210,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
               className="flex-1"
             />
             {costUnitOptions.length > 1 ? (
-              <Select value={defaultCostUnit} onValueChange={setDefaultCostUnit}>
+              <Select value={selectedDefaultCostUnit} onValueChange={setDefaultCostUnit}>
                 <SelectTrigger id="default-purchase-cost-unit" className="w-24 shrink-0">
                   <span className="text-muted-foreground text-sm mr-0.5">/</span>
                   <SelectValue />
@@ -213,7 +226,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Estimated cost per {defaultCostUnit || unit || "unit"}, used before any purchase is recorded.
+            Estimated cost per {selectedDefaultCostUnit || unit || "unit"}, used before any purchase is recorded.
           </p>
         </div>
       )}
