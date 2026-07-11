@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +15,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Qty } from "@/components/ui/qty";
-import { createStockCount } from "@/app/actions/stock";
+import {
+  createStockCount,
+  getStockCountOptions,
+  type StockCountCategoryOption,
+  type StockCountIngredientOption,
+} from "@/app/actions/stock";
 import { formatDateTime } from "@/lib/format";
 import {
   Select,
@@ -28,47 +33,35 @@ import {
 const ALL_CATEGORIES = "__all__";
 const UNCATEGORIZED = "__uncategorized__";
 
-type Item = {
-  id: string;
-  name: string;
-  unit: string;
-  type: string;
-  on_hand: number;
-  category_id: string | null;
-  categories: { id: string; name: string } | null;
-  last_counted_at: string | null;
-};
-
-type CategoryOption = {
-  id: string;
-  name: string;
-};
-
 export function CountForm({
   items,
   categories,
 }: {
-  items: Item[];
-  categories: CategoryOption[];
+  items: StockCountIngredientOption[];
+  categories: StockCountCategoryOption[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [refreshing, startRefresh] = useTransition();
+  const [currentItems, setCurrentItems] = useState(items);
+  const [currentCategories, setCurrentCategories] = useState(categories);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter((item) => {
+    return currentItems.filter((item) => {
       const matchesQuery = !q || item.name.toLowerCase().includes(q);
       const matchesCategory =
         category === ALL_CATEGORIES ||
         (category === UNCATEGORIZED ? item.category_id == null : item.category_id === category);
       return matchesQuery && matchesCategory;
     });
-  }, [category, items, query]);
+  }, [category, currentItems, query]);
 
-  const selectedItems = items.filter((item) => selected.has(item.id));
+  const selectedItems = currentItems.filter((item) => selected.has(item.id));
+  const selectedCount = selectedItems.length;
   const allFilteredSelected =
     filteredItems.length > 0 && filteredItems.every((item) => selected.has(item.id));
 
@@ -94,7 +87,7 @@ export function CountForm({
   }
 
   function submit() {
-    if (selected.size === 0) {
+    if (selectedCount === 0) {
       toast.error("Select at least one ingredient to count");
       return;
     }
@@ -115,13 +108,27 @@ export function CountForm({
     });
   }
 
+  function refreshData() {
+    startRefresh(async () => {
+      const res = await getStockCountOptions();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+
+      setCurrentItems(res.items);
+      setCurrentCategories(res.categories);
+      toast.success("Ingredient list refreshed");
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-3">
         <div>
           <h2 className="text-sm font-semibold">Ingredients to count</h2>
           <p className="text-sm text-muted-foreground">
-            {selected.size} selected
+            {selectedCount} selected
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
@@ -132,7 +139,7 @@ export function CountForm({
             <SelectContent>
               <SelectItem value={ALL_CATEGORIES}>All categories</SelectItem>
               <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>
-              {categories.map((cat) => (
+              {currentCategories.map((cat) => (
                 <SelectItem key={cat.id} value={cat.id}>
                   {cat.name}
                 </SelectItem>
@@ -151,7 +158,7 @@ export function CountForm({
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {currentItems.length === 0 ? (
         <div className="rounded-lg border p-10 text-center text-sm text-muted-foreground">
           No active ingredients found.
         </div>
@@ -220,10 +227,14 @@ export function CountForm({
       )}
 
       <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <Button type="button" variant="outline" onClick={refreshData} disabled={refreshing || pending}>
+          <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
+          {refreshing ? "Refreshing..." : "Refresh data"}
+        </Button>
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancel
         </Button>
-        <Button type="button" disabled={pending || selected.size === 0} onClick={submit}>
+        <Button type="button" disabled={pending || selectedCount === 0} onClick={submit}>
           {pending ? "Creating..." : "Create count task"}
         </Button>
       </div>

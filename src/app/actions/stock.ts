@@ -9,6 +9,30 @@ import { convert } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
+export type StockCountIngredientOption = {
+  id: string;
+  name: string;
+  unit: string;
+  type: string;
+  on_hand: number;
+  category_id: string | null;
+  categories: { id: string; name: string } | null;
+  last_counted_at: string | null;
+};
+
+export type StockCountCategoryOption = {
+  id: string;
+  name: string;
+};
+
+type CompletedCount = {
+  count_date: string | null;
+  completed_at: string | null;
+  stock_count_items: { item_id: string }[];
+};
+
+type CountIngredient = Omit<StockCountIngredientOption, "last_counted_at">;
+
 // ─── Manual Stock Adjustment ─────────────────────────────────────────────────
 
 const adjustmentItemSchema = z.object({
@@ -107,6 +131,56 @@ const createCountSchema = z.object({
   note: z.string().max(500).optional(),
   items: z.array(countTaskItemSchema).min(1, "Count must include at least one item"),
 });
+
+export async function getStockCountOptions(): Promise<
+  | { ok: true; items: StockCountIngredientOption[]; categories: StockCountCategoryOption[] }
+  | { ok: false; error: string }
+> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const [{ data: items }, { data: categories }, { data: completedCounts }] = await Promise.all([
+    supabase
+      .from("items")
+      .select("id, name, unit, type, on_hand, category_id, categories(id,name)")
+      .is("deleted_at", null)
+      .eq("type", "ingredient")
+      .order("name"),
+    supabase
+      .from("categories")
+      .select("id, name")
+      .eq("type", "ingredient")
+      .order("name"),
+    supabase
+      .from("stock_counts")
+      .select("count_date, completed_at, stock_count_items(item_id)")
+      .eq("status", "completed")
+      .order("completed_at", { ascending: false, nullsFirst: false })
+      .order("count_date", { ascending: false }),
+  ]);
+
+  const lastCountedByItem = new Map<string, string>();
+  for (const count of ((completedCounts ?? []) as unknown as CompletedCount[])) {
+    const timestamp = count.completed_at ?? count.count_date;
+    if (!timestamp) continue;
+    for (const row of count.stock_count_items ?? []) {
+      if (!lastCountedByItem.has(row.item_id)) {
+        lastCountedByItem.set(row.item_id, timestamp);
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    items: ((items ?? []) as unknown as CountIngredient[]).map((item) => ({
+      ...item,
+      last_counted_at: lastCountedByItem.get(item.id) ?? null,
+    })),
+    categories: (categories ?? []) as StockCountCategoryOption[],
+  };
+}
 
 export async function createStockCount(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
