@@ -133,6 +133,7 @@ export function AppSidebar() {
               <Link
                 key={app.label}
                 href={app.href}
+                prefetch={false}
                 className={cn(
                   "w-[60px] h-[48px] flex flex-col items-center justify-center gap-1 rounded-[8px] text-[#0a0a0a] transition-colors",
                   active ? "bg-[#d3e4fe]" : "hover:bg-[#d3e4fe]",
@@ -156,6 +157,7 @@ export function AppSidebar() {
         <div className="w-64 flex min-h-0 flex-1 flex-col">
           <Link
             href={homeHref}
+            prefetch={false}
             className="h-[72px] shrink-0 flex items-center px-4 text-2xl font-bold tracking-tight text-[#0a0a0a]"
           >
             {title}
@@ -185,7 +187,7 @@ function MenuItem({ node, pathname }: { node: MenuNode; pathname: string }) {
 
   if (!node.children) {
     return (
-      <Link href={node.href} className={rowClass(active)}>
+      <Link href={node.href} prefetch={false} className={rowClass(active)}>
         <Icon className="size-5 shrink-0" strokeWidth={1.75} />
         <span className="truncate">{node.label}</span>
       </Link>
@@ -208,6 +210,7 @@ function MenuItem({ node, pathname }: { node: MenuNode; pathname: string }) {
               <Link
                 key={child.href}
                 href={child.href}
+                prefetch={false}
                 className={cn(
                   "flex h-10 items-center pl-9 pr-2 rounded-[6px] text-sm text-[#0a0a0a] transition-colors",
                   isLeafActive(pathname, child.href)

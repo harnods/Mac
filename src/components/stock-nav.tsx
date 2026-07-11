@@ -28,10 +28,10 @@ export function StockNav() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-52">
         <DropdownMenuItem asChild>
-          <Link href="/stock/adjustments" className="cursor-pointer">Manual adjustment</Link>
+          <Link prefetch={false} href="/stock/adjustments" className="cursor-pointer">Manual adjustment</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/stock/counts" className="cursor-pointer">Stock count</Link>
+          <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

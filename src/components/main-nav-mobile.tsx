@@ -23,102 +23,102 @@ export function MainNavMobile() {
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuLabel>Orders</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/orders" className="cursor-pointer">POS</Link>
+          <Link prefetch={false} href="/orders" className="cursor-pointer">POS</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Pipeline</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/orders/bar" className="cursor-pointer">Bar</Link>
+          <Link prefetch={false} href="/orders/bar" className="cursor-pointer">Bar</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/orders/kitchen" className="cursor-pointer">Kitchen</Link>
+          <Link prefetch={false} href="/orders/kitchen" className="cursor-pointer">Kitchen</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/orders/settings" className="cursor-pointer">Settings</Link>
+          <Link prefetch={false} href="/orders/settings" className="cursor-pointer">Settings</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Inventory</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/ingredients" className="cursor-pointer">Ingredients</Link>
+          <Link prefetch={false} href="/inventory/ingredients" className="cursor-pointer">Ingredients</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/supplies" className="cursor-pointer">Supplies</Link>
+          <Link prefetch={false} href="/inventory/supplies" className="cursor-pointer">Supplies</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/products" className="cursor-pointer">Products</Link>
+          <Link prefetch={false} href="/inventory/products" className="cursor-pointer">Products</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/inventory/prep-items" className="cursor-pointer">Prep items</Link>
+          <Link prefetch={false} href="/inventory/prep-items" className="cursor-pointer">Prep items</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/stock/adjustments" className="cursor-pointer">Stock adjustment</Link>
+          <Link prefetch={false} href="/stock/adjustments" className="cursor-pointer">Stock adjustment</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/stock/counts" className="cursor-pointer">Stock count</Link>
+          <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+          <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
+          <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+          <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/units" className="cursor-pointer">Units</Link>
+          <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Recipes</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/recipes" className="cursor-pointer">Recipes</Link>
+          <Link prefetch={false} href="/recipes" className="cursor-pointer">Recipes</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Prep orders</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/prep-orders" className="cursor-pointer">Prep orders</Link>
+          <Link prefetch={false} href="/prep-orders" className="cursor-pointer">Prep orders</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Purchasing</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/purchasing/requests" className="cursor-pointer">Purchase requests</Link>
+          <Link prefetch={false} href="/purchasing/requests" className="cursor-pointer">Purchase requests</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
+          <Link prefetch={false} href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Employees</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/employees" className="cursor-pointer">All employees</Link>
+          <Link prefetch={false} href="/employees" className="cursor-pointer">All employees</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+          <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
+          <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+          <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/units" className="cursor-pointer">Units</Link>
+          <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
+          <Link prefetch={false} href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/employees/departments" className="cursor-pointer">Department</Link>
+          <Link prefetch={false} href="/employees/departments" className="cursor-pointer">Department</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/employees/job-positions" className="cursor-pointer">Job positions</Link>
+          <Link prefetch={false} href="/employees/job-positions" className="cursor-pointer">Job positions</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/employees/job-levels" className="cursor-pointer">Job levels</Link>
+          <Link prefetch={false} href="/employees/job-levels" className="cursor-pointer">Job levels</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link href="/employees/employment-statuses" className="cursor-pointer">Employment status</Link>
+          <Link prefetch={false} href="/employees/employment-statuses" className="cursor-pointer">Employment status</Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
