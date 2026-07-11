@@ -13,6 +13,7 @@ import {
 import { Qty } from "@/components/ui/qty";
 import { formatDate } from "@/lib/format";
 import type { UnitCode } from "@/lib/supabase/types";
+import { UnitConversionsPanel, type UnitConversionRow } from "@/components/inventory/unit-conversions-panel";
 
 const TYPE_LABEL: Record<string, string> = {
   purchase: "Purchase",
@@ -56,21 +57,28 @@ export type UsedInRecipeRow = {
   product: { id: string; name: string; type: string; unit: UnitCode } | null;
 };
 
-type Tab = "stock" | "recipes";
+type Tab = "stock" | "recipes" | "conversions";
 
 export function ItemUsageTabs({
   ledger,
   itemUnit,
   usedInRecipes,
+  unitConversions,
+  itemId,
+  canEditConversions = false,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
   usedInRecipes?: UsedInRecipeRow[];
+  unitConversions?: UnitConversionRow[];
+  itemId?: string;
+  canEditConversions?: boolean;
 }) {
   const hasRecipeTab = usedInRecipes !== undefined;
+  const hasConversionTab = unitConversions !== undefined && itemId !== undefined;
   const [tab, setTab] = useState<Tab>("stock");
 
-  if (!hasRecipeTab) {
+  if (!hasRecipeTab && !hasConversionTab) {
     return (
       <div className="space-y-2">
         <h2 className="text-sm font-medium">Stock movements</h2>
@@ -89,14 +97,26 @@ export function ItemUsageTabs({
           <TabButton active={tab === "recipes"} onClick={() => setTab("recipes")}>
             Used in recipes
           </TabButton>
+          {hasConversionTab && (
+            <TabButton active={tab === "conversions"} onClick={() => setTab("conversions")}>
+              Unit conversions
+            </TabButton>
+          )}
         </div>
       </div>
 
       {tab === "stock" ? (
         <StockMovementsTable ledger={ledger} itemUnit={itemUnit} />
-      ) : (
+      ) : tab === "recipes" && hasRecipeTab ? (
         <UsedInRecipesTable recipes={usedInRecipes} />
-      )}
+      ) : hasConversionTab ? (
+        <UnitConversionsPanel
+          itemId={itemId}
+          itemUnit={itemUnit}
+          conversions={unitConversions}
+          canEdit={canEditConversions}
+        />
+      ) : null}
     </div>
   );
 }

@@ -229,6 +229,8 @@ export function ItemTableRow({
             itemId={item.id}
             itemName={item.name}
             itemUnit={item.unit}
+            purchaseUnit={item.purchase_unit}
+            unitConversions={(item as ItemWithCategory & { item_unit_conversions?: { from_unit: string; factor: number; to_unit: string }[] }).item_unit_conversions ?? []}
             onHand={Number(item.on_hand)}
           />
         </>

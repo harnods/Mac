@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { compatibleUnits, parseDecimal } from "@/lib/units";
+import { parseDecimal, unitOptionsForItem } from "@/lib/units";
 import { createStockAdjustment } from "@/app/actions/stock";
 import {
   DndContext,
@@ -51,7 +51,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-type Item = { id: string; name: string; unit: string; type: string };
+type Item = {
+  id: string;
+  name: string;
+  unit: string;
+  type: string;
+  purchase_unit: string | null;
+  item_unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
+};
 
 type Row = { key: string; item_id: string | null; qty: string; unit: string | null };
 
@@ -104,17 +111,6 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
 
   function updateRow(key: string, patch: Partial<Row>) {
     setRows((p) => p.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  }
-
-  function handleItemSelect(key: string, itemId: string) {
-    const item = items.find((i) => i.id === itemId);
-    updateRow(key, { item_id: itemId, unit: item?.unit ?? null });
-    // Ensure trailing empty row
-    setRows((prev) => {
-      const last = prev[prev.length - 1];
-      if (last.item_id) return [...prev, newRow()];
-      return prev;
-    });
   }
 
   function handleMultiItemSelect(key: string, itemIds: string[]) {
@@ -269,7 +265,6 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
                         items={items.filter((i) =>
                           !rows.some((r) => r.key !== row.key && r.item_id === i.id) || i.id === row.item_id
                         )}
-                        onItemSelect={(id) => handleItemSelect(row.key, id)}
                         onMultiItemSelect={(ids) => handleMultiItemSelect(row.key, ids)}
                         onQtyChange={(qty) => updateRow(row.key, { qty })}
                         onUnitChange={(unit) => updateRow(row.key, { unit })}
@@ -301,7 +296,6 @@ function AdjustmentRowField({
   index,
   canDrag,
   items,
-  onItemSelect,
   onMultiItemSelect,
   onQtyChange,
   onUnitChange,
@@ -312,7 +306,6 @@ function AdjustmentRowField({
   index: number;
   canDrag: boolean;
   items: Item[];
-  onItemSelect: (id: string) => void;
   onMultiItemSelect: (ids: string[]) => void;
   onQtyChange: (qty: string) => void;
   onUnitChange: (unit: string) => void;
@@ -330,7 +323,7 @@ function AdjustmentRowField({
   };
 
   const selectedItem = items.find((i) => i.id === row.item_id) ?? null;
-  const units = selectedItem ? compatibleUnits(selectedItem.unit) : [];
+  const units = selectedItem ? unitOptionsForItem(selectedItem) : [];
 
   function handleOpenChange(open: boolean) {
     if (open) {

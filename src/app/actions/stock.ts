@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { convert, convertToItemUnit } from "@/lib/units";
+import { convertToItemUnit } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -32,6 +32,17 @@ type CompletedCount = {
 };
 
 type CountIngredient = Omit<StockCountIngredientOption, "last_counted_at">;
+type CountConflictRow = {
+  item_id: string;
+  item: { name: string } | null;
+};
+
+function formatConflictNames(rows: CountConflictRow[]) {
+  const names = [...new Set(rows.map((row) => row.item?.name).filter(Boolean))];
+  if (names.length === 0) return "Selected ingredients";
+  if (names.length <= 3) return names.join(", ");
+  return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+}
 
 // ─── Manual Stock Adjustment ─────────────────────────────────────────────────
 
@@ -64,10 +75,23 @@ export async function createStockAdjustment(raw: unknown): Promise<ActionResult>
 
   const supabase = await createClient();
 
+  const { data: countingRows } = await supabase
+    .from("stock_count_items")
+    .select("item_id, item:items(name), count:stock_counts!inner(status)")
+    .in("item_id", itemIds)
+    .eq("count.status", "counting");
+
+  if (countingRows && countingRows.length > 0) {
+    return {
+      ok: false,
+      error: `${formatConflictNames(countingRows as unknown as CountConflictRow[])} is being counted. Finish the stock count before recording stock in/out.`,
+    };
+  }
+
   // Fetch all items at once
   const { data: dbItems } = await supabase
     .from("items")
-    .select("id, unit, on_hand, reserved")
+    .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit)")
     .in("id", itemIds);
 
   if (!dbItems || dbItems.length !== itemIds.length)
@@ -77,7 +101,7 @@ export async function createStockAdjustment(raw: unknown): Promise<ActionResult>
 
   for (const it of items) {
     const dbItem = dbItems.find((d) => d.id === it.item_id)!;
-    const delta = convert(it.qty, it.unit, dbItem.unit) ?? it.qty;
+    const delta = convertToItemUnit(it.qty, it.unit, dbItem);
     const signedDelta = direction === "in" ? delta : -delta;
     const newOnHand = Number(dbItem.on_hand) + signedDelta;
     const currentReserved = Number(dbItem.reserved);
@@ -197,6 +221,19 @@ export async function createStockCount(raw: unknown): Promise<ActionResult> {
   }
 
   const supabase = await createClient();
+
+  const { data: openCountRows } = await supabase
+    .from("stock_count_items")
+    .select("item_id, item:items(name), count:stock_counts!inner(status)")
+    .in("item_id", itemIds)
+    .neq("count.status", "completed");
+
+  if (openCountRows && openCountRows.length > 0) {
+    return {
+      ok: false,
+      error: `${formatConflictNames(openCountRows as unknown as CountConflictRow[])} is already in an unfinished cycle count. Finish the existing task before creating a new one.`,
+    };
+  }
 
   const { data: dbItems } = await supabase
     .from("items")
@@ -380,7 +417,7 @@ export async function finishStockCount(raw: unknown): Promise<ActionResult> {
 
     const { data: dbItem } = await supabase
       .from("items")
-      .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty")
+      .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit)")
       .eq("id", it.item_id)
       .maybeSingle();
 

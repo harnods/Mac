@@ -21,6 +21,7 @@ import { ProductStatusButton } from "@/components/inventory/product-status-butto
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { ItemUsageTabs, type LedgerRow, type UsedInRecipeRow } from "@/components/inventory/item-usage-tabs";
+import type { UnitConversionRow } from "@/components/inventory/unit-conversions-panel";
 import type { ItemWithCategory } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,14 @@ export default async function ItemDetailPage({
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const [{ data, error }, { data: ledgerData }, { data: setItemsData }, { data: recipeData }, { data: usageData }] = await Promise.all([
+  const [
+    { data, error },
+    { data: ledgerData },
+    { data: setItemsData },
+    { data: recipeData },
+    { data: usageData },
+    { data: conversionData },
+  ] = await Promise.all([
     supabase
       .from("items")
       .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)")
@@ -72,12 +80,20 @@ export default async function ItemDetailPage({
           .select("quantity, unit, recipe:recipes(id, name, recipe_type, product:items!product_id(id, name, type, unit))")
           .eq("item_id", id)
       : Promise.resolve({ data: [] }),
+    config.dbType === 'ingredient'
+      ? supabase
+          .from("item_unit_conversions")
+          .select("id, from_unit, factor, to_unit")
+          .eq("item_id", id)
+          .order("from_unit")
+      : Promise.resolve({ data: [] }),
   ]);
 
   if (error || !data) notFound();
   const item = data as ItemWithCategory & { product_kind?: string; status?: string };
   const isAdmin = can(profile, P.INVENTORY_WRITE);
   const ledger = (ledgerData ?? []) as LedgerRow[];
+  const unitConversions = (conversionData ?? []) as UnitConversionRow[];
   const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
   const usedInRecipes = ((usageData ?? []) as unknown as {
     quantity: number;
@@ -263,6 +279,9 @@ export default async function ItemDetailPage({
           ledger={ledger}
           itemUnit={item.unit}
           usedInRecipes={config.dbType === "ingredient" ? usedInRecipes : undefined}
+          unitConversions={config.dbType === "ingredient" ? unitConversions : undefined}
+          itemId={config.dbType === "ingredient" ? item.id : undefined}
+          canEditConversions={isAdmin}
         />
       )}
     </div>

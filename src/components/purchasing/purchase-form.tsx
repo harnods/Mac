@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -34,11 +33,17 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
-import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
+import { formatNum, parseDecimal, unitOptionsForItem } from "@/lib/units";
 import { formatId, formatDate } from "@/lib/format";
 import { createPurchase } from "@/app/actions/purchasing";
 
-type Ingredient = { id: string; name: string; unit: string; purchase_unit: string | null };
+type Ingredient = {
+  id: string;
+  name: string;
+  unit: string;
+  purchase_unit: string | null;
+  item_unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
+};
 
 type ApprovedRequest = {
   id: string;
@@ -473,9 +478,7 @@ function PurchaseRowField({
   const [unitOpen, setUnitOpen] = useState(false);
 
   const selectedItem = ingredients.find((i) => i.id === row.item_id) ?? null;
-  const units = selectedItem
-    ? [...compatibleUnits(selectedItem.unit), ...(selectedItem.purchase_unit ? [selectedItem.purchase_unit] : [])]
-    : [];
+  const units = selectedItem ? unitOptionsForItem(selectedItem) : [];
 
   const showRowNote =
     row.qty_requested !== null &&

@@ -239,7 +239,7 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
   const itemIds = [...new Set(items.map((it) => it.item_id))];
   const { data: dbItems } = await supabase
     .from("items")
-    .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty")
+    .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit)")
     .in("id", itemIds);
 
   if (dbItems) {

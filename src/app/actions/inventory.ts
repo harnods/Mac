@@ -38,6 +38,88 @@ const itemSchema = z.object({
 
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
+const unitConversionSchema = z.object({
+  item_id: z.string().uuid(),
+  from_unit: z.string().trim().min(1, "Unit is required").max(30),
+  factor: z.coerce.number().positive("Quantity must be greater than 0"),
+  to_unit: z.string().trim().min(1, "Base unit is required").max(30),
+});
+
+export async function createItemUnitConversion(input: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+
+  const parsed = unitConversionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { item_id, factor, to_unit } = parsed.data;
+  const from_unit = parsed.data.from_unit.toLowerCase();
+
+  if (from_unit === to_unit) {
+    return { ok: false, error: "Conversion unit must be different from the base unit" };
+  }
+
+  const supabase = await createClient();
+  const { data: item } = await supabase
+    .from("items")
+    .select("id, type, unit")
+    .eq("id", item_id)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!item) return { ok: false, error: "Item not found" };
+  if (item.type !== "ingredient") return { ok: false, error: "Unit conversions are only available for ingredients" };
+  if (convert(factor, to_unit as UnitCode, item.unit as UnitCode) == null && to_unit !== item.unit) {
+    return { ok: false, error: "Base unit must be compatible with the ingredient unit" };
+  }
+
+  const { error: unitError } = await supabase
+    .from("units")
+    .upsert({ code: from_unit, is_system: false }, { onConflict: "code", ignoreDuplicates: true });
+
+  if (unitError) return { ok: false, error: unitError.message };
+
+  const { data, error } = await supabase
+    .from("item_unit_conversions")
+    .insert({
+      item_id,
+      from_unit,
+      factor,
+      to_unit,
+      updated_by: profile.id,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { ok: false, error: `Conversion for "${from_unit}" already exists` };
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/inventory/ingredients/${item_id}`);
+  revalidatePath("/inventory", "layout");
+  return { ok: true, id: data.id };
+}
+
+export async function deleteItemUnitConversion(id: string, itemId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("item_unit_conversions")
+    .delete()
+    .eq("id", id)
+    .eq("item_id", itemId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/inventory/ingredients/${itemId}`);
+  revalidatePath("/inventory", "layout");
+  return { ok: true };
+}
+
 export async function createItem(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };

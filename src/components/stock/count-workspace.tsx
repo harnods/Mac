@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Check, Play, Printer, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
-import { compatibleUnits, convert, convertToItemUnit, formatNum, parseDecimal } from "@/lib/units";
+import { convert, convertToItemUnit, formatNum, parseDecimal, unitOptionsForItem } from "@/lib/units";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { QuantityCalculatorInput } from "@/components/stock/quantity-calculator-input";
@@ -41,7 +41,13 @@ type CountItem = {
   in_use_qty: number | null;
   in_use_unit: string | null;
   note: string | null;
-  item: { name: string; unit: string; purchase_unit: string | null; purchase_unit_qty: number | null } | null;
+  item: {
+    name: string;
+    unit: string;
+    purchase_unit: string | null;
+    purchase_unit_qty: number | null;
+    item_unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
+  } | null;
 };
 
 type CountWorkspaceProps = {
@@ -94,11 +100,11 @@ function systemQtyForSelectedUnit(row: RowState) {
 }
 
 function unitOptions(row: RowState) {
-  const units = compatibleUnits(baseUnit(row));
-  if (row.item?.purchase_unit && !units.includes(row.item.purchase_unit)) {
-    units.push(row.item.purchase_unit);
-  }
-  return units;
+  return unitOptionsForItem({
+    unit: baseUnit(row),
+    purchase_unit: row.item?.purchase_unit,
+    item_unit_conversions: row.item?.item_unit_conversions,
+  });
 }
 
 function toBaseQty(row: RowState, rawQty: string, unit: string) {
@@ -109,6 +115,7 @@ function toBaseQty(row: RowState, rawQty: string, unit: string) {
     unit: baseUnit(row),
     purchase_unit: row.item?.purchase_unit,
     purchase_unit_qty: row.item?.purchase_unit_qty,
+    item_unit_conversions: row.item?.item_unit_conversions,
   });
 }
 

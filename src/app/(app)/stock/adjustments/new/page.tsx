@@ -18,7 +18,7 @@ export default async function NewStockAdjustmentPage() {
 
   const { data: items } = await supabase
     .from("items")
-    .select("id, name, unit, type")
+    .select("id, name, unit, type, purchase_unit, item_unit_conversions(from_unit, factor, to_unit)")
     .is("deleted_at", null)
     .in("type", ["ingredient", "supply"])
     .order("name");

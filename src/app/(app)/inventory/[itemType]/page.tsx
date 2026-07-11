@@ -43,7 +43,7 @@ export default async function ItemTypePage({
 
   let query = supabase
     .from("items")
-    .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)", { count: "exact" })
+    .select("*, categories(id,name), updater:profiles!updated_by(full_name,email), item_unit_conversions(from_unit, factor, to_unit)", { count: "exact" })
     .eq("type", config.dbType)
     .is("deleted_at", null)
     .order("name")

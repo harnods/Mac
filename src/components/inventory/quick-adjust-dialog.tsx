@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
+import { formatNum, parseDecimal, unitOptionsForItem } from "@/lib/units";
 import { createStockAdjustment } from "@/app/actions/stock";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -32,6 +32,8 @@ type Props = {
   itemId: string;
   itemName: string;
   itemUnit: string;
+  unitConversions?: { from_unit: string; factor: number; to_unit: string }[];
+  purchaseUnit?: string | null;
   onHand: number;
 };
 
@@ -39,7 +41,16 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function QuickAdjustDialog({ open, onOpenChange, itemId, itemName, itemUnit, onHand }: Props) {
+export function QuickAdjustDialog({
+  open,
+  onOpenChange,
+  itemId,
+  itemName,
+  itemUnit,
+  unitConversions = [],
+  purchaseUnit = null,
+  onHand,
+}: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -48,18 +59,22 @@ export function QuickAdjustDialog({ open, onOpenChange, itemId, itemName, itemUn
   const [unit, setUnit] = useState(itemUnit);
   const [reason, setReason] = useState("");
 
-  const units = compatibleUnits(itemUnit as UnitCode);
+  const units = unitOptionsForItem({
+    unit: itemUnit as UnitCode,
+    purchase_unit: purchaseUnit,
+    item_unit_conversions: unitConversions,
+  });
   const reasons = direction === "in" ? IN_REASONS : OUT_REASONS;
 
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (open) {
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
       setDirection("in");
       setQty("");
       setUnit(itemUnit);
       setReason("");
     }
-  }, [open, itemUnit]);
+    onOpenChange(nextOpen);
+  }
 
   // Reset reason when direction changes
   function handleDirectionChange(d: "in" | "out") {
@@ -88,7 +103,7 @@ export function QuickAdjustDialog({ open, onOpenChange, itemId, itemName, itemUn
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Adjust stock</DialogTitle>

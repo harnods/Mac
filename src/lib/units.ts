@@ -53,6 +53,27 @@ export function convert(value: number, from: UnitCode, to: UnitCode): number | n
   return inBase / g.members[to];
 }
 
+export type ItemUnitConversion = {
+  from_unit: UnitCode;
+  factor: number;
+  to_unit: UnitCode;
+};
+
+export function unitOptionsForItem(item: {
+  unit: UnitCode;
+  purchase_unit?: UnitCode | null;
+  item_unit_conversions?: ItemUnitConversion[] | null;
+}): UnitCode[] {
+  const units = compatibleUnits(item.unit);
+  for (const conversion of item.item_unit_conversions ?? []) {
+    if (!units.includes(conversion.from_unit)) units.push(conversion.from_unit);
+  }
+  if (item.purchase_unit && !units.includes(item.purchase_unit)) {
+    units.push(item.purchase_unit);
+  }
+  return units;
+}
+
 /**
  * Converts a quantity into an item's own unit, falling back to the item's
  * custom purchase-unit ratio (e.g. "1 bungkus = 5000 g") when the universal
@@ -62,11 +83,21 @@ export function convert(value: number, from: UnitCode, to: UnitCode): number | n
 export function convertToItemUnit(
   value: number,
   from: UnitCode,
-  item: { unit: UnitCode; purchase_unit?: UnitCode | null; purchase_unit_qty?: number | null },
+  item: {
+    unit: UnitCode;
+    purchase_unit?: UnitCode | null;
+    purchase_unit_qty?: number | null;
+    item_unit_conversions?: ItemUnitConversion[] | null;
+  },
 ): number {
   if (from === item.unit) return value;
   const viaGroup = convert(value, from, item.unit);
   if (viaGroup != null) return viaGroup;
+  const custom = item.item_unit_conversions?.find((conversion) => conversion.from_unit === from);
+  if (custom) {
+    const qtyInTargetUnit = value * Number(custom.factor);
+    return convert(qtyInTargetUnit, custom.to_unit, item.unit) ?? qtyInTargetUnit;
+  }
   if (item.purchase_unit && from === item.purchase_unit && item.purchase_unit_qty) {
     return value * item.purchase_unit_qty;
   }
