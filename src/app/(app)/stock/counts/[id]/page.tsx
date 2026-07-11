@@ -18,8 +18,12 @@ type CountItemRecord = {
   qty_system: number;
   qty_counted: number | null;
   unit: string;
+  unopened_qty: number | null;
+  unopened_unit: string | null;
+  in_use_qty: number | null;
+  in_use_unit: string | null;
   note: string | null;
-  item: { name: string; unit: string } | null;
+  item: { name: string; unit: string; purchase_unit: string | null; purchase_unit_qty: number | null } | null;
 };
 
 type CountRecord = {
@@ -60,8 +64,8 @@ export default async function StockCountDetailPage({
       starter:profiles!started_by(full_name, email),
       completer:profiles!completed_by(full_name, email),
       stock_count_items(
-        id, item_id, qty_system, qty_counted, unit, note,
-        item:items(name, unit)
+        id, item_id, qty_system, qty_counted, unit, unopened_qty, unopened_unit, in_use_qty, in_use_unit, note,
+        item:items(name, unit, purchase_unit, purchase_unit_qty)
       )
     `)
     .eq("id", id)

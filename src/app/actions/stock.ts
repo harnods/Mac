@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { convert } from "@/lib/units";
+import { convert, convertToItemUnit } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -247,6 +247,10 @@ const updateCountSchema = z.object({
       item_id: z.string().uuid(),
       qty_counted: z.coerce.number().nullable().optional(),
       unit: z.string().min(1),
+      unopened_qty: z.coerce.number().nullable().optional(),
+      unopened_unit: z.string().min(1).nullable().optional(),
+      in_use_qty: z.coerce.number().nullable().optional(),
+      in_use_unit: z.string().min(1).nullable().optional(),
       note: z.string().max(300).optional().nullable(),
     })
   ).min(1, "Count must include at least one item"),
@@ -317,6 +321,10 @@ export async function saveStockCountDraft(raw: unknown): Promise<ActionResult> {
       .update({
         qty_counted: it.qty_counted ?? null,
         unit: it.unit,
+        unopened_qty: it.unopened_qty ?? null,
+        unopened_unit: it.unopened_unit ?? null,
+        in_use_qty: it.in_use_qty ?? null,
+        in_use_unit: it.in_use_unit ?? null,
         note: it.note?.trim() || null,
       })
       .eq("count_id", id)
@@ -372,13 +380,13 @@ export async function finishStockCount(raw: unknown): Promise<ActionResult> {
 
     const { data: dbItem } = await supabase
       .from("items")
-      .select("id, unit, on_hand, reserved")
+      .select("id, unit, on_hand, reserved, purchase_unit, purchase_unit_qty")
       .eq("id", it.item_id)
       .maybeSingle();
 
     if (!dbItem) continue;
 
-    const convertedQty = convert(Number(it.qty_counted), it.unit, dbItem.unit) ?? Number(it.qty_counted);
+    const convertedQty = convertToItemUnit(Number(it.qty_counted), it.unit, dbItem);
     const newOnHand = convertedQty;
     const discrepancy = newOnHand - Number(dbItem.on_hand);
     const currentReserved = Number(dbItem.reserved);
@@ -421,7 +429,7 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: countItems } = await supabase
     .from("stock_count_items")
-    .select("item_id, qty_counted, unit, note")
+    .select("item_id, qty_counted, unit, unopened_qty, unopened_unit, in_use_qty, in_use_unit, note")
     .eq("count_id", id);
 
   return finishStockCount({ id, items: countItems ?? [] });

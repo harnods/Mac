@@ -6,10 +6,10 @@ import { toast } from "sonner";
 import { Check, Play, Printer, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
-import { compatibleUnits, convert, formatNum, parseDecimal } from "@/lib/units";
+import { compatibleUnits, convert, convertToItemUnit, formatNum, parseDecimal } from "@/lib/units";
 import { Button } from "@/components/ui/button";
-import { DecimalInput } from "@/components/ui/decimal-input";
 import { Textarea } from "@/components/ui/textarea";
+import { QuantityCalculatorInput } from "@/components/stock/quantity-calculator-input";
 import {
   Select,
   SelectContent,
@@ -36,8 +36,12 @@ type CountItem = {
   qty_system: number;
   qty_counted: number | null;
   unit: string;
+  unopened_qty: number | null;
+  unopened_unit: string | null;
+  in_use_qty: number | null;
+  in_use_unit: string | null;
   note: string | null;
-  item: { name: string; unit: string } | null;
+  item: { name: string; unit: string; purchase_unit: string | null; purchase_unit_qty: number | null } | null;
 };
 
 type CountWorkspaceProps = {
@@ -54,6 +58,10 @@ type CountWorkspaceProps = {
 
 type RowState = CountItem & {
   qty_counted_text: string;
+  unopened_qty_text: string;
+  unopened_unit: string;
+  in_use_qty_text: string;
+  in_use_unit: string;
   note_text: string;
 };
 
@@ -66,6 +74,12 @@ function toPayload(id: string, note: string, rows: RowState[]) {
       qty_counted:
         row.qty_counted_text.trim() === "" ? null : parseDecimal(row.qty_counted_text),
       unit: row.unit,
+      unopened_qty:
+        row.unopened_qty_text.trim() === "" ? null : parseDecimal(row.unopened_qty_text),
+      unopened_unit: row.unopened_unit,
+      in_use_qty:
+        row.in_use_qty_text.trim() === "" ? null : parseDecimal(row.in_use_qty_text),
+      in_use_unit: row.in_use_unit,
       note: row.note_text.trim() || undefined,
     })),
   };
@@ -79,16 +93,78 @@ function systemQtyForSelectedUnit(row: RowState) {
   return convert(Number(row.qty_system), baseUnit(row), row.unit) ?? Number(row.qty_system);
 }
 
+function unitOptions(row: RowState) {
+  const units = compatibleUnits(baseUnit(row));
+  if (row.item?.purchase_unit && !units.includes(row.item.purchase_unit)) {
+    units.push(row.item.purchase_unit);
+  }
+  return units;
+}
+
+function toBaseQty(row: RowState, rawQty: string, unit: string) {
+  if (rawQty.trim() === "") return 0;
+  const qty = parseDecimal(rawQty);
+  if (!Number.isFinite(qty)) return 0;
+  return convertToItemUnit(qty, unit, {
+    unit: baseUnit(row),
+    purchase_unit: row.item?.purchase_unit,
+    purchase_unit_qty: row.item?.purchase_unit_qty,
+  });
+}
+
+function fromBaseQty(row: RowState, qty: number, unit: string) {
+  if (unit === baseUnit(row)) return qty;
+  const converted = convert(qty, baseUnit(row), unit);
+  if (converted != null) return converted;
+  if (row.item?.purchase_unit === unit && row.item.purchase_unit_qty) {
+    return qty / Number(row.item.purchase_unit_qty);
+  }
+  return qty;
+}
+
+function cleanQty(value: number) {
+  return Number.isFinite(value) ? String(Number(value.toFixed(4))) : "";
+}
+
+function updateSplitRow(row: RowState, patch: Partial<RowState>) {
+  const next = { ...row, ...patch };
+  const hasSplit = next.unopened_qty_text.trim() !== "" || next.in_use_qty_text.trim() !== "";
+  if (!hasSplit) return { ...next, qty_counted_text: "" };
+
+  const baseTotal =
+    toBaseQty(next, next.unopened_qty_text, next.unopened_unit) +
+    toBaseQty(next, next.in_use_qty_text, next.in_use_unit);
+  return {
+    ...next,
+    qty_counted_text: cleanQty(fromBaseQty(next, baseTotal, next.unit)),
+  };
+}
+
 export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(count.note ?? "");
   const [rows, setRows] = useState<RowState[]>(
-    items.map((item) => ({
-      ...item,
-      qty_counted_text: item.qty_counted == null ? "" : String(item.qty_counted),
-      note_text: item.note ?? "",
-    }))
+    items.map((item) => {
+      const hasStoredSplit = item.unopened_qty != null || item.in_use_qty != null;
+      return {
+        ...item,
+        qty_counted_text: item.qty_counted == null ? "" : String(item.qty_counted),
+        unopened_qty_text:
+          item.unopened_qty == null
+            ? hasStoredSplit || item.qty_counted == null
+              ? ""
+              : String(item.qty_counted)
+            : String(item.unopened_qty),
+        unopened_unit:
+          item.unopened_unit ??
+          (hasStoredSplit || item.qty_counted == null ? item.item?.purchase_unit : item.unit) ??
+          item.unit,
+        in_use_qty_text: item.in_use_qty == null ? "" : String(item.in_use_qty),
+        in_use_unit: item.in_use_unit ?? item.item?.unit ?? item.unit,
+        note_text: item.note ?? "",
+      };
+    })
   );
 
   const isCompleted = count.status === "completed";
@@ -114,6 +190,12 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
   function updateRow(itemId: string, patch: Partial<RowState>) {
     setRows((prev) =>
       prev.map((row) => (row.item_id === itemId ? { ...row, ...patch } : row))
+    );
+  }
+
+  function updateSplit(itemId: string, patch: Partial<RowState>) {
+    setRows((prev) =>
+      prev.map((row) => (row.item_id === itemId ? updateSplitRow(row, patch) : row))
     );
   }
 
@@ -224,14 +306,15 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
             <TableRow>
               <TableHead>Ingredient</TableHead>
               <TableHead className="w-32 text-right">System qty</TableHead>
-              <TableHead className="w-52 text-right">Counted qty</TableHead>
+              <TableHead className="w-52">Counted qty</TableHead>
+              <TableHead className="w-52">In-use qty</TableHead>
               <TableHead className="w-32 text-right">Variance</TableHead>
               <TableHead className="w-64">Note</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.map((row) => {
-              const unitOptions = compatibleUnits(baseUnit(row));
+              const units = unitOptions(row);
               const systemQty = systemQtyForSelectedUnit(row);
               const counted =
                 row.qty_counted_text.trim() === "" ? null : parseDecimal(row.qty_counted_text);
@@ -250,27 +333,27 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <DecimalInput
+                      <QuantityCalculatorInput
                         min="0"
                         step="any"
-                        value={row.qty_counted_text}
+                        value={row.unopened_qty_text}
                         onValueChange={(value) =>
-                          updateRow(row.item_id, { qty_counted_text: value })
+                          updateSplit(row.item_id, { unopened_qty_text: value })
                         }
                         disabled={!canInput}
                         placeholder="0"
                         className="text-right"
                       />
-                      {canInput && unitOptions.length > 1 ? (
+                      {canInput && units.length > 1 ? (
                         <Select
-                          value={row.unit}
-                          onValueChange={(unit) => updateRow(row.item_id, { unit })}
+                          value={row.unopened_unit}
+                          onValueChange={(unit) => updateSplit(row.item_id, { unopened_unit: unit })}
                         >
                           <SelectTrigger className="w-20 shrink-0">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {unitOptions.map((unit) => (
+                            {units.map((unit) => (
                               <SelectItem key={unit} value={unit}>
                                 {unit}
                               </SelectItem>
@@ -279,7 +362,43 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
                         </Select>
                       ) : (
                         <span className="w-20 shrink-0 text-left text-sm text-muted-foreground">
-                          {row.unit}
+                          {row.unopened_unit}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <QuantityCalculatorInput
+                        min="0"
+                        step="any"
+                        value={row.in_use_qty_text}
+                        onValueChange={(value) =>
+                          updateSplit(row.item_id, { in_use_qty_text: value })
+                        }
+                        disabled={!canInput}
+                        placeholder="0"
+                        className="text-right"
+                      />
+                      {canInput && units.length > 1 ? (
+                        <Select
+                          value={row.in_use_unit}
+                          onValueChange={(unit) => updateSplit(row.item_id, { in_use_unit: unit })}
+                        >
+                          <SelectTrigger className="w-20 shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {units.map((unit) => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="w-20 shrink-0 text-left text-sm text-muted-foreground">
+                          {row.in_use_unit}
                         </span>
                       )}
                     </div>
@@ -343,6 +462,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
               </div>
               <div className="space-y-5 text-sm">
                 <div className="border-b pb-5">Counted qty:</div>
+                <div className="border-b pb-5">In-use qty:</div>
                 <div className="border-b pb-5">Counter:</div>
                 <div className="border-b pb-5">Note:</div>
               </div>
