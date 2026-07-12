@@ -232,7 +232,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
 
   function handleFinish() {
     if (missingCount) {
-      toast.error("Enter counted qty for every ingredient before finishing");
+      toast.error("Enter counted qty for every item before finishing");
       return;
     }
 
@@ -311,7 +311,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
         <Table className="w-full">
           <TableHeader>
             <TableRow>
-              <TableHead>Ingredient</TableHead>
+              <TableHead>Item</TableHead>
               <TableHead className="w-32 text-right">System qty</TableHead>
               <TableHead className="w-52">Counted qty</TableHead>
               <TableHead className="w-52">In-use qty</TableHead>
@@ -333,7 +333,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
               return (
                 <TableRow key={row.id}>
                   <TableCell className="min-w-56 font-medium">
-                    {row.item?.name ?? "Deleted ingredient"}
+                    {row.item?.name ?? "Deleted item"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     <Qty value={systemQty} unit={row.unit} />
@@ -459,7 +459,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
             <div key={row.id} className="break-inside-avoid rounded-lg border p-4">
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-lg font-semibold">{row.item?.name ?? "Deleted ingredient"}</h2>
+                  <h2 className="text-lg font-semibold">{row.item?.name ?? "Deleted item"}</h2>
                   <p className="text-sm text-muted-foreground">Unit: {row.unit}</p>
                 </div>
                 <div className="text-right text-sm">

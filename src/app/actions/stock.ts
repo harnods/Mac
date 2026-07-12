@@ -9,7 +9,7 @@ import { convertToItemUnit } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
-export type StockCountIngredientOption = {
+export type StockCountItemOption = {
   id: string;
   name: string;
   unit: string;
@@ -31,7 +31,7 @@ type CompletedCount = {
   stock_count_items: { item_id: string }[];
 };
 
-type CountIngredient = Omit<StockCountIngredientOption, "last_counted_at">;
+type CountItem = Omit<StockCountItemOption, "last_counted_at">;
 type CountConflictRow = {
   item_id: string;
   item: { name: string } | null;
@@ -39,7 +39,7 @@ type CountConflictRow = {
 
 function formatConflictNames(rows: CountConflictRow[]) {
   const names = [...new Set(rows.map((row) => row.item?.name).filter(Boolean))];
-  if (names.length === 0) return "Selected ingredients";
+  if (names.length === 0) return "Selected items";
   if (names.length <= 3) return names.join(", ");
   return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
 }
@@ -157,7 +157,7 @@ const createCountSchema = z.object({
 });
 
 export async function getStockCountOptions(): Promise<
-  | { ok: true; items: StockCountIngredientOption[]; categories: StockCountCategoryOption[] }
+  | { ok: true; items: StockCountItemOption[]; categories: StockCountCategoryOption[] }
   | { ok: false; error: string }
 > {
   const profile = await getCurrentProfile();
@@ -170,12 +170,12 @@ export async function getStockCountOptions(): Promise<
       .from("items")
       .select("id, name, unit, type, on_hand, category_id, categories(id,name)")
       .is("deleted_at", null)
-      .eq("type", "ingredient")
+      .in("type", ["ingredient", "supply", "prep_item"])
       .order("name"),
     supabase
       .from("categories")
       .select("id, name")
-      .eq("type", "ingredient")
+      .in("type", ["ingredient", "supply"])
       .order("name"),
     supabase
       .from("stock_counts")
@@ -198,7 +198,7 @@ export async function getStockCountOptions(): Promise<
 
   return {
     ok: true,
-    items: ((items ?? []) as unknown as CountIngredient[]).map((item) => ({
+    items: ((items ?? []) as unknown as CountItem[]).map((item) => ({
       ...item,
       last_counted_at: lastCountedByItem.get(item.id) ?? null,
     })),
@@ -239,10 +239,11 @@ export async function createStockCount(raw: unknown): Promise<ActionResult> {
     .from("items")
     .select("id, unit, on_hand")
     .is("deleted_at", null)
+    .in("type", ["ingredient", "supply", "prep_item"])
     .in("id", itemIds);
 
   if (!dbItems || dbItems.length !== itemIds.length) {
-    return { ok: false, error: "One or more items are no longer available" };
+    return { ok: false, error: "One or more selected items are no longer available for stock count" };
   }
   const dbItemsById = new Map(dbItems.map((item) => [item.id, item]));
   const orderedDbItems = itemIds.map((id) => dbItemsById.get(id)).filter((item): item is NonNullable<typeof item> => Boolean(item));
