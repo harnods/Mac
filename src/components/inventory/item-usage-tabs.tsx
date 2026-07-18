@@ -17,6 +17,7 @@ import { formatDate } from "@/lib/format";
 import type { UnitCode } from "@/lib/supabase/types";
 import { UnitConversionsPanel, type UnitConversionRow } from "@/components/inventory/unit-conversions-panel";
 import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
+import { QuickAdjustDialog } from "@/components/inventory/quick-adjust-dialog";
 
 const TYPE_LABEL: Record<string, string> = {
   purchase: "Purchase",
@@ -69,6 +70,10 @@ export function ItemUsageTabs({
   unitConversions,
   itemId,
   canEditConversions = false,
+  itemName,
+  onHand,
+  purchaseUnit,
+  canManualAdjust = false,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
@@ -76,16 +81,25 @@ export function ItemUsageTabs({
   unitConversions?: UnitConversionRow[];
   itemId?: string;
   canEditConversions?: boolean;
+  itemName?: string;
+  onHand?: number;
+  purchaseUnit?: string | null;
+  canManualAdjust?: boolean;
 }) {
   const hasRecipeTab = usedInRecipes !== undefined;
   const hasConversionTab = unitConversions !== undefined && itemId !== undefined;
   const [tab, setTab] = useState<Tab>("stock");
 
+  const movementsProps = {
+    ledger, itemUnit, itemId, itemName, onHand, purchaseUnit,
+    unitConversions, canManualAdjust,
+  };
+
   if (!hasRecipeTab && !hasConversionTab) {
     return (
       <div className="space-y-2">
         <h2 className="text-sm font-medium">Stock movements</h2>
-        <StockMovementsTable ledger={ledger} itemUnit={itemUnit} />
+        <StockMovementsTable {...movementsProps} />
       </div>
     );
   }
@@ -109,7 +123,7 @@ export function ItemUsageTabs({
       </div>
 
       {tab === "stock" ? (
-        <StockMovementsTable ledger={ledger} itemUnit={itemUnit} />
+        <StockMovementsTable {...movementsProps} />
       ) : tab === "recipes" && hasRecipeTab ? (
         <UsedInRecipesTable recipes={usedInRecipes} />
       ) : hasConversionTab ? (
@@ -152,19 +166,26 @@ function TabButton({
 function StockMovementsTable({
   ledger,
   itemUnit,
+  itemId,
+  itemName,
+  onHand,
+  purchaseUnit,
+  unitConversions,
+  canManualAdjust = false,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
+  itemId?: string;
+  itemName?: string;
+  onHand?: number;
+  purchaseUnit?: string | null;
+  unitConversions?: { from_unit: string; factor: number; to_unit: string }[];
+  canManualAdjust?: boolean;
 }) {
   const [q, setQ] = useState("");
+  const [adjustOpen, setAdjustOpen] = useState(false);
 
-  if (ledger.length === 0) {
-    return (
-      <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
-        No transactions recorded yet.
-      </div>
-    );
-  }
+  const showManualAdjust = canManualAdjust && itemId !== undefined && itemName !== undefined && onHand !== undefined;
 
   const filtered = ledger.filter((row) => {
     const label = TYPE_LABEL[row.type] ?? row.type;
@@ -176,7 +197,12 @@ function StockMovementsTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-2">
+        {showManualAdjust ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setAdjustOpen(true)}>
+            Manual stock in/out
+          </Button>
+        ) : <div />}
         <Input
           placeholder="Search movements..."
           value={q}
@@ -184,7 +210,11 @@ function StockMovementsTable({
           className="w-full sm:w-56"
         />
       </div>
-      {filtered.length === 0 ? (
+      {ledger.length === 0 ? (
+        <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
+          No transactions recorded yet.
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
           No matching transactions.
         </div>
@@ -244,6 +274,19 @@ function StockMovementsTable({
         </TableBody>
       </Table>
       </div>
+      )}
+
+      {showManualAdjust && (
+        <QuickAdjustDialog
+          open={adjustOpen}
+          onOpenChange={setAdjustOpen}
+          itemId={itemId!}
+          itemName={itemName!}
+          itemUnit={itemUnit}
+          unitConversions={unitConversions}
+          purchaseUnit={purchaseUnit}
+          onHand={onHand!}
+        />
       )}
     </div>
   );

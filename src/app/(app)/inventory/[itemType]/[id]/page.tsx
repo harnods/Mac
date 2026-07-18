@@ -219,8 +219,12 @@ export default async function ItemDetailPage({
           itemUnit={item.unit}
           usedInRecipes={config.dbType === "ingredient" ? usedInRecipes : undefined}
           unitConversions={config.dbType === "ingredient" ? unitConversions : undefined}
-          itemId={config.dbType === "ingredient" ? item.id : undefined}
+          itemId={item.id}
           canEditConversions={isAdmin}
+          itemName={item.name}
+          onHand={onHand}
+          purchaseUnit={item.purchase_unit}
+          canManualAdjust={isAdmin && (config.dbType === "ingredient" || config.dbType === "supply")}
         />
       )}
     </div>
