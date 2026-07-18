@@ -695,6 +695,7 @@ function IngredientRowField({
   return (
     <div ref={setNodeRef} style={style}>
     <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-w-lg flex-1 min-w-0">
       {/* Drag handle */}
       {canDrag ? (
         <button
@@ -719,7 +720,7 @@ function IngredientRowField({
             type="button"
             variant="outline"
             role="combobox"
-            className="flex-1 max-w-lg justify-between font-normal min-w-0"
+            className="flex-1 justify-between font-normal min-w-0"
           >
             <span className={cn("truncate", !selectedItem && "text-muted-foreground")}>
               {selectedItem ? selectedItem.name : "Select item"}
@@ -788,6 +789,7 @@ function IngredientRowField({
           </div>
         </PopoverContent>
       </Popover>
+      </div>
 
       <DecimalInput
         min="0"
