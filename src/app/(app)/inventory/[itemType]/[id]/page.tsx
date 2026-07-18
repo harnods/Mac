@@ -224,6 +224,7 @@ export default async function ItemDetailPage({
           itemName={item.name}
           onHand={onHand}
           purchaseUnit={item.purchase_unit}
+          purchaseUnitQty={item.purchase_unit_qty}
           canManualAdjust={isAdmin && (config.dbType === "ingredient" || config.dbType === "supply")}
         />
       )}

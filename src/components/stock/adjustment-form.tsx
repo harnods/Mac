@@ -33,7 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { parseDecimal, unitOptionsForItem } from "@/lib/units";
+import { parseDecimal, unitOptionsForItem, convertToItemUnit, formatNum } from "@/lib/units";
+import type { UnitCode } from "@/lib/supabase/types";
 import { createStockAdjustment } from "@/app/actions/stock";
 import {
   DndContext,
@@ -56,7 +57,9 @@ type Item = {
   name: string;
   unit: string;
   type: string;
+  on_hand: number;
   purchase_unit: string | null;
+  purchase_unit_qty: number | null;
   item_unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
 };
 
@@ -247,6 +250,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
                 <TableHead>Item</TableHead>
                 <TableHead className="w-28 text-center">Qty</TableHead>
                 <TableHead className="w-24 text-center">Unit</TableHead>
+                <TableHead className="w-32 text-right">New on hand</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
@@ -262,6 +266,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
                         row={row}
                         index={idx}
                         canDrag={!isTrailingEmpty}
+                        direction={direction}
                         items={items.filter((i) =>
                           !rows.some((r) => r.key !== row.key && r.item_id === i.id) || i.id === row.item_id
                         )}
@@ -295,6 +300,7 @@ function AdjustmentRowField({
   row,
   index,
   canDrag,
+  direction,
   items,
   onMultiItemSelect,
   onQtyChange,
@@ -305,6 +311,7 @@ function AdjustmentRowField({
   row: Row;
   index: number;
   canDrag: boolean;
+  direction: "in" | "out";
   items: Item[];
   onMultiItemSelect: (ids: string[]) => void;
   onQtyChange: (qty: string) => void;
@@ -324,6 +331,14 @@ function AdjustmentRowField({
 
   const selectedItem = items.find((i) => i.id === row.item_id) ?? null;
   const units = selectedItem ? unitOptionsForItem(selectedItem) : [];
+
+  const qtyNum = parseDecimal(row.qty);
+  const newOnHand = selectedItem && row.unit && !isNaN(qtyNum) && qtyNum > 0
+    ? (() => {
+        const delta = convertToItemUnit(qtyNum, row.unit as UnitCode, selectedItem);
+        return direction === "in" ? selectedItem.on_hand + delta : selectedItem.on_hand - delta;
+      })()
+    : null;
 
   function handleOpenChange(open: boolean) {
     if (open) {
@@ -452,6 +467,12 @@ function AdjustmentRowField({
             </Command>
           </PopoverContent>
         </Popover>
+      </TableCell>
+
+      <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
+        {newOnHand != null ? (
+          <>{formatNum(newOnHand)} {selectedItem?.unit}</>
+        ) : "—"}
       </TableCell>
 
       <TableCell className="px-2">

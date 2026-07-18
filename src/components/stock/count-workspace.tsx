@@ -319,15 +319,15 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
       </div>
 
       <div className="no-print table-outer overflow-x-auto rounded-lg border">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead className="w-32 text-right">System qty</TableHead>
-              <TableHead className="w-52">Counted qty</TableHead>
-              <TableHead className="w-52">In-use qty</TableHead>
-              <TableHead className="w-32 text-right">Variance</TableHead>
-              <TableHead className="w-64">Note</TableHead>
+              <TableHead className="w-[20%]">Item</TableHead>
+              <TableHead className="w-[10%] text-right">System qty</TableHead>
+              <TableHead className="w-[20%]">Counted qty</TableHead>
+              <TableHead className="w-[20%]">In-use qty</TableHead>
+              <TableHead className="w-[10%] text-right">Variance</TableHead>
+              <TableHead className="w-[20%]">Note</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -350,7 +350,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
 
               return (
                 <TableRow key={row.id}>
-                  <TableCell className="min-w-56 font-medium">
+                  <TableCell className="min-w-56 font-medium truncate">
                     {row.item?.name ?? "Deleted item"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">

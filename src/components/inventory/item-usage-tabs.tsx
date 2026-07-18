@@ -73,6 +73,7 @@ export function ItemUsageTabs({
   itemName,
   onHand,
   purchaseUnit,
+  purchaseUnitQty,
   canManualAdjust = false,
 }: {
   ledger: LedgerRow[];
@@ -84,6 +85,7 @@ export function ItemUsageTabs({
   itemName?: string;
   onHand?: number;
   purchaseUnit?: string | null;
+  purchaseUnitQty?: number | null;
   canManualAdjust?: boolean;
 }) {
   const hasRecipeTab = usedInRecipes !== undefined;
@@ -91,7 +93,7 @@ export function ItemUsageTabs({
   const [tab, setTab] = useState<Tab>("stock");
 
   const movementsProps = {
-    ledger, itemUnit, itemId, itemName, onHand, purchaseUnit,
+    ledger, itemUnit, itemId, itemName, onHand, purchaseUnit, purchaseUnitQty,
     unitConversions, canManualAdjust,
   };
 
@@ -170,6 +172,7 @@ function StockMovementsTable({
   itemName,
   onHand,
   purchaseUnit,
+  purchaseUnitQty,
   unitConversions,
   canManualAdjust = false,
 }: {
@@ -179,6 +182,7 @@ function StockMovementsTable({
   itemName?: string;
   onHand?: number;
   purchaseUnit?: string | null;
+  purchaseUnitQty?: number | null;
   unitConversions?: { from_unit: string; factor: number; to_unit: string }[];
   canManualAdjust?: boolean;
 }) {
@@ -220,16 +224,16 @@ function StockMovementsTable({
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-32">Date</TableHead>
-            <TableHead className="w-28">Number</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="w-28 text-right">Qty</TableHead>
-            <TableHead className="w-28 text-right">On hand</TableHead>
-            <TableHead className="w-28 text-right">Reserved</TableHead>
-            <TableHead className="w-28 text-right">Available</TableHead>
+            <TableHead className="w-[12%]">Date</TableHead>
+            <TableHead className="w-[12%]">Number</TableHead>
+            <TableHead className="w-[28%]">Type</TableHead>
+            <TableHead className="w-[12%] text-right">Qty</TableHead>
+            <TableHead className="w-[12%] text-right">On hand</TableHead>
+            <TableHead className="w-[12%] text-right">Reserved</TableHead>
+            <TableHead className="w-[12%] text-right">Available</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -253,8 +257,8 @@ function StockMovementsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-sm">
-                  <div>{TYPE_LABEL[row.type] ?? row.type}</div>
-                  {row.note && <div className="text-xs text-muted-foreground">{row.note}</div>}
+                  <div className="truncate">{TYPE_LABEL[row.type] ?? row.type}</div>
+                  {row.note && <div className="text-xs text-muted-foreground truncate">{row.note}</div>}
                 </TableCell>
                 <TableCell className={`text-sm tabular-nums text-right font-medium ${delta >= 0 ? "text-green-600" : "text-red-600"}`}>
                   {delta >= 0 ? "+" : ""}<Qty value={Math.abs(delta)} unit={itemUnit} />
@@ -285,6 +289,7 @@ function StockMovementsTable({
           itemUnit={itemUnit}
           unitConversions={unitConversions}
           purchaseUnit={purchaseUnit}
+          purchaseUnitQty={purchaseUnitQty}
           onHand={onHand!}
         />
       )}
@@ -324,13 +329,13 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>Recipe</TableHead>
-            <TableHead className="w-36">Type</TableHead>
-            <TableHead className="w-48">Output</TableHead>
-            <TableHead className="w-28 text-right">Qty</TableHead>
+            <TableHead className="w-[46%]">Recipe</TableHead>
+            <TableHead className="w-[18%]">Type</TableHead>
+            <TableHead className="w-[24%]">Output</TableHead>
+            <TableHead className="w-[12%] text-right">Qty</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

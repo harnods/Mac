@@ -195,11 +195,11 @@ export function UnitConversionsPanel({
         </div>
       ) : (
         <div className="table-outer overflow-x-auto rounded-lg border">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Conversion</TableHead>
-                <TableHead className="w-28" />
+                <TableHead className="w-[88%]">Conversion</TableHead>
+                <TableHead className="w-[12%]" />
               </TableRow>
             </TableHeader>
             <TableBody>

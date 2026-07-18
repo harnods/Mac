@@ -31,13 +31,13 @@ export function PurchaseRequestItemsList({ items }: { items: RequestItem[] }) {
         <p className="text-sm text-muted-foreground py-2">No matching items.</p>
       ) : (
         <div>
-          <div className="grid grid-cols-[2rem_1fr_7rem] gap-x-6 py-2 border-b text-xs text-muted-foreground">
+          <div className="grid grid-cols-[0.5fr_4fr_1.5fr] gap-x-6 py-2 border-b text-xs text-muted-foreground">
             <span />
             <span>Item</span>
             <span>Requested qty</span>
           </div>
           {filtered.map((ri, idx) => (
-            <div key={ri.id} className="grid grid-cols-[2rem_1fr_7rem] gap-x-6 items-center py-2 border-b last:border-0">
+            <div key={ri.id} className="grid grid-cols-[0.5fr_4fr_1.5fr] gap-x-6 items-center py-2 border-b last:border-0">
               <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
               <span className="font-medium text-sm flex items-center">
                 {ri.item?.name ?? "—"}

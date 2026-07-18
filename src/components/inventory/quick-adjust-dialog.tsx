@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatNum, parseDecimal, unitOptionsForItem } from "@/lib/units";
+import { formatNum, parseDecimal, unitOptionsForItem, convertToItemUnit } from "@/lib/units";
 import { createStockAdjustment } from "@/app/actions/stock";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -34,6 +35,7 @@ type Props = {
   itemUnit: string;
   unitConversions?: { from_unit: string; factor: number; to_unit: string }[];
   purchaseUnit?: string | null;
+  purchaseUnitQty?: number | null;
   onHand: number;
 };
 
@@ -49,6 +51,7 @@ export function QuickAdjustDialog({
   itemUnit,
   unitConversions = [],
   purchaseUnit = null,
+  purchaseUnitQty = null,
   onHand,
 }: Props) {
   const router = useRouter();
@@ -58,6 +61,7 @@ export function QuickAdjustDialog({
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState(itemUnit);
   const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
 
   const units = unitOptionsForItem({
     unit: itemUnit as UnitCode,
@@ -66,12 +70,24 @@ export function QuickAdjustDialog({
   });
   const reasons = direction === "in" ? IN_REASONS : OUT_REASONS;
 
+  const qtyNum = parseDecimal(qty);
+  const deltaInBaseUnit = !isNaN(qtyNum) && qtyNum > 0
+    ? convertToItemUnit(qtyNum, unit as UnitCode, {
+        unit: itemUnit as UnitCode,
+        purchase_unit: purchaseUnit as UnitCode | null,
+        purchase_unit_qty: purchaseUnitQty,
+        item_unit_conversions: unitConversions,
+      })
+    : 0;
+  const newOnHand = direction === "in" ? onHand + deltaInBaseUnit : onHand - deltaInBaseUnit;
+
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
       setDirection("in");
       setQty("");
       setUnit(itemUnit);
       setReason("");
+      setNote("");
     }
     onOpenChange(nextOpen);
   }
@@ -90,7 +106,7 @@ export function QuickAdjustDialog({
     start(async () => {
       const res = await createStockAdjustment({
         direction,
-        reason,
+        reason: note.trim() ? `${reason} — ${note.trim()}` : reason,
         adjustment_date: today(),
         items: [{ item_id: itemId, qty: parseDecimal(qty), unit }],
       });
@@ -104,7 +120,7 @@ export function QuickAdjustDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Adjust stock</DialogTitle>
         </DialogHeader>
@@ -172,6 +188,12 @@ export function QuickAdjustDialog({
             </div>
           </div>
 
+          {qtyNum > 0 && (
+            <p className="text-xs text-muted-foreground">
+              New on hand: <span className="tabular-nums font-medium text-foreground">{formatNum(newOnHand)} {itemUnit}</span>
+            </p>
+          )}
+
           {/* Reason */}
           <div className="space-y-2">
             <Label>Reason</Label>
@@ -185,6 +207,18 @@ export function QuickAdjustDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Note */}
+          <div className="space-y-2">
+            <Label htmlFor="qa-note">Note <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Textarea
+              id="qa-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              maxLength={280}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-1">

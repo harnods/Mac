@@ -44,14 +44,14 @@ export function RecipeIngredientsList({
         <p className="text-sm text-muted-foreground py-2">No matching ingredients.</p>
       ) : (
         <div>
-          <div className="grid grid-cols-[2rem_1fr_7rem_7rem] gap-x-6 py-2 border-b text-xs text-muted-foreground">
+          <div className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr] gap-x-6 py-2 border-b text-xs text-muted-foreground">
             <span />
             <span className="pl-3">Ingredient</span>
             <span>Qty</span>
             <span className="text-right">Cost</span>
           </div>
           {filtered.map(({ ri, line }, idx) => (
-            <div key={ri.id} className="grid grid-cols-[2rem_1fr_7rem_7rem] gap-x-6 items-center py-2 border-b last:border-0">
+            <div key={ri.id} className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr] gap-x-6 items-center py-2 border-b last:border-0">
               <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
               <span className="font-medium text-sm pl-3 flex items-center gap-1.5">
                 {ri.item && !ri.item.deleted_at

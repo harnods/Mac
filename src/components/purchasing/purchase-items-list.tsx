@@ -36,7 +36,7 @@ export function PurchaseItemsList({ items }: { items: PurchaseItem[] }) {
         <p className="text-sm text-muted-foreground py-2">No matching items.</p>
       ) : (
         <div>
-          <div className="grid grid-cols-[2rem_1fr_10rem_10rem_9rem] gap-x-6 py-2 border-b text-xs text-muted-foreground">
+          <div className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr_1.5fr] gap-x-6 py-2 border-b text-xs text-muted-foreground">
             <span />
             <span>Item</span>
             <span className="text-right">Requested</span>
@@ -56,7 +56,7 @@ export function PurchaseItemsList({ items }: { items: PurchaseItem[] }) {
               : null;
             return (
               <div key={pi.id} className="border-b last:border-0">
-                <div className="grid grid-cols-[2rem_1fr_10rem_10rem_9rem] gap-x-6 items-center py-2">
+                <div className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr_1.5fr] gap-x-6 items-center py-2">
                   <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
                   <span className="font-medium text-sm flex items-center">
                     {pi.item?.name ?? "—"}

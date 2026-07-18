@@ -42,15 +42,15 @@ export function PurchaseRequestsTable({
 
   return (
     <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-28">ID</TableHead>
-            {isVisible("status") && <TableHead className="w-28">Status</TableHead>}
-            {isVisible("items") && <TableHead className="w-20">Items</TableHead>}
-            {isVisible("note") && <TableHead className="w-56">Note</TableHead>}
-            {isVisible("created") && <TableHead className="w-44">Created</TableHead>}
-            <TableHead />
+            <TableHead className="w-[14%]">ID</TableHead>
+            {isVisible("status") && <TableHead className="w-[14%]">Status</TableHead>}
+            {isVisible("items") && <TableHead className="w-[10%]">Items</TableHead>}
+            {isVisible("note") && <TableHead className="w-[40%]">Note</TableHead>}
+            {isVisible("created") && <TableHead className="w-[16%]">Created</TableHead>}
+            <TableHead className="w-[6%]" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>

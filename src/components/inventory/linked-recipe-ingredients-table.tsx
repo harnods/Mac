@@ -40,19 +40,19 @@ export function LinkedRecipeIngredientsTable({ ingredients }: { ingredients: Rec
         <p className="text-sm text-muted-foreground py-2">No ingredients found.</p>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8">#</TableHead>
-                <TableHead>Ingredient</TableHead>
-                <TableHead className="w-28">Qty</TableHead>
+                <TableHead className="w-[8%]">#</TableHead>
+                <TableHead className="w-[67%]">Ingredient</TableHead>
+                <TableHead className="w-[25%]">Qty</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((ri, idx) => (
                 <TableRow key={ri.id}>
                   <TableCell className="text-muted-foreground text-sm tabular-nums">{idx + 1}</TableCell>
-                  <TableCell className="text-sm font-medium">
+                  <TableCell className="text-sm font-medium truncate">
                     {ri.item ? (
                       <Link href={`/inventory/ingredients/${ri.item.id}`} className="hover:underline">
                         {ri.item.name}

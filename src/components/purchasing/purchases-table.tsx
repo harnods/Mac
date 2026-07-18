@@ -36,16 +36,16 @@ export function PurchasesTable({ list }: { list: PurchaseRecord[] }) {
 
   return (
     <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-28">ID</TableHead>
-            {isVisible("fromRequest") && <TableHead className="w-32">From request</TableHead>}
-            {isVisible("items") && <TableHead className="w-16">Items</TableHead>}
-            {isVisible("transactionDate") && <TableHead className="w-36">Transaction date</TableHead>}
-            {isVisible("recorded") && <TableHead className="w-44">Recorded</TableHead>}
-            {isVisible("note") && <TableHead className="w-56">Note</TableHead>}
-            <TableHead />
+            <TableHead className="w-[10%]">ID</TableHead>
+            {isVisible("fromRequest") && <TableHead className="w-[12%]">From request</TableHead>}
+            {isVisible("items") && <TableHead className="w-[8%]">Items</TableHead>}
+            {isVisible("transactionDate") && <TableHead className="w-[14%]">Transaction date</TableHead>}
+            {isVisible("recorded") && <TableHead className="w-[16%]">Recorded</TableHead>}
+            {isVisible("note") && <TableHead className="w-[32%]">Note</TableHead>}
+            <TableHead className="w-[8%]" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>

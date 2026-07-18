@@ -106,15 +106,15 @@ export default async function StockCountsPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-36">Date</TableHead>
-                <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-20"># Items</TableHead>
-                <TableHead>Note</TableHead>
-                <TableHead className="w-44">Created</TableHead>
-                <TableHead className="w-44">Timing</TableHead>
+                <TableHead className="w-[12%]">Date</TableHead>
+                <TableHead className="w-[12%]">Status</TableHead>
+                <TableHead className="w-[8%]"># Items</TableHead>
+                <TableHead className="w-[30%]">Note</TableHead>
+                <TableHead className="w-[19%]">Created</TableHead>
+                <TableHead className="w-[19%]">Timing</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
