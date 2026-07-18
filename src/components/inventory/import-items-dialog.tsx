@@ -543,14 +543,14 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
             })()}
 
             <div className="border rounded-lg overflow-auto max-h-[360px]">
-              <Table className="w-full">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-8">#</TableHead>
-                    <TableHead>Name</TableHead>
-                    {config.hasCategories && <TableHead className="w-32">Category</TableHead>}
-                    <TableHead className="w-20">Unit</TableHead>
-                    <TableHead className="w-52">Action</TableHead>
+                    <TableHead className="w-[5%]">#</TableHead>
+                    <TableHead className="w-[35%]">Name</TableHead>
+                    {config.hasCategories && <TableHead className="w-[15%]">Category</TableHead>}
+                    <TableHead className="w-[10%]">Unit</TableHead>
+                    <TableHead className="w-[35%]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

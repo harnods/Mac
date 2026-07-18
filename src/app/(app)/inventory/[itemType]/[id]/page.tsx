@@ -226,6 +226,7 @@ export default async function ItemDetailPage({
           purchaseUnit={item.purchase_unit}
           purchaseUnitQty={item.purchase_unit_qty}
           canManualAdjust={isAdmin && (config.dbType === "ingredient" || config.dbType === "supply")}
+          showReserved={config.stockMode === "full"}
         />
       )}
     </div>

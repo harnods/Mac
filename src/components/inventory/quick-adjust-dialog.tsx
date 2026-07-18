@@ -129,7 +129,7 @@ export function QuickAdjustDialog({
           {/* Item name + current stock */}
           <div className="rounded-md bg-muted px-3 py-2.5 space-y-0.5">
             <p className="text-sm font-medium">{itemName}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Current on hand: <span className="tabular-nums font-medium text-foreground">{formatNum(onHand)} {itemUnit}</span>
             </p>
           </div>
@@ -148,7 +148,7 @@ export function QuickAdjustDialog({
                     onChange={() => handleDirectionChange(d)}
                     className="accent-primary"
                   />
-                  <span className="text-sm font-medium capitalize">{d}</span>
+                  <span className="text-sm font-medium">{d === "in" ? "Stock in" : "Stock out"}</span>
                 </label>
               ))}
             </div>
@@ -181,7 +181,7 @@ export function QuickAdjustDialog({
                   </SelectContent>
                 </Select>
               ) : (
-                <div className="border rounded-md px-3 py-2 text-sm bg-muted text-muted-foreground">
+                <div className="h-8 flex items-center rounded-lg border border-input px-2.5 text-sm bg-muted text-muted-foreground">
                   {unit}
                 </div>
               )}
@@ -189,7 +189,7 @@ export function QuickAdjustDialog({
           </div>
 
           {qtyNum > 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               New on hand: <span className="tabular-nums font-medium text-foreground">{formatNum(newOnHand)} {itemUnit}</span>
             </p>
           )}

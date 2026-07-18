@@ -35,8 +35,20 @@ export default async function SettingsCategoryTypePage({
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
 
-  const { data } = await query;
+  const [{ data }, { data: itemCategoryRows }] = await Promise.all([
+    query,
+    supabase
+      .from("items")
+      .select("category_id")
+      .eq("type", config.dbType)
+      .is("deleted_at", null),
+  ]);
   const isAdmin = can(profile, P.INVENTORY_WRITE);
+
+  const itemCounts: Record<string, number> = {};
+  for (const row of itemCategoryRows ?? []) {
+    if (row.category_id) itemCounts[row.category_id] = (itemCounts[row.category_id] ?? 0) + 1;
+  }
 
   return (
     <div className="space-y-4">
@@ -54,6 +66,7 @@ export default async function SettingsCategoryTypePage({
       <CategoryManager
         categories={(data ?? []) as CategoryWithUpdater[]}
         isAdmin={isAdmin}
+        itemCounts={itemCounts}
       />
     </div>
   );

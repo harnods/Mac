@@ -407,16 +407,16 @@ export function PurchaseForm({
         <Label>Items purchased</Label>
 
         <div className="border table-outer rounded-lg overflow-hidden">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-8">#</TableHead>
-                <TableHead>Ingredient</TableHead>
-                <TableHead className="w-32 text-right">Requested</TableHead>
-                <TableHead className="w-32 text-right">Prev. purchased</TableHead>
-                <TableHead className="w-28 text-center">Qty purchased</TableHead>
-                <TableHead className="w-24 text-center">Unit</TableHead>
-                <TableHead className="w-40 text-center">Cost</TableHead>
+                <TableHead className="w-[5%]">#</TableHead>
+                <TableHead className="w-[30%]">Ingredient</TableHead>
+                <TableHead className="w-[14%] text-right">Requested</TableHead>
+                <TableHead className="w-[14%] text-right">Prev. purchased</TableHead>
+                <TableHead className="w-[12%] text-center">Qty purchased</TableHead>
+                <TableHead className="w-[10%] text-center">Unit</TableHead>
+                <TableHead className="w-[15%] text-center">Cost</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>

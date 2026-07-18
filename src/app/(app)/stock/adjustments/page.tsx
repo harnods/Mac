@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus } from "lucide-react";
-import { formatDate, updaterName } from "@/lib/format";
+import { formatDate, formatId, updaterName } from "@/lib/format";
 import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { AdjustmentsFilter } from "@/components/stock/adjustments-filter";
@@ -93,11 +93,12 @@ export default async function StockAdjustmentsPage({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[12%]">Date</TableHead>
-                <TableHead className="w-[28%]">Item</TableHead>
+                <TableHead className="w-[10%]">Date</TableHead>
+                <TableHead className="w-[10%]">Number</TableHead>
+                <TableHead className="w-[24%]">Item</TableHead>
                 <TableHead className="w-[10%]">Direction</TableHead>
-                <TableHead className="w-[12%] text-right">Qty</TableHead>
-                <TableHead className="w-[22%]">Reason</TableHead>
+                <TableHead className="w-[10%] text-right">Qty</TableHead>
+                <TableHead className="w-[20%]">Reason</TableHead>
                 <TableHead className="w-[16%]">Recorded by</TableHead>
               </TableRow>
             </TableHeader>
@@ -105,6 +106,7 @@ export default async function StockAdjustmentsPage({
               {filtered.map((adj) => (
                 <TableRow key={adj.id}>
                   <TableCell>{formatDate(adj.adjustment_date)}</TableCell>
+                  <TableCell className="font-medium tabular-nums">#{formatId(adj.id)}</TableCell>
                   <TableCell className="font-medium truncate">{adj.item?.name ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={adj.direction === "in" ? "success" : "destructive"}>

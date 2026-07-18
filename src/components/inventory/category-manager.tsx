@@ -47,9 +47,11 @@ type ModalState =
 export function CategoryManager({
   categories,
   isAdmin,
+  itemCounts = {},
 }: {
   categories: CategoryWithUpdater[];
   isAdmin: boolean;
+  itemCounts?: Record<string, number>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -96,12 +98,13 @@ export function CategoryManager({
   return (
     <>
       <div className="border table-outer rounded-lg overflow-hidden">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-52">Name</TableHead>
-              {isVisible("lastUpdated") && <TableHead className="w-48">Last updated</TableHead>}
-              <TableHead></TableHead>
+              <TableHead className="w-[40%]">Name</TableHead>
+              <TableHead className="w-[15%] text-right">Items</TableHead>
+              {isVisible("lastUpdated") && <TableHead className="w-[30%]">Last updated</TableHead>}
+              <TableHead className="w-[15%]"></TableHead>
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
           </TableHeader>
@@ -109,6 +112,7 @@ export function CategoryManager({
             {categories.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium truncate">{c.name}</TableCell>
+                <TableCell className="tabular-nums text-right">{itemCounts[c.id] ?? 0}</TableCell>
                 {isVisible("lastUpdated") && (
                 <TableCell>
                   {c.is_default ? (

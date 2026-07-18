@@ -186,7 +186,7 @@ export function CountForm({
         </div>
       ) : (
         <div className="table-outer overflow-hidden rounded-lg border">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12 pl-4">
@@ -198,12 +198,12 @@ export function CountForm({
                     className="size-4 rounded border-border"
                   />
                 </TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead className="w-32">Type</TableHead>
-                <TableHead className="w-44">Category</TableHead>
-                <TableHead className="w-24">Unit</TableHead>
-                <TableHead className="w-36 text-right">Current on hand</TableHead>
-                <TableHead className="w-44">Last counted</TableHead>
+                <TableHead className="w-[32%]">Item</TableHead>
+                <TableHead className="w-[12%]">Type</TableHead>
+                <TableHead className="w-[18%]">Category</TableHead>
+                <TableHead className="w-[8%]">Unit</TableHead>
+                <TableHead className="w-[14%] text-right">Current on hand</TableHead>
+                <TableHead className="w-[16%]">Last counted</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,7 +218,7 @@ export function CountForm({
                       className="size-4 rounded border-border"
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="font-medium truncate">{item.name}</TableCell>
                   <TableCell className="text-sm">{TYPE_LABEL[item.type] ?? item.type}</TableCell>
                   <TableCell className="text-sm">
                     {item.categories?.name ?? (

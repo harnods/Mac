@@ -76,7 +76,7 @@ export function RecipeTableRowClient({
             {typeLabel ?? <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {showOutput && <TableCell>{product ?? <span className="text-muted-foreground">—</span>}</TableCell>}
+        {showOutput && <TableCell className="truncate">{product ?? <span className="text-muted-foreground">—</span>}</TableCell>}
         {showIngredients && <TableCell className="tabular-nums">{ingredientCount}</TableCell>}
         {showLastUpdated && (
           <TableCell>

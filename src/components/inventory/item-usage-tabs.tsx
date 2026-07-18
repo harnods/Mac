@@ -75,6 +75,7 @@ export function ItemUsageTabs({
   purchaseUnit,
   purchaseUnitQty,
   canManualAdjust = false,
+  showReserved = true,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
@@ -87,6 +88,7 @@ export function ItemUsageTabs({
   purchaseUnit?: string | null;
   purchaseUnitQty?: number | null;
   canManualAdjust?: boolean;
+  showReserved?: boolean;
 }) {
   const hasRecipeTab = usedInRecipes !== undefined;
   const hasConversionTab = unitConversions !== undefined && itemId !== undefined;
@@ -94,7 +96,7 @@ export function ItemUsageTabs({
 
   const movementsProps = {
     ledger, itemUnit, itemId, itemName, onHand, purchaseUnit, purchaseUnitQty,
-    unitConversions, canManualAdjust,
+    unitConversions, canManualAdjust, showReserved,
   };
 
   if (!hasRecipeTab && !hasConversionTab) {
@@ -175,6 +177,7 @@ function StockMovementsTable({
   purchaseUnitQty,
   unitConversions,
   canManualAdjust = false,
+  showReserved = true,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
@@ -185,6 +188,7 @@ function StockMovementsTable({
   purchaseUnitQty?: number | null;
   unitConversions?: { from_unit: string; factor: number; to_unit: string }[];
   canManualAdjust?: boolean;
+  showReserved?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [adjustOpen, setAdjustOpen] = useState(false);
@@ -227,12 +231,13 @@ function StockMovementsTable({
       <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[12%]">Date</TableHead>
-            <TableHead className="w-[12%]">Number</TableHead>
-            <TableHead className="w-[28%]">Type</TableHead>
-            <TableHead className="w-[12%] text-right">Qty</TableHead>
+            <TableHead className="w-[10%]">Date</TableHead>
+            <TableHead className="w-[10%]">Number</TableHead>
+            <TableHead className="w-[14%]">Type</TableHead>
+            <TableHead className="w-[18%]">Note</TableHead>
+            <TableHead className="w-[10%] text-right">Qty</TableHead>
             <TableHead className="w-[12%] text-right">On hand</TableHead>
-            <TableHead className="w-[12%] text-right">Reserved</TableHead>
+            {showReserved && <TableHead className="w-[12%] text-right">Reserved</TableHead>}
             <TableHead className="w-[12%] text-right">Available</TableHead>
           </TableRow>
         </TableHeader>
@@ -248,27 +253,31 @@ function StockMovementsTable({
               <TableRow key={row.id}>
                 <TableCell className="text-sm">{formatDate(row.created_at)}</TableCell>
                 <TableCell className="text-sm font-medium tabular-nums">
-                  {href && row.ref_id ? (
-                    <Link href={href} className="underline text-muted-foreground hover:text-foreground">
-                      #{row.ref_id.slice(0, 8)}
-                    </Link>
+                  {row.ref_id ? (
+                    href ? (
+                      <Link href={href} className="underline text-muted-foreground hover:text-foreground">
+                        #{row.ref_id.slice(0, 8)}
+                      </Link>
+                    ) : (
+                      <span>#{row.ref_id.slice(0, 8)}</span>
+                    )
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-sm">
-                  <div className="truncate">{TYPE_LABEL[row.type] ?? row.type}</div>
-                  {row.note && <div className="text-xs text-muted-foreground truncate">{row.note}</div>}
-                </TableCell>
+                <TableCell className="text-sm truncate">{TYPE_LABEL[row.type] ?? row.type}</TableCell>
+                <TableCell className="text-sm text-muted-foreground truncate">{row.note || "—"}</TableCell>
                 <TableCell className={`text-sm tabular-nums text-right font-medium ${delta >= 0 ? "text-green-600" : "text-red-600"}`}>
                   {delta >= 0 ? "+" : ""}<Qty value={Math.abs(delta)} unit={itemUnit} />
                 </TableCell>
                 <TableCell className="text-sm tabular-nums text-right">
                   <Qty value={Number(row.on_hand_after)} unit={itemUnit} />
                 </TableCell>
-                <TableCell className="text-sm tabular-nums text-right">
-                  <Qty value={Number(row.reserved_after)} unit={itemUnit} />
-                </TableCell>
+                {showReserved && (
+                  <TableCell className="text-sm tabular-nums text-right">
+                    <Qty value={Number(row.reserved_after)} unit={itemUnit} />
+                  </TableCell>
+                )}
                 <TableCell className="text-sm tabular-nums text-right">
                   <Qty value={availableAfter} unit={itemUnit} />
                 </TableCell>
