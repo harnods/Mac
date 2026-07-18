@@ -197,18 +197,18 @@ function StockMovementsTable({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        {showManualAdjust ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setAdjustOpen(true)}>
-            Manual stock in/out
-          </Button>
-        ) : <div />}
+      <div className="flex items-center justify-end gap-2">
         <Input
           placeholder="Search movements..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="w-full sm:w-56"
         />
+        {showManualAdjust && (
+          <Button type="button" size="sm" onClick={() => setAdjustOpen(true)}>
+            Manual stock in/out
+          </Button>
+        )}
       </div>
       {ledger.length === 0 ? (
         <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
