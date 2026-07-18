@@ -56,7 +56,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   const showDefaultCost = itemTypeSlug === "ingredients";
 
   const lockedUnits = unitLocked
-    ? units.filter((u) => compatibleUnits(item!.unit as UnitCode).includes(u as UnitCode))
+    ? units.filter((u) => compatibleUnits(item!.unit as UnitCode).includes(u as UnitCode) || u === "pcs")
     : units;
   const fullyLocked = unitLocked && lockedUnits.length <= 1;
   const visibleUnits = unitLocked ? lockedUnits : units;
@@ -105,7 +105,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="flex flex-col flex-1 gap-4">
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input
@@ -184,7 +184,6 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
               <DecimalInput
                 value={purchaseUnitQty}
                 onValueChange={setPurchaseUnitQty}
-                placeholder="qty"
                 className="w-24 shrink-0"
               />
               <span className="text-sm text-muted-foreground shrink-0">{unit || "unit"}</span>
@@ -231,7 +230,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
         </div>
       )}
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
           Cancel
         </Button>

@@ -8,16 +8,9 @@ import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, updaterName } from "@/lib/format";
 import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { CompletePrepButton } from "@/components/prep-orders/complete-prep-button";
 import { CancelPrepButton } from "@/components/prep-orders/cancel-prep-button";
+import { PrepOrderIngredientsTable } from "@/components/prep-orders/prep-order-ingredients-table";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -166,34 +159,10 @@ export default async function PrepOrderDetailPage({
         {order.prep_order_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No ingredients.</p>
         ) : (
-          <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">#</TableHead>
-                  <TableHead>Ingredient</TableHead>
-                  <TableHead className="w-36">
-                    {order.status === "completed" ? "Used" : "Planned"}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {order.prep_order_items.map((oi, idx) => (
-                  <TableRow key={oi.id}>
-                    <TableCell className="text-muted-foreground text-sm tabular-nums">
-                      {idx + 1}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">
-                      {oi.item?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="tabular-nums text-sm">
-                      <Qty value={oi.qty_needed} unit={oi.unit} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <PrepOrderIngredientsTable
+            items={order.prep_order_items}
+            columnLabel={order.status === "completed" ? "Used" : "Planned"}
+          />
         )}
       </div>
     </div>

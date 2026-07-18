@@ -92,6 +92,16 @@ export function ItemTableRow({
                 Draft
               </span>
             )}
+            <Button
+              variant="outline"
+              size="xs"
+              asChild
+              className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Link href={`/inventory/${itemTypeSlug}/${item.id}`} onClick={(e) => e.stopPropagation()}>
+                View
+              </Link>
+            </Button>
           </span>
         </TableCell>
         {showCategory && (

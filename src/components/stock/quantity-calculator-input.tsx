@@ -232,7 +232,6 @@ export function QuantityCalculatorInput({
                 setExpression(event.target.value);
                 setError("");
               }}
-              placeholder="100+200+13-20"
               aria-invalid={Boolean(error)}
             />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}

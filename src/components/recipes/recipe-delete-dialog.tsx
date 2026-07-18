@@ -20,11 +20,13 @@ export function RecipeDeleteDialog({
   name,
   open,
   onOpenChange,
+  redirectAfter,
 }: {
   id: string;
   name: string;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  redirectAfter?: string;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -35,7 +37,8 @@ export function RecipeDeleteDialog({
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Recipe deleted");
       onOpenChange(false);
-      router.refresh();
+      if (redirectAfter) router.push(redirectAfter);
+      else router.refresh();
     });
   }
 

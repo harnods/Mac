@@ -20,9 +20,11 @@ const SOURCE_LABEL: Record<RecipeCostSource, string> = {
 type Props = {
   recipeId: string;
   recipeName: string;
+  /** Custom trigger element; receives the open handler. Defaults to the recipe name as a text link. */
+  trigger?: (onClick: () => void) => React.ReactNode;
 };
 
-export function RecipeDrawerTrigger({ recipeId, recipeName }: Props) {
+export function RecipeDrawerTrigger({ recipeId, recipeName, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<RecipeDrawerData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,15 +41,17 @@ export function RecipeDrawerTrigger({ recipeId, recipeName }: Props) {
 
   return (
     <>
-      <button
-        onClick={handleOpen}
-        className="hover:underline text-left"
-      >
-        {recipeName}
-      </button>
+      {trigger ? trigger(handleOpen) : (
+        <button
+          onClick={handleOpen}
+          className="hover:underline text-left"
+        >
+          {recipeName}
+        </button>
+      )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent>
+        <SheetContent className="sm:max-w-xl">
           <SheetHeader>
             <SheetTitle>{data?.name ?? recipeName}</SheetTitle>
             <SheetClose />
@@ -80,28 +84,31 @@ export function RecipeDrawerTrigger({ recipeId, recipeName }: Props) {
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Ingredients
                     </p>
-                    <div className="space-y-1">
+                    <div>
+                      <div className="grid grid-cols-3 gap-x-4 pb-1 border-b text-xs text-muted-foreground">
+                        <span>Ingredient</span>
+                        <span className="text-right">Qty</span>
+                        <span className="text-right">Cost</span>
+                      </div>
                       {data.ingredients.map((ing, idx) => (
-                        <div key={`${ing.id}-${idx}`} className="flex items-center justify-between gap-3 text-sm py-1 border-b last:border-0">
+                        <div key={`${ing.id}-${idx}`} className="grid grid-cols-3 gap-x-4 items-center py-1.5 border-b last:border-0 text-sm">
                           <span className="truncate">{ing.name}</span>
-                          <span className="flex items-center gap-2 shrink-0">
-                            <span className="tabular-nums text-muted-foreground">
-                              {formatNum(ing.quantity)} {ing.unit}
-                            </span>
-                            <span className="tabular-nums w-20 text-right">
-                              {ing.cost != null ? (
-                                <>
-                                  {formatRp(ing.cost)}
-                                  {ing.source && ing.source !== "avg" && (
-                                    <span className="block text-[10px] text-muted-foreground leading-tight">
-                                      {SOURCE_LABEL[ing.source]}
-                                    </span>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </span>
+                          <span className="tabular-nums text-muted-foreground text-right whitespace-nowrap">
+                            {formatNum(ing.quantity)} {ing.unit}
+                          </span>
+                          <span className="tabular-nums text-right">
+                            {ing.cost != null ? (
+                              <>
+                                {formatRp(ing.cost)}
+                                {ing.source && ing.source !== "avg" && (
+                                  <span className="block text-[10px] text-muted-foreground leading-tight">
+                                    {SOURCE_LABEL[ing.source]}
+                                  </span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </span>
                         </div>
                       ))}

@@ -28,7 +28,7 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
       <Table className="w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-48">Name</TableHead>
+            <TableHead>Name</TableHead>
             {isVisible("department") && <TableHead className="w-36">Department</TableHead>}
             {isVisible("jobPosition") && <TableHead className="w-40">Job position</TableHead>}
             {isVisible("jobLevel") && <TableHead className="w-32">Job level</TableHead>}

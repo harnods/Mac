@@ -7,6 +7,16 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -46,6 +56,8 @@ export function UnitConversionsPanel({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const [fromUnit, setFromUnit] = useState("");
   const [factor, setFactor] = useState("");
   const [toUnit, setToUnit] = useState(itemUnit);
@@ -83,6 +95,7 @@ export function UnitConversionsPanel({
       }
       toast.success("Unit conversion added");
       resetForm();
+      setOpen(false);
       router.refresh();
     });
   }
@@ -99,56 +112,86 @@ export function UnitConversionsPanel({
     });
   }
 
+  const filteredConversions = conversions.filter((c) =>
+    c.from_unit.toLowerCase().includes(q.toLowerCase()) ||
+    c.to_unit.toLowerCase().includes(q.toLowerCase())
+  );
+
   return (
     <div className="space-y-4">
       {canEdit && (
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(12rem,1fr)_auto_minmax(8rem,12rem)_6rem_auto]"
-        >
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Conversion unit</label>
-            <Input
-              value={fromUnit}
-              onChange={(event) => setFromUnit(event.target.value)}
-              placeholder="box"
-              maxLength={30}
-            />
-          </div>
-          <div className="hidden h-8 items-center text-sm text-muted-foreground sm:flex">=</div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Quantity</label>
-            <DecimalInput
-              value={factor}
-              onValueChange={setFactor}
-              placeholder="1"
-              className="text-right"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Base unit</label>
-            <Select value={toUnit} onValueChange={setToUnit}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {toUnitOptions.map((unit) => (
-                  <SelectItem key={unit} value={unit}>
-                    {unit}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button type="submit" disabled={pending} className="sm:self-end">
-            <Plus className="size-4" /> Add
-          </Button>
-        </form>
+        <div className="flex justify-end">
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="size-4" /> Add unit conversion
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add unit conversion</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Conversion unit</Label>
+                  <Input
+                    value={fromUnit}
+                    onChange={(event) => setFromUnit(event.target.value)}
+                    maxLength={30}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <div className="flex-1 space-y-1.5">
+                    <Label>Quantity</Label>
+                    <DecimalInput
+                      value={factor}
+                      onValueChange={setFactor}
+                      className="text-right"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Base unit</Label>
+                    <Select value={toUnit} onValueChange={setToUnit}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {toUnitOptions.map((unit) => (
+                          <SelectItem key={unit} value={unit}>
+                            {unit}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="ghost">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit" disabled={pending}>
+                    {pending ? "Adding..." : "Add"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       )}
 
-      {conversions.length === 0 ? (
+      <div className="flex justify-end">
+        <Input
+          placeholder="Search conversions..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full sm:w-56"
+        />
+      </div>
+
+      {filteredConversions.length === 0 ? (
         <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">
-          No unit conversions yet.
+          {conversions.length === 0 ? "No unit conversions yet." : "No matching conversions."}
         </div>
       ) : (
         <div className="table-outer overflow-x-auto rounded-lg border">
@@ -160,7 +203,7 @@ export function UnitConversionsPanel({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {conversions.map((conversion) => (
+              {filteredConversions.map((conversion) => (
                 <TableRow key={conversion.id}>
                   <TableCell className="font-medium">
                     1 {conversion.from_unit} = {formatNum(Number(conversion.factor))} {conversion.to_unit}

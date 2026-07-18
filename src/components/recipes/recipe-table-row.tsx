@@ -56,7 +56,21 @@ export function RecipeTableRowClient({
             </label>
           </TableCell>
         )}
-        <TableCell className="font-medium truncate">{name}</TableCell>
+        <TableCell className="font-medium">
+          <span className="flex items-center gap-2 min-w-0">
+            <span className="truncate">{name}</span>
+            <Button
+              variant="outline"
+              size="xs"
+              asChild
+              className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Link href={`/recipes/${id}`} onClick={(e) => e.stopPropagation()}>
+                View
+              </Link>
+            </Button>
+          </span>
+        </TableCell>
         {showType && (
           <TableCell className="text-sm">
             {typeLabel ?? <span className="text-muted-foreground">—</span>}
@@ -70,7 +84,6 @@ export function RecipeTableRowClient({
             <div className="text-xs text-muted-foreground">{updaterName(updater)}</div>
           </TableCell>
         )}
-        <TableCell />
         <TableCell className={STICKY_ACTION_CELL}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

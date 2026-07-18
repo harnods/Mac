@@ -132,7 +132,7 @@ export function CountForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 gap-6">
       <div className="space-y-3">
         <div>
           <h2 className="text-sm font-semibold">Items to count</h2>
@@ -250,7 +250,7 @@ export function CountForm({
         </div>
       )}
 
-      <div className="sticky bottom-0 z-10 -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="outline" onClick={refreshData} disabled={refreshing || pending}>
           <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
           {refreshing ? "Refreshing..." : "Refresh data"}

@@ -10,10 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Qty } from "@/components/ui/qty";
 import { formatDate } from "@/lib/format";
 import type { UnitCode } from "@/lib/supabase/types";
 import { UnitConversionsPanel, type UnitConversionRow } from "@/components/inventory/unit-conversions-panel";
+import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
 
 const TYPE_LABEL: Record<string, string> = {
   purchase: "Purchase",
@@ -153,6 +156,8 @@ function StockMovementsTable({
   ledger: LedgerRow[];
   itemUnit: UnitCode;
 }) {
+  const [q, setQ] = useState("");
+
   if (ledger.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
@@ -161,14 +166,36 @@ function StockMovementsTable({
     );
   }
 
+  const filtered = ledger.filter((row) => {
+    const label = TYPE_LABEL[row.type] ?? row.type;
+    return (
+      label.toLowerCase().includes(q.toLowerCase()) ||
+      (row.note ?? "").toLowerCase().includes(q.toLowerCase())
+    );
+  });
+
   return (
-    <div className="border table-outer rounded-lg overflow-x-auto">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Input
+          placeholder="Search movements..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full sm:w-56"
+        />
+      </div>
+      {filtered.length === 0 ? (
+        <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
+          No matching transactions.
+        </div>
+      ) : (
+      <div className="border table-outer rounded-lg overflow-x-auto">
       <Table className="w-full">
         <TableHeader>
           <TableRow>
             <TableHead className="w-32">Date</TableHead>
             <TableHead className="w-28">Number</TableHead>
-            <TableHead className="w-28">Type</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead className="w-28 text-right">Qty</TableHead>
             <TableHead className="w-28 text-right">On hand</TableHead>
             <TableHead className="w-28 text-right">Reserved</TableHead>
@@ -176,7 +203,7 @@ function StockMovementsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {ledger.map((row) => {
+          {filtered.map((row) => {
             const availableAfter = Number(row.on_hand_after) - Number(row.reserved_after);
             const delta = Number(row.qty_delta);
             const href = row.ref_id && TYPE_HREF[row.type]
@@ -216,11 +243,15 @@ function StockMovementsTable({
           })}
         </TableBody>
       </Table>
+      </div>
+      )}
     </div>
   );
 }
 
 function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
+  const [q, setQ] = useState("");
+
   if (recipes.length === 0) {
     return (
       <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
@@ -229,24 +260,57 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
     );
   }
 
+  const filtered = recipes.filter((recipe) =>
+    recipe.name.toLowerCase().includes(q.toLowerCase()) ||
+    (recipe.product?.name ?? "").toLowerCase().includes(q.toLowerCase())
+  );
+
   return (
-    <div className="border table-outer rounded-lg overflow-x-auto">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Input
+          placeholder="Search recipes..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full sm:w-56"
+        />
+      </div>
+      {filtered.length === 0 ? (
+        <div className="border rounded-lg p-8 text-center text-sm text-muted-foreground">
+          No matching recipes.
+        </div>
+      ) : (
+      <div className="border table-outer rounded-lg overflow-x-auto">
       <Table className="w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-64">Recipe</TableHead>
+            <TableHead>Recipe</TableHead>
             <TableHead className="w-36">Type</TableHead>
             <TableHead className="w-48">Output</TableHead>
             <TableHead className="w-28 text-right">Qty</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {recipes.map((recipe) => (
+          {filtered.map((recipe) => (
             <TableRow key={`${recipe.id}-${recipe.unit}-${recipe.quantity}`}>
               <TableCell className="font-medium">
-                <Link href={`/recipes/${recipe.id}`} className="hover:underline">
-                  {recipe.name}
-                </Link>
+                <span className="flex items-center gap-2 min-w-0">
+                  <span className="truncate">{recipe.name}</span>
+                  <RecipeDrawerTrigger
+                    recipeId={recipe.id}
+                    recipeName={recipe.name}
+                    trigger={(onClick) => (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={onClick}
+                        className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Preview
+                      </Button>
+                    )}
+                  />
+                </span>
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {recipe.recipeType === "product" ? "Product" : "Prep item"}
@@ -270,6 +334,8 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
           ))}
         </TableBody>
       </Table>
+      </div>
+      )}
     </div>
   );
 }

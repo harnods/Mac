@@ -46,7 +46,6 @@ export default function OrderStartPage() {
               setPhone(e.target.value);
               setError("");
             }}
-            placeholder="08xxxxxxxxxx"
             className="h-12 text-base"
           />
           {error && <p className="text-sm text-destructive">{error}</p>}

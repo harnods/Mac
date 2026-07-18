@@ -3,24 +3,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
-import { ItemActions } from "@/components/inventory/item-actions";
+import { ItemDetailActions } from "@/components/inventory/item-detail-actions";
 import { SellableToggleButton } from "@/components/inventory/sellable-toggle-button";
 import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
-import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
 import { formatDate, updaterName } from "@/lib/format";
-import { VarianceIcon } from "@/components/prep-orders/variance-icon";
+import { PrepOrderHistoryTable } from "@/components/inventory/prep-order-history-table";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -88,12 +77,12 @@ export default async function PrepItemDetailPage({
         {isAdmin && (
           <div className="flex gap-2">
             <SellableToggleButton id={item.id} isSellable={item.is_sellable} />
-            <ItemFormDialog
+            <ItemDetailActions
               itemTypeSlug="prep-items"
-              itemId={id}
-              trigger={<Button size="sm" variant="outline">Edit</Button>}
+              itemId={item.id}
+              name={item.name}
+              backUrl="/inventory/prep-items"
             />
-            <ItemActions id={item.id} name={item.name} backUrl="/inventory/prep-items" />
           </div>
         )}
       </div>
@@ -108,7 +97,7 @@ export default async function PrepItemDetailPage({
         ) : (
           <span className="text-muted-foreground">
             No recipe yet.{" "}
-            <Link href={`/recipes/new?name=${encodeURIComponent(item.name)}&type=wip`} className="underline hover:text-foreground">
+            <Link href={`/recipes/new?productId=${item.id}&type=wip`} className="underline hover:text-foreground">
               Create recipe
             </Link>
           </span>
@@ -123,46 +112,7 @@ export default async function PrepItemDetailPage({
         {orders.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No prep orders yet.</p>
         ) : (
-          <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-28">No</TableHead>
-                  <TableHead className="w-36">Date</TableHead>
-                  <TableHead className="w-28">Qty</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="text-sm font-medium tabular-nums">
-                      <Link href={`/prep-orders/${order.id}`} className="hover:underline">
-                        {order.id.slice(0, 8).toUpperCase()}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-sm">{formatDate(order.planned_date)}</TableCell>
-                    <TableCell className="tabular-nums text-sm">
-                      {order.qty_to_prep != null ? (
-                        <span className="flex items-center gap-1.5">
-                          <Qty value={order.qty_to_prep} unit={item.unit} />
-                          {order.target_qty != null && order.qty_to_prep !== order.target_qty && (
-                            <VarianceIcon
-                              targetQty={order.target_qty}
-                              actualQty={order.qty_to_prep}
-                              unit={item.unit}
-                              reason={order.yield_variance_reason}
-                            />
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <PrepOrderHistoryTable orders={orders} itemUnit={item.unit} />
         )}
       </div>
     </div>

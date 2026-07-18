@@ -53,6 +53,24 @@ export function convert(value: number, from: UnitCode, to: UnitCode): number | n
   return inBase / g.members[to];
 }
 
+/**
+ * Converts a weight/volume quantity into a piece count, using a recipe's
+ * "weight per pcs" (e.g. 450g of Karaage at 30g/pcs → 15 pcs). Returns null
+ * when there's no weight-per-pcs set, or when `unit` isn't convertible to
+ * `weightUnit` — callers should treat null as "cannot derive a piece count".
+ */
+export function convertToPieces(
+  qty: number,
+  unit: UnitCode,
+  weightPerPcs: number | null | undefined,
+  weightUnit: UnitCode | null | undefined,
+): number | null {
+  if (!weightPerPcs || weightPerPcs <= 0 || !weightUnit) return null;
+  const inWeightUnit = unit === weightUnit ? qty : convert(qty, unit, weightUnit);
+  if (inWeightUnit == null) return null;
+  return inWeightUnit / weightPerPcs;
+}
+
 export type ItemUnitConversion = {
   from_unit: UnitCode;
   factor: number;

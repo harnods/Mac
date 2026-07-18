@@ -142,7 +142,6 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
                 <input
                   autoFocus
                   className="flex-1 text-sm border rounded px-2 py-1 bg-background min-w-0"
-                  placeholder="Role name"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
                   onKeyDown={(e) => {

@@ -6,7 +6,7 @@ import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatDate } from "@/lib/format";
-import { EmployeeDeleteButton } from "@/components/employees/employee-actions";
+import { EmployeeDetailActions } from "@/components/employees/employee-detail-actions";
 import { AccessSection } from "@/components/employees/access-section";
 import type { EmployeeWithRelations } from "@/lib/supabase/types";
 
@@ -66,14 +66,7 @@ export default async function EmployeeDetailPage({
           <h1 className="text-2xl font-semibold tracking-tight">{emp.name}</h1>
         </div>
         {isAdmin && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/employees/${id}/edit`}>Edit</Link>
-            </Button>
-            {!emp.mac_user?.is_owner && (
-              <EmployeeDeleteButton id={id} name={emp.name} />
-            )}
-          </div>
+          <EmployeeDetailActions id={id} name={emp.name} canDelete={!emp.mac_user?.is_owner} />
         )}
       </div>
 

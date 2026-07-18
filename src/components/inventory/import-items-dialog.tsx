@@ -426,7 +426,6 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
                 </p>
                 <Textarea
                   className="font-mono text-xs h-48 resize-none"
-                  placeholder={"Name\tCategory\tUnit\nTepung Terigu\tBahan Kering\tkg\nGula Pasir\tBahan Kering\tkg"}
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                   onPaste={(e) => {
@@ -548,7 +547,7 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
-                    <TableHead className="w-44">Name</TableHead>
+                    <TableHead>Name</TableHead>
                     {config.hasCategories && <TableHead className="w-32">Category</TableHead>}
                     <TableHead className="w-20">Unit</TableHead>
                     <TableHead className="w-52">Action</TableHead>

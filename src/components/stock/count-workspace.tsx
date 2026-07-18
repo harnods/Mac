@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 import { convert, convertToItemUnit, formatNum, parseDecimal, unitOptionsForItem } from "@/lib/units";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { QuantityCalculatorInput } from "@/components/stock/quantity-calculator-input";
 import {
@@ -151,6 +152,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(count.note ?? "");
+  const [q, setQ] = useState("");
   const [rows, setRows] = useState<RowState[]>(
     items.map((item) => {
       const hasStoredSplit = item.unopened_qty != null || item.in_use_qty != null;
@@ -179,6 +181,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
   const canInput = canEdit && isCounting && !isCompleted;
   const missingCount = rows.some((row) => row.qty_counted_text.trim() === "");
   const countedRows = rows.filter((row) => row.qty_counted_text.trim() !== "").length;
+  const visibleRows = rows.filter((row) => (row.item?.name ?? "").toLowerCase().includes(q.toLowerCase()));
 
   const totals = useMemo(() => {
     let positive = 0;
@@ -303,7 +306,15 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
           disabled={!canInput}
           maxLength={500}
           rows={2}
-          placeholder="Add notes for this cycle count"
+        />
+      </div>
+
+      <div className="no-print flex justify-end">
+        <Input
+          placeholder="Search items..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full sm:w-56"
         />
       </div>
 
@@ -320,7 +331,14 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => {
+            {visibleRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                  No matching items.
+                </TableCell>
+              </TableRow>
+            )}
+            {visibleRows.map((row) => {
               const units = unitOptions(row);
               const systemQty = systemQtyForSelectedUnit(row);
               const counted =
@@ -348,7 +366,6 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
                           updateSplit(row.item_id, { unopened_qty_text: value })
                         }
                         disabled={!canInput}
-                        placeholder="0"
                         className="text-right"
                       />
                       {canInput && units.length > 1 ? (
@@ -384,7 +401,6 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
                           updateSplit(row.item_id, { in_use_qty_text: value })
                         }
                         disabled={!canInput}
-                        placeholder="0"
                         className="text-right"
                       />
                       {canInput && units.length > 1 ? (
@@ -436,7 +452,6 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
                       disabled={!canInput}
                       maxLength={300}
                       rows={1}
-                      placeholder="Optional note"
                       className="min-h-9 resize-none"
                     />
                   </TableCell>

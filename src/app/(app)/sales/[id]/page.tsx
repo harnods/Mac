@@ -2,18 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, formatDateTime, updaterName } from "@/lib/format";
-import { formatNum } from "@/lib/units";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DeleteSalesEntryButtonClient } from "@/components/sales/delete-sales-entry-button";
+import { SalesEntryItemsTable } from "@/components/sales/sales-entry-items-table";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +32,7 @@ export default async function SalesEntryDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await getCurrentProfile();
+  const profile = await getCurrentProfile();
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -58,16 +52,19 @@ export default async function SalesEntryDetailPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-          <Link href="/sales">
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Sales entry{" "}
-          <span className="text-muted-foreground font-normal">{formatId(id)}</span>
-        </h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
+            <Link href="/sales">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Sales entry{" "}
+            <span className="text-muted-foreground font-normal">{formatId(id)}</span>
+          </h1>
+        </div>
+        {can(profile, P.SALES_WRITE) && <DeleteSalesEntryButtonClient id={id} />}
       </div>
 
       {/* Metadata */}
@@ -98,32 +95,7 @@ export default async function SalesEntryDetailPage({
         {entry.sales_entry_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No products recorded.</p>
         ) : (
-          <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="w-full">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8">#</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="w-36">Qty sold</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entry.sales_entry_items.map((item, idx) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="text-muted-foreground text-sm tabular-nums">
-                      {idx + 1}
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">
-                      {item.product?.name ?? "—"}
-                    </TableCell>
-                    <TableCell className="tabular-nums text-sm">
-                      {formatNum(item.qty)} {item.unit}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <SalesEntryItemsTable items={entry.sales_entry_items} />
         )}
       </div>
     </div>

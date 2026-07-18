@@ -12,10 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Plus } from "lucide-react";
-import { formatId, formatDate, updaterName } from "@/lib/format";
 import { SalesFilter } from "@/components/sales/sales-filter";
+import { SalesEntryRow } from "@/components/sales/sales-entry-row";
 import type { Updater } from "@/lib/supabase/types";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 
@@ -107,26 +106,16 @@ export default async function SalesPage({
             </TableHeader>
             <TableBody>
               {list.map((entry) => (
-                <ClickableTableRow key={entry.id} href={`/sales/${entry.id}`}>
-                  <TableCell className="font-medium tabular-nums">
-                    {formatId(entry.id)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {formatDate(entry.entry_date)}
-                  </TableCell>
-                  <TableCell className="tabular-nums text-sm">
-                    {entry.sales_entry_items.length}
-                  </TableCell>
-                  <TableCell className="text-sm truncate">
-                    {entry.notes ?? <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <div>{updaterName(entry.creator)}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(entry.created_at)}</div>
-                  </TableCell>
-                  <TableCell />
-                  <TableCell />
-                </ClickableTableRow>
+                <SalesEntryRow
+                  key={entry.id}
+                  id={entry.id}
+                  entryDate={entry.entry_date}
+                  itemCount={entry.sales_entry_items.length}
+                  notes={entry.notes}
+                  creator={entry.creator}
+                  createdAt={entry.created_at}
+                  canDelete={isAdmin}
+                />
               ))}
             </TableBody>
           </Table>

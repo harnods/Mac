@@ -22,7 +22,11 @@ export function TableManager({ initialTables }: { initialTables: TableRow[] }) {
   const [deleting, startDelete] = useTransition();
   const [qrTable, setQrTable] = useState<TableRow | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [q, setQ] = useState("");
   const origin = useRef(typeof window !== "undefined" ? window.location.origin : "");
+  const filteredTables = tables.filter((t) =>
+    t.name.toLowerCase().includes(q.toLowerCase()) || t.code.toLowerCase().includes(q.toLowerCase())
+  );
 
   useEffect(() => {
     setTables(initialTables);
@@ -79,7 +83,6 @@ export function TableManager({ initialTables }: { initialTables: TableRow[] }) {
             <Label htmlFor="tname">Nama meja</Label>
             <Input
               id="tname"
-              placeholder="Meja 1"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
             />
@@ -88,7 +91,6 @@ export function TableManager({ initialTables }: { initialTables: TableRow[] }) {
             <Label htmlFor="tcode">Kode URL</Label>
             <Input
               id="tcode"
-              placeholder="meja-1"
               value={code}
               onChange={(e) => setCode(slugify(e.target.value))}
             />
@@ -99,13 +101,26 @@ export function TableManager({ initialTables }: { initialTables: TableRow[] }) {
         </Button>
       </div>
 
+      <div className="flex justify-end">
+        <Input
+          placeholder="Search tables..."
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="w-full sm:w-56"
+        />
+      </div>
+
       {tables.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
           Belum ada meja. Tambahkan meja untuk generate QR code.
         </div>
+      ) : filteredTables.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          No matching tables.
+        </div>
       ) : (
         <div className="divide-y rounded-lg border">
-          {tables.map((t) => (
+          {filteredTables.map((t) => (
             <div key={t.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
                 <div className="font-medium">{t.name}</div>

@@ -79,7 +79,7 @@ export function SalesForm({ products }: { products: Product[] }) {
   const totalItems = rows.filter((r) => r.product_id && r.qty).length;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 gap-6">
       {/* Header fields */}
       <div className="max-w-lg space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -154,7 +154,7 @@ export function SalesForm({ products }: { products: Product[] }) {
       )}
 
       {/* Actions */}
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button variant="ghost" onClick={() => router.push("/sales")} disabled={pending}>
           Cancel
         </Button>

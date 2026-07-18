@@ -3,20 +3,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
-import { Qty } from "@/components/ui/qty";
+import { LinkedRecipeIngredientsTable } from "@/components/inventory/linked-recipe-ingredients-table";
+import { SetIncludedProductsTable } from "@/components/inventory/set-included-products-table";
 import { updaterName } from "@/lib/format";
-import { ItemActions } from "@/components/inventory/item-actions";
+import { ItemDetailActions } from "@/components/inventory/item-detail-actions";
 import { ProductStatusButton } from "@/components/inventory/product-status-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
@@ -146,16 +137,12 @@ export default async function ItemDetailPage({
                 status={(item.status ?? "active") as "active" | "draft"}
               />
             )}
-            <ItemFormDialog
+            <ItemDetailActions
               itemTypeSlug={itemType as ItemTypeSlug}
-              itemId={id}
-              trigger={
-                <Button size="sm" variant="outline">
-                  Edit
-                </Button>
-              }
+              itemId={item.id}
+              name={item.name}
+              backUrl={`/inventory/${itemType}`}
             />
-            <ItemActions id={item.id} name={item.name} backUrl={`/inventory/${itemType}`} />
           </div>
         )}
       </div>
@@ -185,14 +172,14 @@ export default async function ItemDetailPage({
           <h2 className="text-sm font-medium">Recipe</h2>
           <p className="text-sm text-muted-foreground">
             No recipe yet.{" "}
-            <Link href={`/recipes/new?name=${encodeURIComponent(item.name)}&type=product`} className="underline hover:text-foreground">
+            <Link href={`/recipes/new?productId=${item.id}&type=product`} className="underline hover:text-foreground">
               Create recipe
             </Link>
           </p>
         </div>
       )}
       {linkedRecipe && (
-        <div className="space-y-2 max-w-2xl">
+        <div className="space-y-2">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-sm font-medium">Recipe</h2>
             <Link href={`/recipes/${linkedRecipe.id}`} className="text-xs text-muted-foreground hover:text-foreground underline">
@@ -202,34 +189,7 @@ export default async function ItemDetailPage({
           {linkedRecipe.recipe_items.length === 0 ? (
             <p className="text-sm text-muted-foreground">No ingredients in recipe.</p>
           ) : (
-            <div className="border table-outer rounded-lg overflow-x-auto">
-              <Table className="w-full">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8">#</TableHead>
-                    <TableHead>Ingredient</TableHead>
-                    <TableHead className="w-28">Qty</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {linkedRecipe.recipe_items.map((ri, idx) => (
-                    <TableRow key={ri.id}>
-                      <TableCell className="text-muted-foreground text-sm tabular-nums">{idx + 1}</TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {ri.item ? (
-                          <Link href={`/inventory/ingredients/${ri.item.id}`} className="hover:underline">
-                            {ri.item.name}
-                          </Link>
-                        ) : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums">
-                        <Qty value={ri.quantity} unit={ri.unit} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <LinkedRecipeIngredientsTable ingredients={linkedRecipe.recipe_items} />
           )}
         </div>
       )}
@@ -241,34 +201,7 @@ export default async function ItemDetailPage({
           {setItems.length === 0 ? (
             <p className="text-sm text-muted-foreground py-2">No products in this set.</p>
           ) : (
-            <div className="border table-outer rounded-lg overflow-x-auto">
-              <Table className="w-full">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8">#</TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead className="w-28">Qty</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {setItems.map((si, idx) => (
-                    <TableRow key={si.product_id}>
-                      <TableCell className="text-muted-foreground text-sm tabular-nums">{idx + 1}</TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {si.product ? (
-                          <Link href={`/inventory/products/${si.product.id}`} className="hover:underline">
-                            {si.product.name}
-                          </Link>
-                        ) : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm tabular-nums">
-                        {si.qty} {si.product?.unit ?? "pcs"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <SetIncludedProductsTable items={setItems} />
           )}
         </div>
       )}

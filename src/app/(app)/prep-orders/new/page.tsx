@@ -59,7 +59,7 @@ export default async function NewPrepOrderPage() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
           <Link href="/prep-orders">

@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { PurchaseRequestDeleteDialog } from "./purchase-request-delete-dialog";
+import { SalesEntryDeleteDialog } from "./sales-entry-delete-dialog";
 
-export function DeleteRequestButtonClient({ id }: { id: string }) {
+export function DeleteSalesEntryButtonClient({ id }: { id: string }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -12,11 +12,11 @@ export function DeleteRequestButtonClient({ id }: { id: string }) {
       <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
         Delete
       </Button>
-      <PurchaseRequestDeleteDialog
+      <SalesEntryDeleteDialog
         id={id}
         open={open}
         onOpenChange={setOpen}
-        redirectAfter="/purchasing/requests"
+        redirectAfter="/sales"
       />
     </>
   );

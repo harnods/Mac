@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { convert } from "@/lib/units";
+import { convert, convertToPieces } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -85,7 +85,8 @@ export async function completePrepOrder(id: string, actualQty: number, varianceR
     .from("prep_orders")
     .select(`
       id, status, batch_count, unit, product_id,
-      prep_order_items(item_id, qty_needed, unit)
+      prep_order_items(item_id, qty_needed, unit),
+      recipe:recipes!recipe_id(weight_per_pcs, weight_unit)
     `)
     .eq("id", id)
     .maybeSingle();
@@ -95,6 +96,34 @@ export async function completePrepOrder(id: string, actualQty: number, varianceR
   if (actualQty <= 0) return { ok: false, error: "Actual yield must be greater than 0" };
 
   const items = order.prep_order_items as { item_id: string; qty_needed: number; unit: string }[];
+  const recipe = order.recipe as unknown as { weight_per_pcs: number | null; weight_unit: string | null } | null;
+
+  // Resolve the yield conversion up front — if the recipe's unit doesn't
+  // match the product's own stock unit (e.g. recipe yields in g but the
+  // product is stocked in pcs), fall back to the recipe's "weight per pcs"
+  // to derive a piece count. Bail out before touching any stock if neither
+  // works, so a bad conversion can't leave ingredients deducted with no
+  // output added.
+  const { data: product } = await supabase
+    .from("items")
+    .select("id, unit, on_hand, reserved")
+    .eq("id", order.product_id)
+    .maybeSingle();
+
+  if (!product) return { ok: false, error: "Output item not found" };
+
+  const outputQty =
+    order.unit === product.unit
+      ? actualQty
+      : convert(actualQty, order.unit, product.unit) ??
+        convertToPieces(actualQty, order.unit, recipe?.weight_per_pcs, recipe?.weight_unit);
+
+  if (outputQty == null) {
+    return {
+      ok: false,
+      error: `Can't convert ${order.unit} to ${product.unit} — set "Weight per pcs" on this recipe first.`,
+    };
+  }
 
   // Fetch current ingredient stock
   const itemIds = items.map((it) => it.item_id);
@@ -133,32 +162,23 @@ export async function completePrepOrder(id: string, actualQty: number, varianceR
   }
 
   // Add actual yield to prep item on_hand
-  const { data: product } = await supabase
+  const newProductOnHand = Number(product.on_hand) + outputQty;
+  const currentReserved = Number(product.reserved);
+
+  await supabase
     .from("items")
-    .select("id, unit, on_hand, reserved")
-    .eq("id", order.product_id)
-    .maybeSingle();
+    .update({ on_hand: newProductOnHand, updated_by: profile.id })
+    .eq("id", order.product_id);
 
-  if (product) {
-    const outputQty = convert(actualQty, order.unit, product.unit) ?? actualQty;
-    const newProductOnHand = Number(product.on_hand) + outputQty;
-    const currentReserved = Number(product.reserved);
-
-    await supabase
-      .from("items")
-      .update({ on_hand: newProductOnHand, updated_by: profile.id })
-      .eq("id", order.product_id);
-
-    await supabase.from("stock_ledger").insert({
-      item_id: order.product_id,
-      type: "prep_output",
-      ref_id: id,
-      qty_delta: outputQty,
-      on_hand_after: newProductOnHand,
-      reserved_after: currentReserved,
-      created_by: profile.id,
-    });
-  }
+  await supabase.from("stock_ledger").insert({
+    item_id: order.product_id,
+    type: "prep_output",
+    ref_id: id,
+    qty_delta: outputQty,
+    on_hand_after: newProductOnHand,
+    reserved_after: currentReserved,
+    created_by: profile.id,
+  });
 
   // Mark order as completed
   await supabase

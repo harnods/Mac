@@ -146,7 +146,6 @@ export function QuickAdjustDialog({
                 id="qa-qty"
                 min="0"
                 step="any"
-                placeholder="0"
                 value={qty}
                 onValueChange={(v) => setQty(v)}
                 autoFocus

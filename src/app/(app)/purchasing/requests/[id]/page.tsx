@@ -7,12 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { formatDate, formatDateTime, updaterName, formatId } from "@/lib/format";
-import { formatNum } from "@/lib/units";
-import { Qty } from "@/components/ui/qty";
 import { ReviewButtons } from "@/components/purchasing/review-buttons";
-import { DeleteRequestButtonClient } from "@/components/purchasing/delete-request-button";
+import { PurchaseRequestDetailActions } from "@/components/purchasing/purchase-request-detail-actions";
 import { SubmitDraftButton } from "@/components/purchasing/submit-draft-button";
-import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
+import { PurchaseRequestItemsList } from "@/components/purchasing/purchase-request-items-list";
 import type { PurchaseRequestStatus, Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -83,14 +81,9 @@ export default async function PurchaseRequestDetailPage({
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          {canSubmitDraft && (
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/purchasing/requests/${id}/edit`}>Edit</Link>
-            </Button>
-          )}
           {canSubmitDraft && <SubmitDraftButton id={id} />}
           {isAdmin && req.status === "pending" && <ReviewButtons id={id} />}
-          {canDelete && <DeleteRequestButtonClient id={id} />}
+          <PurchaseRequestDetailActions id={id} canEdit={canSubmitDraft} canDelete={canDelete} />
         </div>
       </div>
 
@@ -157,34 +150,12 @@ export default async function PurchaseRequestDetailPage({
         )}
       </div>
 
-      <div className="max-w-2xl space-y-1">
+      <div className="space-y-1">
         <h2 className="text-sm font-medium">Items</h2>
         {req.purchase_request_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No items.</p>
         ) : (
-          <div>
-            <div className="grid grid-cols-[2rem_12rem_auto] gap-x-6 py-2 border-b text-xs text-muted-foreground">
-              <span />
-              <span>Item</span>
-              <span>Requested qty</span>
-            </div>
-            {req.purchase_request_items.map((ri, idx) => (
-              <div key={ri.id} className="grid grid-cols-[2rem_12rem_auto] gap-x-6 items-center py-2 border-b last:border-0">
-                <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
-                <span className="font-medium text-sm flex items-center">
-                  {ri.item?.name ?? "—"}
-                  {ri.item?.deleted_at && <DeletedItemBadge />}
-                </span>
-                <span className="tabular-nums text-sm">
-                  {ri.qty != null && ri.unit
-                    ? <Qty value={ri.qty} unit={ri.unit} />
-                    : ri.qty != null
-                    ? formatNum(ri.qty)
-                    : <span className="italic text-muted-foreground">qty not set</span>}
-                </span>
-              </div>
-            ))}
-          </div>
+          <PurchaseRequestItemsList items={req.purchase_request_items} />
         )}
       </div>
     </div>

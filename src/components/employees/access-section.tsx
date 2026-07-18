@@ -127,7 +127,6 @@ export function AccessSection({ employeeId, employeeEmail, userId, userEmail, us
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="employee@example.com"
                 autoFocus
               />
             </div>

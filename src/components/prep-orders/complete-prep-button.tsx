@@ -81,7 +81,6 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
                   id="actual-qty"
                   min="0.001"
                   step="any"
-                  placeholder={String(targetQty)}
                   value={actualQty}
                   onValueChange={(v) => setActualQty(v)}
                   className="w-32"
@@ -131,7 +130,6 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
                 </Label>
                 <Textarea
                   id="reason"
-                  placeholder={variance! < 0 ? "e.g. Chicken damaged during trimming" : "e.g. Portions were smaller than standard"}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={2}

@@ -142,7 +142,6 @@ export function PointsClaim({
           </span>
           <Input
             className="pl-7 h-10"
-            placeholder="username"
             value={igInput}
             onChange={(e) => { setIgInput(e.target.value); setError(""); }}
             onKeyDown={(e) => { if (e.key === "Enter" && igInput.trim()) handleClaim(); }}

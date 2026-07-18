@@ -159,7 +159,7 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
   }
 
   return (
-    <form onSubmit={(e) => submit(e, draftMode)} className="space-y-6">
+    <form onSubmit={(e) => submit(e, draftMode)} className="flex flex-col flex-1 gap-6">
       <div className="space-y-3">
         <Label>Items to purchase</Label>
         <div className="space-y-6">
@@ -203,7 +203,7 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
         />
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancel
         </Button>

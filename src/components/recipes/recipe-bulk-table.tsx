@@ -105,12 +105,11 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
                   </label>
                 </TableHead>
               )}
-              <TableHead className="w-56">Name</TableHead>
-              {isVisible("type") && <TableHead className="w-24">Type</TableHead>}
-              {isVisible("output") && <TableHead className="w-48">Output</TableHead>}
-              {isVisible("ingredients") && <TableHead className="w-28">Ingredients</TableHead>}
-              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
-              <TableHead />
+              <TableHead>Name</TableHead>
+              {isVisible("type") && <TableHead>Type</TableHead>}
+              {isVisible("output") && <TableHead>Output</TableHead>}
+              {isVisible("ingredients") && <TableHead>Ingredients</TableHead>}
+              {isVisible("lastUpdated") && <TableHead>Last updated</TableHead>}
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>

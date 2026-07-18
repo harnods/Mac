@@ -182,7 +182,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
       {/* Header fields */}
       <div className="max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -280,7 +280,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
         <Button type="submit" disabled={pending}>
           {pending ? "Saving..." : "Save adjustment"}

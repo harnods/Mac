@@ -204,7 +204,7 @@ export function PurchaseForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
 
       {/* PR picker + Transaction date */}
       <div className="max-w-2xl space-y-4">
@@ -448,7 +448,7 @@ export function PurchaseForm({
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
         <Button type="submit" disabled={pending}>
           {pending ? "Saving..." : "Save purchase"}
@@ -586,7 +586,6 @@ function PurchaseRowField({
           <div className="flex items-center gap-1">
             <DecimalInput
               min="0" step="any"
-              placeholder="0"
               value={row.cost}
               onValueChange={(v) => onCostChange(v)}
               className="flex-1 min-w-0"

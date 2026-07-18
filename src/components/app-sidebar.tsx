@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ComponentType, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
 import { OrderShiftSidebar } from "@/components/orders/order-shift-sidebar";
-import { ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronRight, Calculator, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import {
   OrdersIcon,
   OfficeIcon,
@@ -53,6 +53,7 @@ const MENU: MenuNode[] = [
       { label: "Purchases", href: "/purchasing/purchases" },
     ],
   },
+  { label: "Sales", icon: Calculator, href: "/sales" },
   {
     label: "Settings",
     icon: SettingsIcon,

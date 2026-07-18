@@ -22,14 +22,14 @@ export default async function NewPurchaseRequestPage() {
     .order("name");
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 gap-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
           <Link href="/purchasing/requests"><ArrowLeft className="size-4" /></Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">New purchase request</h1>
       </div>
-      <div className="max-w-2xl">
+      <div className="flex flex-col flex-1 max-w-2xl">
         <PurchaseRequestForm items={data ?? []} />
       </div>
     </div>

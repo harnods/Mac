@@ -133,7 +133,7 @@ export function EmployeeForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
       {/* Personal info */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2 space-y-2">
@@ -322,7 +322,7 @@ export function EmployeeForm({
         </div>
       )}
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
           Cancel
         </Button>

@@ -13,9 +13,9 @@ export const dynamic = "force-dynamic";
 export default async function NewRecipePage({
   searchParams,
 }: {
-  searchParams: Promise<{ name?: string; type?: string }>;
+  searchParams: Promise<{ productId?: string; type?: string }>;
 }) {
-  const { name: initialName, type: initialType } = await searchParams;
+  const { productId: initialProductId, type: initialType } = await searchParams;
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (!can(profile, P.RECIPES_WRITE)) redirect("/recipes");
@@ -33,7 +33,7 @@ export default async function NewRecipePage({
   const availableProducts = (products ?? []).filter((p: { id: string }) => !takenIds.has(p.id));
 
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
+    <div className="flex flex-col flex-1 gap-4">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
@@ -48,7 +48,7 @@ export default async function NewRecipePage({
         items={(items ?? []) as Pick<Item, "id" | "name" | "unit" | "type">[]}
         products={availableProducts as Pick<Item, "id" | "name" | "unit" | "type">[]}
         units={(unitsData ?? []).map((u: { code: string }) => u.code)}
-        initialName={initialName}
+        initialProductId={initialProductId}
         initialRecipeType={initialType === "product" ? "product" : initialType === "wip" ? "wip" : undefined}
       />
     </div>

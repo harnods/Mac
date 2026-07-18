@@ -80,7 +80,6 @@ export function ClearDataDialog({
               id="confirm-input"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              placeholder={CONFIRM_WORD}
               disabled={pending}
               autoComplete="off"
             />

@@ -41,7 +41,7 @@ export default async function EditItemPage({
   const unitLocked = txResults.some((r) => (r.count ?? 0) > 0);
 
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
+    <div className="flex flex-col flex-1 gap-4 max-w-xl mx-auto">
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">

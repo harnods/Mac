@@ -248,7 +248,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 gap-6">
       <div className="max-w-lg space-y-4">
         {/* Date + Recipe */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -559,7 +559,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
       )}
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex items-center justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button variant="ghost" onClick={() => router.push("/prep-orders")} disabled={pending}>
           Cancel
         </Button>

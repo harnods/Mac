@@ -148,7 +148,6 @@ export function MenuClient({ categories, table }: { categories: MenuCategory[]; 
           <div className="space-y-2">
             <label className="text-sm font-medium">Catatan <span className="text-muted-foreground font-normal">(opsional)</span></label>
             <Textarea
-              placeholder="Misal: tanpa es, level pedas, alergi, dll."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="resize-none text-sm"

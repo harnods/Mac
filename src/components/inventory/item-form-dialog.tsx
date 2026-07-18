@@ -2,11 +2,13 @@
 
 import { useState, useEffect, cloneElement, isValidElement } from "react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+  SheetBody,
+} from "@/components/ui/sheet";
 import { ItemForm } from "./item-form";
 import { ProductForm } from "./product-form";
 import { getItemFormData, getProductFormData } from "@/app/actions/inventory";
@@ -66,43 +68,46 @@ export function ItemFormDialog({ itemTypeSlug, itemId, trigger, open: controlled
   }
 
   const content = (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>{title}</DialogTitle>
-      </DialogHeader>
-      {loading && (
-        <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
-      )}
-      {!loading && isProduct && productFormData && (
-        <ProductForm
-          categories={productFormData.categories}
-          units={productFormData.units}
-          products={productFormData.products}
-          item={productFormData.item ?? undefined}
-          setProducts={productFormData.setProducts}
-          unitLocked={productFormData.unitLocked}
-          onSuccess={() => handleOpenChange(false)}
-          onCancel={() => handleOpenChange(false)}
-        />
-      )}
-      {!loading && !isProduct && formData && (
-        <ItemForm
-          categories={formData.categories}
-          units={formData.units}
-          item={formData.item ?? undefined}
-          itemTypeSlug={itemTypeSlug}
-          hasCategories={config.hasCategories}
-          unitLocked={formData.unitLocked}
-          onSuccess={() => handleOpenChange(false)}
-          onCancel={() => handleOpenChange(false)}
-        />
-      )}
-      {!loading && ((isProduct && !productFormData) || (!isProduct && !formData)) && (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          Failed to load form data.
-        </div>
-      )}
-    </DialogContent>
+    <SheetContent>
+      <SheetHeader>
+        <SheetTitle>{title}</SheetTitle>
+        <SheetClose />
+      </SheetHeader>
+      <SheetBody>
+        {loading && (
+          <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
+        )}
+        {!loading && isProduct && productFormData && (
+          <ProductForm
+            categories={productFormData.categories}
+            units={productFormData.units}
+            products={productFormData.products}
+            item={productFormData.item ?? undefined}
+            setProducts={productFormData.setProducts}
+            unitLocked={productFormData.unitLocked}
+            onSuccess={() => handleOpenChange(false)}
+            onCancel={() => handleOpenChange(false)}
+          />
+        )}
+        {!loading && !isProduct && formData && (
+          <ItemForm
+            categories={formData.categories}
+            units={formData.units}
+            item={formData.item ?? undefined}
+            itemTypeSlug={itemTypeSlug}
+            hasCategories={config.hasCategories}
+            unitLocked={formData.unitLocked}
+            onSuccess={() => handleOpenChange(false)}
+            onCancel={() => handleOpenChange(false)}
+          />
+        )}
+        {!loading && ((isProduct && !productFormData) || (!isProduct && !formData)) && (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Failed to load form data.
+          </div>
+        )}
+      </SheetBody>
+    </SheetContent>
   );
 
   if (trigger) {
@@ -117,16 +122,16 @@ export function ItemFormDialog({ itemTypeSlug, itemId, trigger, open: controlled
     return (
       <>
         {triggerEl}
-        <Dialog open={open} onOpenChange={handleOpenChange}>
+        <Sheet open={open} onOpenChange={handleOpenChange}>
           {content}
-        </Dialog>
+        </Sheet>
       </>
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       {content}
-    </Dialog>
+    </Sheet>
   );
 }

@@ -12,7 +12,7 @@ export default async function NewEmployeePage() {
   if (!formData) redirect("/employees");
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="flex flex-col flex-1 gap-6 max-w-2xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2">
           <Link href="/employees"><ArrowLeft className="size-4" /></Link>

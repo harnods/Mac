@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Plus, Trash2, Check, ChevronsUpDown, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,7 +17,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { compatibleUnits, parseDecimal } from "@/lib/units";
+import { compatibleUnits, convertToPieces, formatNum, parseDecimal } from "@/lib/units";
 import { UNITS } from "@/lib/units";
 import { createRecipe, updateRecipe } from "@/app/actions/recipes";
 import { createItem } from "@/app/actions/inventory";
@@ -68,7 +67,7 @@ export function RecipeForm({
   recipe,
   recipeItems,
   units: initialUnits = [],
-  initialName,
+  initialProductId,
   initialRecipeType,
 }: {
   items: Pick<Item, "id" | "name" | "unit" | "type">[];
@@ -76,7 +75,7 @@ export function RecipeForm({
   recipe?: Recipe & { unit?: string | null };
   recipeItems?: RecipeItemWithItem[];
   units?: string[];
-  initialName?: string;
+  initialProductId?: string;
   initialRecipeType?: "wip" | "product";
 }) {
   const router = useRouter();
@@ -101,8 +100,7 @@ export function RecipeForm({
     : "wip";
 
   const [recipeType, setRecipeType] = useState<"wip" | "product">(initialRecipeType ?? initialType);
-  const [name, setName] = useState(recipe?.name ?? initialName ?? "");
-  const [productId, setProductId] = useState<string | null>(recipe?.product_id ?? null);
+  const [productId, setProductId] = useState<string | null>(recipe?.product_id ?? initialProductId ?? null);
   const [yieldQty, setYieldQty] = useState(String(recipe?.yield_qty ?? 1));
   const [yieldUnit, setYieldUnit] = useState<string>(recipe?.unit ?? "pcs");
   const [yieldUnitOpen, setYieldUnitOpen] = useState(false);
@@ -133,6 +131,7 @@ export function RecipeForm({
     ...extraOutputItems.filter((p) => recipeType === "wip" ? p.type === "prep_item" : p.type === "product"),
   ];
   const selectedOutputItem = filteredOutputItems.find((p) => p.id === productId);
+  const name = selectedOutputItem?.name ?? "";
   // WIP yield unit must be compatible with the produced item's own unit
   // (e.g. an ml-based prep item can only yield in ml/l, never g/kg) — a
   // mismatch here silently breaks that prep item's cost-per-unit math.
@@ -290,13 +289,8 @@ export function RecipeForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
-      {/* Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
-      </div>
-
+    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
+      <div className="max-w-lg space-y-6">
       {/* Recipe type */}
       <div className="space-y-2">
         <Label>Recipe type</Label>
@@ -324,18 +318,9 @@ export function RecipeForm({
         </p>
       </div>
 
-      {/* Output item — hidden for new product recipes (auto-created from recipe name) */}
-      {recipeType === "product" && !isEdit ? (
-        <div className="space-y-1">
-          <Label>Output item</Label>
-          <p className="text-xs text-muted-foreground">
-            A product <span className="font-medium text-foreground">&ldquo;{name || "…"}&rdquo;</span> will be created automatically.
-            You can rename it later from the Products page independently of this recipe name.
-          </p>
-        </div>
-      ) : (
+      {/* Output item — this item's name becomes the recipe's name */}
       <div className="space-y-2">
-        <Label>Output item</Label>
+        <Label>What are you making this recipe for?</Label>
         <Popover open={productOpen} onOpenChange={setProductOpen}>
           <PopoverTrigger asChild>
             <Button
@@ -350,7 +335,7 @@ export function RecipeForm({
               <ChevronsUpDown className="size-4 opacity-50 shrink-0 ml-1" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-full p-0" align="start">
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
             <Command>
               <CommandInput
                 placeholder="Search or create..."
@@ -416,7 +401,6 @@ export function RecipeForm({
           </PopoverContent>
         </Popover>
       </div>
-      )}
 
       {/* Yield — WIP: qty + unit picker with quick-add; Product: qty + readonly unit */}
       {productId && (
@@ -490,7 +474,6 @@ export function RecipeForm({
               step="any"
               value={weightPerPcs}
               onValueChange={(v) => setWeightPerPcs(v)}
-              placeholder="e.g. 150"
               className="w-28"
             />
             <Popover open={weightUnitOpen} onOpenChange={setWeightUnitOpen}>
@@ -527,8 +510,17 @@ export function RecipeForm({
               </PopoverContent>
             </Popover>
           </div>
+          {(() => {
+            const pcs = convertToPieces(parseDecimal(yieldQty), yieldUnit, parseDecimal(weightPerPcs), weightUnit);
+            return pcs != null && isFinite(pcs) ? (
+              <p className="text-xs text-muted-foreground">
+                = {formatNum(pcs)} pcs
+              </p>
+            ) : null;
+          })()}
         </div>
       )}
+      </div>
 
       {/* Ingredients */}
       <div className="space-y-3">
@@ -594,11 +586,11 @@ export function RecipeForm({
         }}
       />
 
-      <div className="flex justify-end gap-2 pt-2">
+      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancel
         </Button>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || !productId}>
           {pending ? "Saving..." : isEdit ? "Save changes" : "Create recipe"}
         </Button>
       </div>
@@ -727,7 +719,7 @@ function IngredientRowField({
             type="button"
             variant="outline"
             role="combobox"
-            className="flex-1 justify-between font-normal min-w-0"
+            className="flex-1 max-w-lg justify-between font-normal min-w-0"
           >
             <span className={cn("truncate", !selectedItem && "text-muted-foreground")}>
               {selectedItem ? selectedItem.name : "Select item"}
@@ -735,7 +727,7 @@ function IngredientRowField({
             <ChevronsUpDown className="size-4 opacity-50 shrink-0 ml-1" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-0" align="start">
+        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command>
             <CommandInput
               placeholder="Search or create..."
@@ -854,15 +846,15 @@ function IngredientRowField({
 
     {/* Substitutes — only when an item is selected */}
     {row.item_id && (
-      <div className="ml-[4.5rem] flex flex-wrap items-center gap-1.5 mt-1 mb-0.5">
-        <span className="text-xs text-muted-foreground shrink-0">Sub:</span>
+      <div className="ml-[4.5rem] flex flex-col items-start gap-1.5 mt-1 mb-0.5">
+        <span className="text-xs text-muted-foreground shrink-0">Substitutes:</span>
         {row.substitutes.map((sub) => {
           const subItem = items.find((i) => i.id === sub.item_id);
           const subUnits = subItem ? compatibleUnits(subItem.unit) : sub.unit ? [sub.unit] : [];
           return (
             <span
               key={sub.item_id}
-              className="inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full bg-muted text-xs"
+              className="inline-flex items-center gap-2 pl-3 pr-2 py-1 rounded-full bg-muted text-sm"
             >
               <span className="font-medium">{subItem?.name ?? sub.item_id}</span>
               <input
@@ -870,7 +862,7 @@ function IngredientRowField({
                 inputMode="decimal"
                 value={sub.quantity}
                 onChange={(e) => updateSub(sub.item_id, { quantity: e.target.value })}
-                className="w-10 bg-transparent border-b border-muted-foreground/30 text-center focus:outline-none focus:border-foreground"
+                className="w-14 bg-transparent border-b border-muted-foreground/30 text-center focus:outline-none focus:border-foreground"
               />
               <select
                 value={sub.unit}
@@ -896,9 +888,9 @@ function IngredientRowField({
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-0.5"
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
             >
-              <Plus className="size-3" />
+              <Plus className="size-3.5" />
               Add substitute
             </button>
           </PopoverTrigger>
