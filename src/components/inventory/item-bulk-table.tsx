@@ -28,6 +28,7 @@ type Props = {
   categories: Category[];
   isAdmin: boolean;
   itemTypeSlug: ItemTypeSlug;
+  showPhoto?: boolean;
   showCategory: boolean;
   stockMode: StockMode;
   showCost: boolean;
@@ -39,7 +40,7 @@ type Props = {
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, isAdmin, itemTypeSlug, showCategory, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
+  items, categories, isAdmin, itemTypeSlug, showPhoto = false, showCategory, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -147,6 +148,7 @@ export function ItemBulkTable({
                   </label>
                 </TableHead>
               )}
+              {showPhoto && <TableHead className="w-14" />}
               <TableHead className="w-48">Name</TableHead>
               {showCategory && isVisible("category") && <TableHead className="w-36">Category</TableHead>}
               {stockMode === "full" && isVisible("onHand") && <TableHead className="w-32">On hand</TableHead>}
@@ -171,6 +173,7 @@ export function ItemBulkTable({
                 item={item}
                 isAdmin={isAdmin}
                 itemTypeSlug={itemTypeSlug}
+                showPhoto={showPhoto}
                 showCategory={showCategory && isVisible("category")}
                 showOnHand={stockMode === "full" && isVisible("onHand")}
                 showReserved={stockMode === "full" && isVisible("reserved")}

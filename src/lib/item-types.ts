@@ -17,14 +17,15 @@ type ItemTypeConfig = {
   showCost: boolean;
   showSellable: boolean;
   showDefaultCost: boolean;
+  showPhoto: boolean;
   catSlug: CategoryTypeSlug | null;
 };
 
 export const ITEM_TYPE_CONFIG: Record<ItemTypeSlug, ItemTypeConfig> = {
-  ingredients:  { dbType: 'ingredient', label: 'Ingredients', singular: 'Ingredient', hasCategories: true,  stockMode: 'full',      showCost: true,  showSellable: false, showDefaultCost: true,  catSlug: 'ingredients' },
-  supplies:     { dbType: 'supply',     label: 'Supplies',    singular: 'Supply',     hasCategories: true,  stockMode: 'available', showCost: true,  showSellable: false, showDefaultCost: false, catSlug: 'supplies' },
-  products:     { dbType: 'product',    label: 'Products',    singular: 'Product',    hasCategories: true,  stockMode: 'none',      showCost: false, showSellable: true,  showDefaultCost: false, catSlug: 'products' },
-  'prep-items': { dbType: 'prep_item',  label: 'Prep items',  singular: 'Prep item',  hasCategories: false, stockMode: 'available', showCost: false, showSellable: false, showDefaultCost: false, catSlug: null },
+  ingredients:  { dbType: 'ingredient', label: 'Ingredients', singular: 'Ingredient', hasCategories: true,  stockMode: 'full',      showCost: true,  showSellable: false, showDefaultCost: true,  showPhoto: false, catSlug: 'ingredients' },
+  supplies:     { dbType: 'supply',     label: 'Supplies',    singular: 'Supply',     hasCategories: true,  stockMode: 'available', showCost: true,  showSellable: false, showDefaultCost: false, showPhoto: true,  catSlug: 'supplies' },
+  products:     { dbType: 'product',    label: 'Products',    singular: 'Product',    hasCategories: true,  stockMode: 'none',      showCost: false, showSellable: true,  showDefaultCost: false, showPhoto: false, catSlug: 'products' },
+  'prep-items': { dbType: 'prep_item',  label: 'Prep items',  singular: 'Prep item',  hasCategories: false, stockMode: 'available', showCost: false, showSellable: false, showDefaultCost: false, showPhoto: false, catSlug: null },
 };
 
 type CategoryTypeConfig = {

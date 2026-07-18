@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
+import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import { LinkedRecipeIngredientsTable } from "@/components/inventory/linked-recipe-ingredients-table";
 import { SetIncludedProductsTable } from "@/components/inventory/set-included-products-table";
 import { updaterName } from "@/lib/format";
@@ -116,17 +117,22 @@ export default async function ItemDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <PageBreadcrumb
-            items={[{ label: config.label, href: `/inventory/${itemType}` }]}
-          />
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
-            {item.status === "draft" && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                Draft
-              </span>
-            )}
+        <div className="flex items-center gap-3">
+          {config.showPhoto && (
+            <ItemPhotoThumbnail imageUrl={item.image_url} name={item.name} className="size-16" />
+          )}
+          <div>
+            <PageBreadcrumb
+              items={[{ label: config.label, href: `/inventory/${itemType}` }]}
+            />
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+              {item.status === "draft" && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                  Draft
+                </span>
+              )}
+            </div>
           </div>
         </div>
         {isAdmin && (

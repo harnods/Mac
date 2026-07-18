@@ -20,6 +20,7 @@ import { formatDate, updaterName } from "@/lib/format";
 import { ItemDeleteDialog } from "@/components/inventory/item-delete-dialog";
 import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { QuickAdjustDialog } from "@/components/inventory/quick-adjust-dialog";
+import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import type { ItemWithCategory, UnitCode } from "@/lib/supabase/types";
 import type { ItemTypeSlug } from "@/lib/item-types";
 
@@ -27,6 +28,7 @@ export function ItemTableRow({
   item,
   isAdmin,
   itemTypeSlug,
+  showPhoto = false,
   showCategory = true,
   showOnHand = true,
   showReserved = true,
@@ -46,6 +48,7 @@ export function ItemTableRow({
   item: ItemWithCategory;
   isAdmin: boolean;
   itemTypeSlug: string;
+  showPhoto?: boolean;
   showCategory?: boolean;
   showOnHand?: boolean;
   showReserved?: boolean;
@@ -82,6 +85,11 @@ export function ItemTableRow({
             <label className="flex items-center justify-start w-full py-3 cursor-pointer">
               <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="size-4 cursor-pointer" />
             </label>
+          </TableCell>
+        )}
+        {showPhoto && (
+          <TableCell className="w-14">
+            <ItemPhotoThumbnail imageUrl={item.image_url} name={item.name} className="size-10" />
           </TableCell>
         )}
         <TableCell className="font-medium">

@@ -137,6 +137,7 @@ export default async function ItemTypePage({
             categories={cats}
             isAdmin={isAdmin}
             itemTypeSlug={itemType as ItemTypeSlug}
+            showPhoto={config.showPhoto}
             showCategory={config.hasCategories}
             stockMode={config.stockMode}
             showCost={config.showCost}
