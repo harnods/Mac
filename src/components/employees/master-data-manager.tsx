@@ -128,6 +128,7 @@ export function MasterDataManager({
               <TableHead className="w-[55%]">Name</TableHead>
               {showSortOrder && isVisible("sortOrder") && <TableHead className="w-[20%]">Sort order</TableHead>}
               {isVisible("lastUpdated") && <TableHead className="w-[25%]">Last updated</TableHead>}
+              {isAdmin && <TableHead />}
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
           </TableHeader>
@@ -160,6 +161,7 @@ export function MasterDataManager({
                   )}
                 </TableCell>
                 )}
+                {isAdmin && <TableCell />}
                 {isAdmin && (
                   <TableCell className={STICKY_ACTION_CELL}>
                     <DropdownMenu>

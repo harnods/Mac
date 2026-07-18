@@ -31,6 +31,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  STICKY_ACTION_HEAD,
+  STICKY_ACTION_CELL,
 } from "@/components/ui/table";
 import { createItemUnitConversion, deleteItemUnitConversion } from "@/app/actions/inventory";
 import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
@@ -198,8 +200,9 @@ export function UnitConversionsPanel({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[88%]">Conversion</TableHead>
+                <TableHead className="w-[76%]">Conversion</TableHead>
                 <TableHead className="w-[12%]" />
+                <TableHead className={`w-[12%] ${STICKY_ACTION_HEAD}`} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -208,7 +211,8 @@ export function UnitConversionsPanel({
                   <TableCell className="font-medium">
                     1 {conversion.from_unit} = {formatNum(Number(conversion.factor))} {conversion.to_unit}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell />
+                  <TableCell className={STICKY_ACTION_CELL}>
                     {canEdit && (
                       <Button
                         type="button"

@@ -93,7 +93,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
           <TableHeader>
             <TableRow>
               {isAdmin && (
-                <TableHead className="w-10 px-0">
+                <TableHead className="w-8 px-0">
                   <label className="flex items-center justify-center w-full py-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -110,6 +110,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
               {isVisible("output") && <TableHead className="w-[20%]">Output</TableHead>}
               {isVisible("ingredients") && <TableHead className="w-[16%]">Ingredients</TableHead>}
               {isVisible("lastUpdated") && <TableHead className="w-[18%]">Last updated</TableHead>}
+              <TableHead />
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>

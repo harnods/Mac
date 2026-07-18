@@ -12,6 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  STICKY_ACTION_HEAD,
+  STICKY_ACTION_CELL,
 } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { formatDate, updaterName } from "@/lib/format";
@@ -115,7 +117,8 @@ export default async function StockCountsPage({
                 <TableHead className="w-[30%]">Note</TableHead>
                 <TableHead className="w-[19%]">Created</TableHead>
                 <TableHead className="w-[19%]">Timing</TableHead>
-                <TableHead className="w-12" />
+                <TableHead />
+                <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -146,7 +149,8 @@ export default async function StockCountsPage({
                       "Not started"
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell />
+                  <TableCell className={STICKY_ACTION_CELL}>
                     <Button variant="ghost" size="sm" asChild>
                       <Link href={`/stock/counts/${count.id}`}>
                         {count.status === "completed" ? "View" : "Continue"}

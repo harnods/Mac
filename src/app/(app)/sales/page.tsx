@@ -11,6 +11,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  STICKY_ACTION_HEAD,
 } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { SalesFilter } from "@/components/sales/sales-filter";
@@ -101,7 +102,7 @@ export default async function SalesPage({
                 <TableHead className="w-[42%]">Notes</TableHead>
                 <TableHead className="w-[16%]">Recorded by</TableHead>
                 <TableHead className="w-[6%]" />
-                <TableHead className="w-12" />
+                <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>
             </TableHeader>
             <TableBody>

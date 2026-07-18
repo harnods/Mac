@@ -109,7 +109,7 @@ function TableCaption({
 export const STICKY_ACTION_HEAD =
   "sticky right-0 z-20 border-l bg-muted/95 shadow-[-10px_0_12px_-12px_rgba(0,0,0,0.45)]"
 export const STICKY_ACTION_CELL =
-  "sticky right-0 z-20 border-l bg-background shadow-[-10px_0_12px_-12px_rgba(0,0,0,0.45)] group-hover:bg-muted"
+  "sticky right-0 z-20 border-l bg-background shadow-[-10px_0_12px_-12px_rgba(0,0,0,0.45)] group-hover:bg-muted px-2 text-center"
 
 export {
   Table,

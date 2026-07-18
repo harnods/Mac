@@ -241,7 +241,7 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
       {/* Items table */}
       <div className="space-y-3">
         <Label>Items</Label>
-        <div className="border table-outer rounded-lg overflow-hidden">
+        <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="table-fixed">
             <TableHeader>
               <TableRow>

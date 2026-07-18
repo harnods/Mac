@@ -131,12 +131,12 @@ export function ItemBulkTable({
         </div>
       )}
 
-      <div className="border table-outer rounded-lg overflow-x-auto hidden md:block">
+      <div className="border table-outer rounded-lg overflow-x-auto">
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
               {isAdmin && (
-                <TableHead className="w-12 pl-3 pr-0">
+                <TableHead className="w-8 pl-2 pr-0">
                   <label className="flex items-center justify-start w-full py-3 cursor-pointer">
                     <input
                       type="checkbox"

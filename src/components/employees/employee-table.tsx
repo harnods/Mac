@@ -24,7 +24,7 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
   const { isVisible } = useColumnVisibility("employees", EMPLOYEE_COLUMNS);
 
   return (
-    <div className="border table-outer rounded-lg overflow-x-auto hidden md:block">
+    <div className="border table-outer rounded-lg overflow-x-auto">
       <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
@@ -34,6 +34,7 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
             {isVisible("jobLevel") && <TableHead className="w-[13%]">Job level</TableHead>}
             {isVisible("status") && <TableHead className="w-[13%]">Status</TableHead>}
             {isVisible("lastUpdated") && <TableHead className="w-[16%]">Last updated</TableHead>}
+            <TableHead />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>

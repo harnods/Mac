@@ -108,7 +108,7 @@ export function SalesForm({ products }: { products: Product[] }) {
       {/* Products sold */}
       <div className="space-y-3">
         <Label>Products sold</Label>
-        <div className="border table-outer rounded-lg overflow-hidden">
+        <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>

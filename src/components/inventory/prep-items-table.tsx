@@ -48,6 +48,7 @@ export function PrepItemsTable({ list }: { list: PrepItemRow[] }) {
             <TableHead className="w-[55%]">Name</TableHead>
             {isVisible("available") && <TableHead className="w-[25%]">Available</TableHead>}
             {isVisible("lastUpdated") && <TableHead className="w-[20%]">Last updated</TableHead>}
+            <TableHead />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>
@@ -70,6 +71,7 @@ export function PrepItemsTable({ list }: { list: PrepItemRow[] }) {
                     <div className="text-xs text-muted-foreground">{formatDate(item.updated_at)}</div>
                   </TableCell>
                 )}
+                <TableCell />
                 <TableCell className={STICKY_ACTION_CELL} />
               </ClickableTableRow>
             );

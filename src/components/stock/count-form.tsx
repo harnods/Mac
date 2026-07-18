@@ -185,11 +185,11 @@ export function CountForm({
           No active stock items found.
         </div>
       ) : (
-        <div className="table-outer overflow-hidden rounded-lg border">
+        <div className="table-outer overflow-x-auto rounded-lg border">
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 pl-4">
+                <TableHead className="w-8 pl-2 pr-0">
                   <input
                     type="checkbox"
                     checked={allFilteredSelected}
@@ -209,7 +209,7 @@ export function CountForm({
             <TableBody>
               {filteredItems.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="pl-4">
+                  <TableCell className="pl-2 pr-0">
                     <input
                       type="checkbox"
                       checked={selected.has(item.id)}

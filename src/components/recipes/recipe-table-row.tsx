@@ -50,7 +50,7 @@ export function RecipeTableRowClient({
     <>
       <ClickableTableRow href={`/recipes/${id}`} className={isSelected ? "bg-primary/5" : undefined}>
         {onToggleSelect && (
-          <TableCell className="w-10 px-0" onClick={(e) => e.stopPropagation()}>
+          <TableCell className="w-8 px-0" onClick={(e) => e.stopPropagation()}>
             <label className="flex items-center justify-center w-full py-3 cursor-pointer">
               <input type="checkbox" checked={isSelected} onChange={onToggleSelect} className="size-4 cursor-pointer" />
             </label>
@@ -84,6 +84,7 @@ export function RecipeTableRowClient({
             <div className="text-xs text-muted-foreground">{updaterName(updater)}</div>
           </TableCell>
         )}
+        <TableCell />
         <TableCell className={STICKY_ACTION_CELL}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

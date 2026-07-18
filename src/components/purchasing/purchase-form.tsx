@@ -406,7 +406,7 @@ export function PurchaseForm({
       <div className="space-y-3">
         <Label>Items purchased</Label>
 
-        <div className="border table-outer rounded-lg overflow-hidden">
+        <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="table-fixed">
             <TableHeader>
               <TableRow>

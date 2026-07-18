@@ -68,6 +68,7 @@ export function EmployeeTableRow({
             <div className="text-xs text-muted-foreground">{updaterName(employee.updater)}</div>
           </TableCell>
         )}
+        <TableCell />
         <TableCell className={`w-12 ${STICKY_ACTION_CELL}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

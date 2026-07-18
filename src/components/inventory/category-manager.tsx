@@ -97,7 +97,7 @@ export function CategoryManager({
 
   return (
     <>
-      <div className="border table-outer rounded-lg overflow-hidden">
+      <div className="border table-outer rounded-lg overflow-x-auto">
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
