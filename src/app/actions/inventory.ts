@@ -24,6 +24,7 @@ const itemSchema = z.object({
   default_purchase_cost_unit: z.string().nullable().optional(),
   purchase_unit: z.string().nullable().optional(),
   purchase_unit_qty: z.coerce.number().positive().nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
 }).refine(
   (d) =>
     d.default_purchase_cost == null ||

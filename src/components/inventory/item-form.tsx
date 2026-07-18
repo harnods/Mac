@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { ImagePlus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DecimalInput } from "@/components/ui/decimal-input";
@@ -13,9 +15,12 @@ import { UnitCombobox } from "./unit-combobox";
 import { ITEM_TYPE_CONFIG } from "@/lib/item-types";
 import { compatibleUnits, parseDecimal } from "@/lib/units";
 import { createItem, updateItem } from "@/app/actions/inventory";
+import { createClient } from "@/lib/supabase/client";
 import type { Category, Item } from "@/lib/supabase/types";
 import type { ItemTypeSlug } from "@/lib/item-types";
 import type { UnitCode } from "@/lib/supabase/types";
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 type Props = {
   categories: Pick<Category, "id" | "name">[];
@@ -50,10 +55,31 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
     item?.purchase_unit_qty != null ? String(item.purchase_unit_qty) : "",
   );
   const [units, setUnits] = useState(initialUnits);
+  const [imageUrl, setImageUrl] = useState<string | null>(item?.image_url ?? null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const isEdit = !!item;
   const config = ITEM_TYPE_CONFIG[itemTypeSlug];
   const showDefaultCost = itemTypeSlug === "ingredients";
+  const showPhoto = itemTypeSlug === "supplies";
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > MAX_IMAGE_BYTES) { toast.error("Image must be under 5MB"); return; }
+
+    setUploadingImage(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${item?.id ?? crypto.randomUUID()}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true });
+    setUploadingImage(false);
+    if (error) { toast.error(error.message); return; }
+    const { data } = supabase.storage.from("product-images").getPublicUrl(path);
+    setImageUrl(data.publicUrl);
+  }
 
   const lockedUnits = unitLocked
     ? units.filter((u) => compatibleUnits(item!.unit as UnitCode).includes(u as UnitCode) || u === "pcs")
@@ -91,6 +117,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
         default_purchase_cost_unit: showDefaultCost && defaultCost.trim() ? selectedDefaultCostUnit : null,
         purchase_unit: usePurchaseUnit && purchaseUnit ? purchaseUnit : null,
         purchase_unit_qty: usePurchaseUnit && purchaseUnit && purchaseUnitQty.trim() ? parseDecimal(purchaseUnitQty) : null,
+        image_url: showPhoto ? imageUrl : null,
       };
       const res = isEdit ? await updateItem(item!.id, payload) : await createItem(payload);
       if (!res.ok) { toast.error(res.error); return; }
@@ -115,6 +142,47 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
           onChange={(e) => setName(e.target.value)}
         />
       </div>
+
+      {showPhoto && (
+        <div className="space-y-2">
+          <Label>Photo</Label>
+          <div className="flex items-center gap-3">
+            <div className="size-20 rounded-lg border bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt={name || "Supply"} className="size-full object-cover" />
+              ) : (
+                <ImagePlus className="size-6 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="item-image" className="cursor-pointer">
+                <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+                  {uploadingImage ? "Uploading..." : imageUrl ? "Change photo" : "Upload photo"}
+                </span>
+                <input
+                  id="item-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={handleImageChange}
+                />
+              </Label>
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setImageUrl(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground text-left"
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">PNG, JPEG, or WebP, up to 5MB.</p>
+        </div>
+      )}
 
       {hasCategories && (
         <div className="space-y-2">
