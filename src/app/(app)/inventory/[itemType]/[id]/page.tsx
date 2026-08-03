@@ -28,10 +28,10 @@ export default async function ItemDetailPage({
   const config = ITEM_TYPE_CONFIG[itemType as ItemTypeSlug];
   if (!config) notFound();
 
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
 
   const [
+    profile,
     { data, error },
     { data: ledgerData },
     { data: setItemsData },
@@ -39,6 +39,7 @@ export default async function ItemDetailPage({
     { data: usageData },
     { data: conversionData },
   ] = await Promise.all([
+    getCurrentProfile(),
     supabase
       .from("items")
       .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)")
