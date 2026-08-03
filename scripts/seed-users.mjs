@@ -98,13 +98,15 @@ async function upsertUser({ email, role, fullName, isOwner = false }) {
 
 // Fixed passwords for local development — stable across seed runs.
 const FIXED_PASSWORDS = {
-  "admin@machimoto.local": "mac-admin-2025",
+  "admin@machimoto.local": "admin-mac-2026",
   "staff@machimoto.local": "mac-staff-2025",
+  "ian@machimoto.local": "ian-2026",
 };
 
 const users = [
   { email: "admin@machimoto.local", role: "admin", fullName: "Machimoto Admin", isOwner: true },
   { email: "staff@machimoto.local", role: "staff", fullName: "Machimoto Staff" },
+  { email: "ian@machimoto.local", role: "staff", fullName: "Ian" },
 ];
 
 const results = [];

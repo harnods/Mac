@@ -27,6 +27,8 @@ export function UserMenu({ profile }: { profile: Profile }) {
     router.refresh();
   }
 
+  const showClearData = profile.role === "admin" && process.env.NODE_ENV !== "production";
+
   const initials = (profile.full_name || profile.email)
     .split(/[\s@]/)
     .filter(Boolean)
@@ -51,7 +53,7 @@ export function UserMenu({ profile }: { profile: Profile }) {
             </Badge>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {profile.role === "admin" && (
+          {showClearData && (
             <>
               <DropdownMenuItem
                 onClick={() => setClearOpen(true)}
@@ -66,7 +68,7 @@ export function UserMenu({ profile }: { profile: Profile }) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {profile.role === "admin" && (
+      {showClearData && (
         <ClearDataDialog open={clearOpen} onOpenChange={setClearOpen} />
       )}
     </>

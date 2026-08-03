@@ -10,8 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 
 const DEMO_ACCOUNTS = [
-  { label: "Admin", email: "admin@machimoto.local", password: "mac-admin-2025" },
+  { label: "Admin", email: "admin@machimoto.local", password: "admin-mac-2026" },
   { label: "Staff", email: "staff@machimoto.local", password: "mac-staff-2025" },
+  { label: "Ian", email: "ian@machimoto.local", password: "ian-2026" },
 ];
 
 function LoginForm() {
@@ -78,29 +79,31 @@ function LoginForm() {
         </Button>
       </form>
 
-      <div className="border rounded-md px-3 py-2.5 space-y-2 bg-muted/40">
-        <p className="text-xs font-medium text-muted-foreground">Demo accounts</p>
-        <div className="space-y-2">
-          {DEMO_ACCOUNTS.map((account) => (
-            <div key={account.email} className="flex items-center justify-between gap-2 text-xs">
-              <div className="min-w-0">
-                <div className="font-medium">{account.label}</div>
-                <div className="truncate font-mono select-all">{account.email}</div>
-                <div className="truncate font-mono select-all text-muted-foreground">{account.password}</div>
+      {process.env.NODE_ENV !== "production" && (
+        <div className="border rounded-md px-3 py-2.5 space-y-2 bg-muted/40">
+          <p className="text-xs font-medium text-muted-foreground">Demo accounts</p>
+          <div className="space-y-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <div key={account.email} className="flex items-center justify-between gap-2 text-xs">
+                <div className="min-w-0">
+                  <div className="font-medium">{account.label}</div>
+                  <div className="truncate font-mono select-all">{account.email}</div>
+                  <div className="truncate font-mono select-all text-muted-foreground">{account.password}</div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 shrink-0 text-xs"
+                  onClick={() => fillDemoAccount(account)}
+                >
+                  Use
+                </Button>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0 text-xs"
-                onClick={() => fillDemoAccount(account)}
-              >
-                Use
-              </Button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
