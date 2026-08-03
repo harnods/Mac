@@ -98,12 +98,12 @@ export function CategoryManager({
   return (
     <>
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="w-full table-fixed">
+        <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[240px]">Name</TableHead>
-              <TableHead className="min-w-[160px] text-right">Items</TableHead>
-              {isVisible("lastUpdated") && <TableHead className="min-w-[160px]">Last updated</TableHead>}
+              <TableHead className="w-[240px]">Name</TableHead>
+              <TableHead className="w-[160px] text-right">Items</TableHead>
+              {isVisible("lastUpdated") && <TableHead className="w-[160px]">Last updated</TableHead>}
               <TableHead className="w-0 p-0"></TableHead>
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>

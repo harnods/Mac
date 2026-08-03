@@ -472,11 +472,11 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
 
             {/* File preview — first 2 rows */}
             <div className="border rounded-lg overflow-x-auto">
-              <Table className="text-xs w-full table-fixed">
+              <Table className="text-xs w-auto min-w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     {fileData.headers.map((h) => (
-                      <TableHead key={h} className="whitespace-nowrap min-w-[160px]">{h}</TableHead>
+                      <TableHead key={h} className="whitespace-nowrap w-[160px]">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -543,14 +543,14 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
             })()}
 
             <div className="border rounded-lg overflow-auto max-h-[360px]">
-              <Table className="w-full table-fixed">
+              <Table className="w-auto min-w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
-                    <TableHead className="min-w-[240px]">Name</TableHead>
-                    {config.hasCategories && <TableHead className="min-w-[160px]">Category</TableHead>}
-                    <TableHead className="min-w-[160px]">Unit</TableHead>
-                    <TableHead className="min-w-[160px]">Action</TableHead>
+                    <TableHead className="w-[240px]">Name</TableHead>
+                    {config.hasCategories && <TableHead className="w-[160px]">Category</TableHead>}
+                    <TableHead className="w-[160px]">Unit</TableHead>
+                    <TableHead className="w-[160px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

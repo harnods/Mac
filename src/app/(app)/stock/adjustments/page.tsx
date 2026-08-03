@@ -90,16 +90,16 @@ export default async function StockAdjustmentsPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-auto min-w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[160px]">Date</TableHead>
-                <TableHead className="min-w-[160px]">Number</TableHead>
-                <TableHead className="min-w-[240px]">Item</TableHead>
-                <TableHead className="min-w-[160px]">Direction</TableHead>
-                <TableHead className="min-w-[160px] text-right">Qty</TableHead>
-                <TableHead className="min-w-[160px]">Reason</TableHead>
-                <TableHead className="min-w-[160px]">Recorded by</TableHead>
+                <TableHead className="w-[160px]">Date</TableHead>
+                <TableHead className="w-[160px]">Number</TableHead>
+                <TableHead className="w-[240px]">Item</TableHead>
+                <TableHead className="w-[160px]">Direction</TableHead>
+                <TableHead className="w-[160px] text-right">Qty</TableHead>
+                <TableHead className="w-[160px]">Reason</TableHead>
+                <TableHead className="w-[160px]">Recorded by</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

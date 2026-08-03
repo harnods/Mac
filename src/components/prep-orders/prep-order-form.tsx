@@ -494,14 +494,14 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
         <div className="space-y-2">
           <h2 className="text-sm font-medium">Ingredients</h2>
           <div className="border table-outer rounded-lg overflow-x-auto">
-            <Table className="w-full table-fixed">
+            <Table className="w-auto min-w-full table-fixed">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8">#</TableHead>
-                  <TableHead className="min-w-[240px]">Ingredient</TableHead>
-                  <TableHead className="min-w-[160px]">Per prep</TableHead>
-                  <TableHead className="min-w-[160px]">Needed</TableHead>
-                  <TableHead className="min-w-[160px]">Available</TableHead>
+                  <TableHead className="w-[240px]">Ingredient</TableHead>
+                  <TableHead className="w-[160px]">Per prep</TableHead>
+                  <TableHead className="w-[160px]">Needed</TableHead>
+                  <TableHead className="w-[160px]">Available</TableHead>
                   <TableHead className="w-10 text-center">✓</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>

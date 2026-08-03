@@ -197,10 +197,10 @@ export function UnitConversionsPanel({
         </div>
       ) : (
         <div className="table-outer overflow-x-auto rounded-lg border">
-          <Table className="w-full table-fixed">
+          <Table className="w-auto min-w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[240px]">Conversion</TableHead>
+                <TableHead className="w-[240px]">Conversion</TableHead>
                 <TableHead className="w-0 p-0" />
                 <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>

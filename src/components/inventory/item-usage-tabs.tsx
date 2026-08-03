@@ -228,17 +228,17 @@ function StockMovementsTable({
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full table-fixed">
+      <Table className="w-auto min-w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[160px]">Date</TableHead>
-            <TableHead className="min-w-[160px]">Number</TableHead>
-            <TableHead className="min-w-[160px]">Type</TableHead>
-            <TableHead className="min-w-[240px]">Note</TableHead>
-            <TableHead className="min-w-[160px] text-right">Qty</TableHead>
-            <TableHead className="min-w-[160px] text-right">On hand</TableHead>
-            {showReserved && <TableHead className="min-w-[160px] text-right">Reserved</TableHead>}
-            <TableHead className="min-w-[160px] text-right">Available</TableHead>
+            <TableHead className="w-[160px]">Date</TableHead>
+            <TableHead className="w-[160px]">Number</TableHead>
+            <TableHead className="w-[160px]">Type</TableHead>
+            <TableHead className="w-[240px]">Note</TableHead>
+            <TableHead className="w-[160px] text-right">Qty</TableHead>
+            <TableHead className="w-[160px] text-right">On hand</TableHead>
+            {showReserved && <TableHead className="w-[160px] text-right">Reserved</TableHead>}
+            <TableHead className="w-[160px] text-right">Available</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -338,13 +338,13 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full table-fixed">
+      <Table className="w-auto min-w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[240px]">Recipe</TableHead>
-            <TableHead className="min-w-[160px]">Type</TableHead>
-            <TableHead className="min-w-[160px]">Output</TableHead>
-            <TableHead className="min-w-[160px] text-right">Qty</TableHead>
+            <TableHead className="w-[240px]">Recipe</TableHead>
+            <TableHead className="w-[160px]">Type</TableHead>
+            <TableHead className="w-[160px]">Output</TableHead>
+            <TableHead className="w-[160px] text-right">Qty</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

@@ -37,12 +37,12 @@ export function SalesEntryItemsTable({ items }: { items: SalesEntryItem[] }) {
         <p className="text-sm text-muted-foreground py-2">No matching products.</p>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-auto min-w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[240px]">Product</TableHead>
-                <TableHead className="min-w-[160px]">Qty sold</TableHead>
+                <TableHead className="w-[240px]">Product</TableHead>
+                <TableHead className="w-[160px]">Qty sold</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

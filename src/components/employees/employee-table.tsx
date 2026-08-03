@@ -25,15 +25,15 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
 
   return (
     <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full table-fixed">
+      <Table className="w-auto min-w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[240px]">Name</TableHead>
-            {isVisible("department") && <TableHead className="min-w-[160px]">Department</TableHead>}
-            {isVisible("jobPosition") && <TableHead className="min-w-[160px]">Job position</TableHead>}
-            {isVisible("jobLevel") && <TableHead className="min-w-[160px]">Job level</TableHead>}
-            {isVisible("status") && <TableHead className="min-w-[160px]">Status</TableHead>}
-            {isVisible("lastUpdated") && <TableHead className="min-w-[160px]">Last updated</TableHead>}
+            <TableHead className="w-[240px]">Name</TableHead>
+            {isVisible("department") && <TableHead className="w-[160px]">Department</TableHead>}
+            {isVisible("jobPosition") && <TableHead className="w-[160px]">Job position</TableHead>}
+            {isVisible("jobLevel") && <TableHead className="w-[160px]">Job level</TableHead>}
+            {isVisible("status") && <TableHead className="w-[160px]">Status</TableHead>}
+            {isVisible("lastUpdated") && <TableHead className="w-[160px]">Last updated</TableHead>}
             <TableHead className="w-0 p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>

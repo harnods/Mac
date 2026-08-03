@@ -36,15 +36,15 @@ export function PurchasesTable({ list }: { list: PurchaseRecord[] }) {
 
   return (
     <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full table-fixed">
+      <Table className="w-auto min-w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[160px]">ID</TableHead>
-            {isVisible("fromRequest") && <TableHead className="min-w-[160px]">From request</TableHead>}
-            {isVisible("items") && <TableHead className="min-w-[160px]">Items</TableHead>}
-            {isVisible("transactionDate") && <TableHead className="min-w-[160px]">Transaction date</TableHead>}
-            {isVisible("recorded") && <TableHead className="min-w-[160px]">Recorded</TableHead>}
-            {isVisible("note") && <TableHead className="min-w-[240px]">Note</TableHead>}
+            <TableHead className="w-[160px]">ID</TableHead>
+            {isVisible("fromRequest") && <TableHead className="w-[160px]">From request</TableHead>}
+            {isVisible("items") && <TableHead className="w-[160px]">Items</TableHead>}
+            {isVisible("transactionDate") && <TableHead className="w-[160px]">Transaction date</TableHead>}
+            {isVisible("recorded") && <TableHead className="w-[160px]">Recorded</TableHead>}
+            {isVisible("note") && <TableHead className="w-[240px]">Note</TableHead>}
             <TableHead className="w-0 p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
