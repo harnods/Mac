@@ -109,12 +109,12 @@ export default async function PrepOrdersPage({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[150px]">No</TableHead>
-                <TableHead className="min-w-[200px]">Product</TableHead>
-                <TableHead className="min-w-[150px]">Status</TableHead>
-                <TableHead className="min-w-[150px]">Qty</TableHead>
-                <TableHead className="min-w-[150px]">Date</TableHead>
-                <TableHead className="min-w-[150px]">Created by</TableHead>
+                <TableHead className="min-w-[160px]">No</TableHead>
+                <TableHead className="min-w-[240px]">Product</TableHead>
+                <TableHead className="min-w-[160px]">Status</TableHead>
+                <TableHead className="min-w-[160px]">Qty</TableHead>
+                <TableHead className="min-w-[160px]">Date</TableHead>
+                <TableHead className="min-w-[160px]">Created by</TableHead>
                 <TableHead className="w-0 p-0" />
               </TableRow>
             </TableHeader>

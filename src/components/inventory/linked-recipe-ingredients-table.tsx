@@ -44,8 +44,8 @@ export function LinkedRecipeIngredientsTable({ ingredients }: { ingredients: Rec
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[200px]">Ingredient</TableHead>
-                <TableHead className="min-w-[150px]">Qty</TableHead>
+                <TableHead className="min-w-[240px]">Ingredient</TableHead>
+                <TableHead className="min-w-[160px]">Qty</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

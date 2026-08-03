@@ -45,11 +45,11 @@ export function PurchaseRequestsTable({
       <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[150px]">ID</TableHead>
-            {isVisible("status") && <TableHead className="min-w-[150px]">Status</TableHead>}
-            {isVisible("items") && <TableHead className="min-w-[150px]">Items</TableHead>}
-            {isVisible("note") && <TableHead className="min-w-[200px]">Note</TableHead>}
-            {isVisible("created") && <TableHead className="min-w-[150px]">Created</TableHead>}
+            <TableHead className="min-w-[160px]">ID</TableHead>
+            {isVisible("status") && <TableHead className="min-w-[160px]">Status</TableHead>}
+            {isVisible("items") && <TableHead className="min-w-[160px]">Items</TableHead>}
+            {isVisible("note") && <TableHead className="min-w-[240px]">Note</TableHead>}
+            {isVisible("created") && <TableHead className="min-w-[160px]">Created</TableHead>}
             <TableHead className="w-0 p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>

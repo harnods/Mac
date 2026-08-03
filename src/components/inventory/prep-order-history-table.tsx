@@ -48,9 +48,9 @@ export function PrepOrderHistoryTable({ orders, itemUnit }: { orders: PrepOrder[
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[150px]">No</TableHead>
-                <TableHead className="min-w-[200px]">Date</TableHead>
-                <TableHead className="min-w-[150px]">Qty</TableHead>
+                <TableHead className="min-w-[160px]">No</TableHead>
+                <TableHead className="min-w-[240px]">Date</TableHead>
+                <TableHead className="min-w-[160px]">Qty</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

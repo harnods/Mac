@@ -125,9 +125,9 @@ export function MasterDataManager({
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[200px]">Name</TableHead>
-              {showSortOrder && isVisible("sortOrder") && <TableHead className="min-w-[150px]">Sort order</TableHead>}
-              {isVisible("lastUpdated") && <TableHead className="min-w-[150px]">Last updated</TableHead>}
+              <TableHead className="min-w-[240px]">Name</TableHead>
+              {showSortOrder && isVisible("sortOrder") && <TableHead className="min-w-[160px]">Sort order</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="min-w-[160px]">Last updated</TableHead>}
               {isAdmin && <TableHead className="w-0 p-0" />}
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>

@@ -498,10 +498,10 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-8">#</TableHead>
-                  <TableHead className="min-w-[200px]">Ingredient</TableHead>
-                  <TableHead className="min-w-[150px]">Per prep</TableHead>
-                  <TableHead className="min-w-[150px]">Needed</TableHead>
-                  <TableHead className="min-w-[150px]">Available</TableHead>
+                  <TableHead className="min-w-[240px]">Ingredient</TableHead>
+                  <TableHead className="min-w-[160px]">Per prep</TableHead>
+                  <TableHead className="min-w-[160px]">Needed</TableHead>
+                  <TableHead className="min-w-[160px]">Available</TableHead>
                   <TableHead className="w-10 text-center">✓</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>

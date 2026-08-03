@@ -46,9 +46,9 @@ export function PrepItemsTable({ list }: { list: PrepItemRow[] }) {
       <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[200px]">Name</TableHead>
-            {isVisible("available") && <TableHead className="min-w-[150px]">Available</TableHead>}
-            {isVisible("lastUpdated") && <TableHead className="min-w-[150px]">Last updated</TableHead>}
+            <TableHead className="min-w-[240px]">Name</TableHead>
+            {isVisible("available") && <TableHead className="min-w-[160px]">Available</TableHead>}
+            {isVisible("lastUpdated") && <TableHead className="min-w-[160px]">Last updated</TableHead>}
             <TableHead className="w-0 p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>

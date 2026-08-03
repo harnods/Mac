@@ -111,12 +111,12 @@ export default async function StockCountsPage({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[150px]">Date</TableHead>
-                <TableHead className="min-w-[150px]">Status</TableHead>
-                <TableHead className="min-w-[150px]"># Items</TableHead>
-                <TableHead className="min-w-[200px]">Note</TableHead>
-                <TableHead className="min-w-[150px]">Created</TableHead>
-                <TableHead className="min-w-[150px]">Timing</TableHead>
+                <TableHead className="min-w-[160px]">Date</TableHead>
+                <TableHead className="min-w-[160px]">Status</TableHead>
+                <TableHead className="min-w-[160px]"># Items</TableHead>
+                <TableHead className="min-w-[240px]">Note</TableHead>
+                <TableHead className="min-w-[160px]">Created</TableHead>
+                <TableHead className="min-w-[160px]">Timing</TableHead>
                 <TableHead className="w-0 p-0" />
                 <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>

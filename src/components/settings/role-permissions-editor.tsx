@@ -245,9 +245,9 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
           <table className="w-full text-sm table-fixed">
             <thead className="bg-muted/50 border-b">
               <tr>
-                <th className="text-left px-4 py-2 font-medium min-w-[200px]">Name</th>
-                <th className="text-left px-4 py-2 font-medium min-w-[150px]">Email</th>
-                <th className="text-left px-4 py-2 font-medium min-w-[150px]">Role</th>
+                <th className="text-left px-4 py-2 font-medium min-w-[240px]">Name</th>
+                <th className="text-left px-4 py-2 font-medium min-w-[160px]">Email</th>
+                <th className="text-left px-4 py-2 font-medium min-w-[160px]">Role</th>
               </tr>
             </thead>
             <tbody className="divide-y">

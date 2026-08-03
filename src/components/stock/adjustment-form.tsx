@@ -247,10 +247,10 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
               <TableRow>
                 <TableHead className="w-8" />
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[200px]">Item</TableHead>
-                <TableHead className="min-w-[150px] text-center">Qty</TableHead>
-                <TableHead className="min-w-[150px] text-center">Unit</TableHead>
-                <TableHead className="min-w-[150px] text-right">New on hand</TableHead>
+                <TableHead className="min-w-[240px]">Item</TableHead>
+                <TableHead className="min-w-[160px] text-center">Qty</TableHead>
+                <TableHead className="min-w-[160px] text-center">Unit</TableHead>
+                <TableHead className="min-w-[160px] text-right">New on hand</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>

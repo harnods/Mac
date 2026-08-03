@@ -62,9 +62,9 @@ export default async function SettingsUnitsPage({
         <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[200px]">Code</TableHead>
-              <TableHead className="min-w-[150px]">Type</TableHead>
-              <TableHead className="min-w-[150px]">Conversion</TableHead>
+              <TableHead className="min-w-[240px]">Code</TableHead>
+              <TableHead className="min-w-[160px]">Type</TableHead>
+              <TableHead className="min-w-[160px]">Conversion</TableHead>
               <TableHead className="w-0 p-0" />
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>

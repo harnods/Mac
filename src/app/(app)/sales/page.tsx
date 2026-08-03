@@ -96,11 +96,11 @@ export default async function SalesPage({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[150px]">No</TableHead>
-                <TableHead className="min-w-[150px]">Date</TableHead>
-                <TableHead className="min-w-[150px]"># Products</TableHead>
-                <TableHead className="min-w-[200px]">Notes</TableHead>
-                <TableHead className="min-w-[150px]">Recorded by</TableHead>
+                <TableHead className="min-w-[160px]">No</TableHead>
+                <TableHead className="min-w-[160px]">Date</TableHead>
+                <TableHead className="min-w-[160px]"># Products</TableHead>
+                <TableHead className="min-w-[240px]">Notes</TableHead>
+                <TableHead className="min-w-[160px]">Recorded by</TableHead>
                 <TableHead className="w-0 p-0" />
                 <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>

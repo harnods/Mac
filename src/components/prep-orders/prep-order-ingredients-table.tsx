@@ -48,8 +48,8 @@ export function PrepOrderIngredientsTable({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[200px]">Ingredient</TableHead>
-                <TableHead className="min-w-[150px]">{columnLabel}</TableHead>
+                <TableHead className="min-w-[240px]">Ingredient</TableHead>
+                <TableHead className="min-w-[160px]">{columnLabel}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

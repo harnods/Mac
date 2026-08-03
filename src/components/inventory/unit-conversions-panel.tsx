@@ -200,7 +200,7 @@ export function UnitConversionsPanel({
           <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[200px]">Conversion</TableHead>
+                <TableHead className="min-w-[240px]">Conversion</TableHead>
                 <TableHead className="w-0 p-0" />
                 <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>

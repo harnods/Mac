@@ -198,12 +198,12 @@ export function CountForm({
                     className="size-4 rounded border-border"
                   />
                 </TableHead>
-                <TableHead className="min-w-[200px]">Item</TableHead>
-                <TableHead className="min-w-[150px]">Type</TableHead>
-                <TableHead className="min-w-[150px]">Category</TableHead>
-                <TableHead className="min-w-[150px]">Unit</TableHead>
-                <TableHead className="min-w-[150px] text-right">Current on hand</TableHead>
-                <TableHead className="min-w-[150px]">Last counted</TableHead>
+                <TableHead className="min-w-[240px]">Item</TableHead>
+                <TableHead className="min-w-[160px]">Type</TableHead>
+                <TableHead className="min-w-[160px]">Category</TableHead>
+                <TableHead className="min-w-[160px]">Unit</TableHead>
+                <TableHead className="min-w-[160px] text-right">Current on hand</TableHead>
+                <TableHead className="min-w-[160px]">Last counted</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

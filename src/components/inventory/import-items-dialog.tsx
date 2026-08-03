@@ -476,7 +476,7 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
                 <TableHeader>
                   <TableRow>
                     {fileData.headers.map((h) => (
-                      <TableHead key={h} className="whitespace-nowrap min-w-[150px]">{h}</TableHead>
+                      <TableHead key={h} className="whitespace-nowrap min-w-[160px]">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -547,10 +547,10 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-8">#</TableHead>
-                    <TableHead className="min-w-[200px]">Name</TableHead>
-                    {config.hasCategories && <TableHead className="min-w-[150px]">Category</TableHead>}
-                    <TableHead className="min-w-[150px]">Unit</TableHead>
-                    <TableHead className="min-w-[150px]">Action</TableHead>
+                    <TableHead className="min-w-[240px]">Name</TableHead>
+                    {config.hasCategories && <TableHead className="min-w-[160px]">Category</TableHead>}
+                    <TableHead className="min-w-[160px]">Unit</TableHead>
+                    <TableHead className="min-w-[160px]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

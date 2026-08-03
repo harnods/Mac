@@ -41,8 +41,8 @@ export function SalesEntryItemsTable({ items }: { items: SalesEntryItem[] }) {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[200px]">Product</TableHead>
-                <TableHead className="min-w-[150px]">Qty sold</TableHead>
+                <TableHead className="min-w-[240px]">Product</TableHead>
+                <TableHead className="min-w-[160px]">Qty sold</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

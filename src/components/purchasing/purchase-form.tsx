@@ -268,12 +268,12 @@ export function PurchaseForm({
                       <thead className="sticky top-0 z-10 bg-muted/60 backdrop-blur-sm">
                         <tr className="border-b">
                           <th className="w-10 px-4 py-2.5 text-left text-xs font-normal text-muted-foreground" />
-                          <th className="min-w-[150px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">No PR</th>
-                          <th className="min-w-[150px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">Request date</th>
-                          <th className="min-w-[150px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">Approved date</th>
-                          <th className="min-w-[200px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">Item</th>
-                          <th className="min-w-[150px] px-3 py-2.5 text-right text-xs font-normal text-muted-foreground">Requested</th>
-                          <th className="min-w-[150px] px-3 py-2.5 text-right text-xs font-normal text-muted-foreground">Purchased / Left</th>
+                          <th className="min-w-[160px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">No PR</th>
+                          <th className="min-w-[160px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">Request date</th>
+                          <th className="min-w-[160px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">Approved date</th>
+                          <th className="min-w-[240px] px-3 py-2.5 text-left text-xs font-normal text-muted-foreground">Item</th>
+                          <th className="min-w-[160px] px-3 py-2.5 text-right text-xs font-normal text-muted-foreground">Requested</th>
+                          <th className="min-w-[160px] px-3 py-2.5 text-right text-xs font-normal text-muted-foreground">Purchased / Left</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -411,12 +411,12 @@ export function PurchaseForm({
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead className="min-w-[200px]">Ingredient</TableHead>
-                <TableHead className="min-w-[150px] text-right">Requested</TableHead>
-                <TableHead className="min-w-[150px] text-right">Prev. purchased</TableHead>
-                <TableHead className="min-w-[150px] text-center">Qty purchased</TableHead>
-                <TableHead className="min-w-[150px] text-center">Unit</TableHead>
-                <TableHead className="min-w-[150px] text-center">Cost</TableHead>
+                <TableHead className="min-w-[240px]">Ingredient</TableHead>
+                <TableHead className="min-w-[160px] text-right">Requested</TableHead>
+                <TableHead className="min-w-[160px] text-right">Prev. purchased</TableHead>
+                <TableHead className="min-w-[160px] text-center">Qty purchased</TableHead>
+                <TableHead className="min-w-[160px] text-center">Unit</TableHead>
+                <TableHead className="min-w-[160px] text-center">Cost</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>
