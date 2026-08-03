@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { UserMenu } from "@/components/user-menu";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MainNavMobile } from "@/components/main-nav-mobile";
+import { PerfBadge } from "@/components/perf-badge";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
@@ -29,6 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
+      <PerfBadge />
     </div>
   );
 }

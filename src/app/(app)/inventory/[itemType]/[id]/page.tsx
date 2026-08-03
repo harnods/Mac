@@ -23,6 +23,7 @@ export default async function ItemDetailPage({
 }: {
   params: Promise<{ itemType: string; id: string }>;
 }) {
+  const started = performance.now();
   const { itemType, id } = await params;
   const config = ITEM_TYPE_CONFIG[itemType as ItemTypeSlug];
   if (!config) notFound();
@@ -113,9 +114,13 @@ export default async function ItemDetailPage({
 
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);
+  const serverMs = Math.round(performance.now() - started);
 
   return (
     <div className="space-y-6">
+      <div className="fixed bottom-1 left-2 z-[60] select-none pointer-events-none font-mono text-[10px] leading-tight text-muted-foreground/70">
+        server <span className={serverMs < 150 ? "text-emerald-600" : serverMs < 500 ? "text-amber-600" : "text-red-600"}>{serverMs}ms</span>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           {config.showPhoto && (
