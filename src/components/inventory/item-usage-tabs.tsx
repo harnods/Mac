@@ -228,17 +228,17 @@ function StockMovementsTable({
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-32">Date</TableHead>
-            <TableHead className="w-28">Number</TableHead>
-            <TableHead className="w-32">Type</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead className="w-28 text-right">Qty</TableHead>
-            <TableHead className="w-28 text-right">On hand</TableHead>
-            {showReserved && <TableHead className="w-28 text-right">Reserved</TableHead>}
-            <TableHead className="w-28 text-right">Available</TableHead>
+            <TableHead className="min-w-[150px]">Date</TableHead>
+            <TableHead className="min-w-[150px]">Number</TableHead>
+            <TableHead className="min-w-[150px]">Type</TableHead>
+            <TableHead className="min-w-[200px]">Note</TableHead>
+            <TableHead className="min-w-[150px] text-right">Qty</TableHead>
+            <TableHead className="min-w-[150px] text-right">On hand</TableHead>
+            {showReserved && <TableHead className="min-w-[150px] text-right">Reserved</TableHead>}
+            <TableHead className="min-w-[150px] text-right">Available</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -338,13 +338,13 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>Recipe</TableHead>
-            <TableHead className="w-36">Type</TableHead>
-            <TableHead className="w-48">Output</TableHead>
-            <TableHead className="w-28 text-right">Qty</TableHead>
+            <TableHead className="min-w-[200px]">Recipe</TableHead>
+            <TableHead className="min-w-[150px]">Type</TableHead>
+            <TableHead className="min-w-[150px]">Output</TableHead>
+            <TableHead className="min-w-[150px] text-right">Qty</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

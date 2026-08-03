@@ -89,7 +89,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
       )}
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
               {isAdmin && (
@@ -105,12 +105,12 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
                   </label>
                 </TableHead>
               )}
-              <TableHead>Name</TableHead>
-              {isVisible("type") && <TableHead className="w-32">Type</TableHead>}
-              {isVisible("output") && <TableHead className="w-48">Output</TableHead>}
-              {isVisible("ingredients") && <TableHead className="w-32">Ingredients</TableHead>}
-              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
-              <TableHead />
+              <TableHead className="min-w-[200px]">Name</TableHead>
+              {isVisible("type") && <TableHead className="min-w-[150px]">Type</TableHead>}
+              {isVisible("output") && <TableHead className="min-w-[150px]">Output</TableHead>}
+              {isVisible("ingredients") && <TableHead className="min-w-[150px]">Ingredients</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="min-w-[150px]">Last updated</TableHead>}
+              <TableHead className="w-0 p-0" />
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>

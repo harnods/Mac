@@ -319,15 +319,15 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
       </div>
 
       <div className="no-print table-outer overflow-x-auto rounded-lg border">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-56">Item</TableHead>
-              <TableHead className="w-32 text-right">System qty</TableHead>
-              <TableHead className="w-52">Counted qty</TableHead>
-              <TableHead className="w-52">In-use qty</TableHead>
-              <TableHead className="w-32 text-right">Variance</TableHead>
-              <TableHead className="w-64">Note</TableHead>
+              <TableHead className="min-w-[200px]">Item</TableHead>
+              <TableHead className="min-w-[150px] text-right">System qty</TableHead>
+              <TableHead className="min-w-[150px]">Counted qty</TableHead>
+              <TableHead className="min-w-[150px]">In-use qty</TableHead>
+              <TableHead className="min-w-[150px] text-right">Variance</TableHead>
+              <TableHead className="min-w-[150px]">Note</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

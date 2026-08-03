@@ -108,16 +108,16 @@ export default async function StockCountsPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-36">Date</TableHead>
-                <TableHead className="w-28">Status</TableHead>
-                <TableHead className="w-20"># Items</TableHead>
-                <TableHead>Note</TableHead>
-                <TableHead className="w-44">Created</TableHead>
-                <TableHead className="w-44">Timing</TableHead>
-                <TableHead />
+                <TableHead className="min-w-[150px]">Date</TableHead>
+                <TableHead className="min-w-[150px]">Status</TableHead>
+                <TableHead className="min-w-[150px]"># Items</TableHead>
+                <TableHead className="min-w-[200px]">Note</TableHead>
+                <TableHead className="min-w-[150px]">Created</TableHead>
+                <TableHead className="min-w-[150px]">Timing</TableHead>
+                <TableHead className="w-0 p-0" />
                 <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>
             </TableHeader>

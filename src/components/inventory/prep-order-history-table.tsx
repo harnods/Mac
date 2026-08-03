@@ -45,12 +45,12 @@ export function PrepOrderHistoryTable({ orders, itemUnit }: { orders: PrepOrder[
         <p className="text-sm text-muted-foreground py-2">No matching prep orders.</p>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-28">No</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="w-28">Qty</TableHead>
+                <TableHead className="min-w-[150px]">No</TableHead>
+                <TableHead className="min-w-[200px]">Date</TableHead>
+                <TableHead className="min-w-[150px]">Qty</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

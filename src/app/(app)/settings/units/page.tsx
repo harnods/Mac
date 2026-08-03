@@ -59,13 +59,13 @@ export default async function SettingsUnitsPage({
       </Suspense>
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-32">Code</TableHead>
-              <TableHead className="w-24">Type</TableHead>
-              <TableHead className="w-32">Conversion</TableHead>
-              <TableHead />
+              <TableHead className="min-w-[200px]">Code</TableHead>
+              <TableHead className="min-w-[150px]">Type</TableHead>
+              <TableHead className="min-w-[150px]">Conversion</TableHead>
+              <TableHead className="w-0 p-0" />
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>

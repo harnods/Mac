@@ -132,7 +132,7 @@ export function ItemBulkTable({
       )}
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="w-full">
+        <Table className="w-full table-fixed">
           <TableHeader>
             <TableRow>
               {isAdmin && (
@@ -149,20 +149,20 @@ export function ItemBulkTable({
                 </TableHead>
               )}
               {showPhoto && <TableHead className="w-14" />}
-              <TableHead className="min-w-48">Name</TableHead>
-              {showCategory && isVisible("category") && <TableHead className="w-36">Category</TableHead>}
-              {stockMode === "full" && isVisible("onHand") && <TableHead className="w-32">On hand</TableHead>}
-              {stockMode === "full" && isVisible("reserved") && <TableHead className="w-32">Reserved</TableHead>}
-              {stockMode !== "none" && isVisible("available") && <TableHead className="w-32">Available</TableHead>}
-              {showCost && isVisible("lastCost") && <TableHead className="w-32 text-right">Last cost</TableHead>}
-              {showCost && isVisible("avgCost") && <TableHead className="w-32 text-right">Avg. cost</TableHead>}
-              {showDefaultCost && isVisible("defaultCost") && <TableHead className="w-32 text-right">Default cost</TableHead>}
-              {showSellable && isVisible("sellable") && <TableHead className="w-28">Sellable</TableHead>}
-              {showSellable && isVisible("sellingPrice") && <TableHead className="w-32 text-right">Selling price</TableHead>}
-              {showSellable && isVisible("addOn") && <TableHead className="w-28">Add-on</TableHead>}
-              {linkedRecipeProductIds && isVisible("recipe") && <TableHead className="w-24">Recipe</TableHead>}
-              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
-              <TableHead />
+              <TableHead className="min-w-[200px]">Name</TableHead>
+              {showCategory && isVisible("category") && <TableHead className="min-w-[150px]">Category</TableHead>}
+              {stockMode === "full" && isVisible("onHand") && <TableHead className="min-w-[150px]">On hand</TableHead>}
+              {stockMode === "full" && isVisible("reserved") && <TableHead className="min-w-[150px]">Reserved</TableHead>}
+              {stockMode !== "none" && isVisible("available") && <TableHead className="min-w-[150px]">Available</TableHead>}
+              {showCost && isVisible("lastCost") && <TableHead className="min-w-[150px] text-right">Last cost</TableHead>}
+              {showCost && isVisible("avgCost") && <TableHead className="min-w-[150px] text-right">Avg. cost</TableHead>}
+              {showDefaultCost && isVisible("defaultCost") && <TableHead className="min-w-[150px] text-right">Default cost</TableHead>}
+              {showSellable && isVisible("sellable") && <TableHead className="min-w-[150px]">Sellable</TableHead>}
+              {showSellable && isVisible("sellingPrice") && <TableHead className="min-w-[150px] text-right">Selling price</TableHead>}
+              {showSellable && isVisible("addOn") && <TableHead className="min-w-[150px]">Add-on</TableHead>}
+              {linkedRecipeProductIds && isVisible("recipe") && <TableHead className="min-w-[150px]">Recipe</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="min-w-[150px]">Last updated</TableHead>}
+              <TableHead className="w-0 p-0" />
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>

@@ -186,7 +186,7 @@ export function CountForm({
         </div>
       ) : (
         <div className="table-outer overflow-x-auto rounded-lg border">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8 pl-2 pr-0">
@@ -198,12 +198,12 @@ export function CountForm({
                     className="size-4 rounded border-border"
                   />
                 </TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead className="w-32">Type</TableHead>
-                <TableHead className="w-44">Category</TableHead>
-                <TableHead className="w-24">Unit</TableHead>
-                <TableHead className="w-36 text-right">Current on hand</TableHead>
-                <TableHead className="w-44">Last counted</TableHead>
+                <TableHead className="min-w-[200px]">Item</TableHead>
+                <TableHead className="min-w-[150px]">Type</TableHead>
+                <TableHead className="min-w-[150px]">Category</TableHead>
+                <TableHead className="min-w-[150px]">Unit</TableHead>
+                <TableHead className="min-w-[150px] text-right">Current on hand</TableHead>
+                <TableHead className="min-w-[150px]">Last counted</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

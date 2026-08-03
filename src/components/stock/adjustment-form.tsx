@@ -242,15 +242,15 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
       <div className="space-y-3">
         <Label>Items</Label>
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table>
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8" />
                 <TableHead className="w-8">#</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead className="w-28 text-center">Qty</TableHead>
-                <TableHead className="w-24 text-center">Unit</TableHead>
-                <TableHead className="w-32 text-right">New on hand</TableHead>
+                <TableHead className="min-w-[200px]">Item</TableHead>
+                <TableHead className="min-w-[150px] text-center">Qty</TableHead>
+                <TableHead className="min-w-[150px] text-center">Unit</TableHead>
+                <TableHead className="min-w-[150px] text-right">New on hand</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>

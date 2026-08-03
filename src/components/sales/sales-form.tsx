@@ -109,13 +109,13 @@ export function SalesForm({ products }: { products: Product[] }) {
       <div className="space-y-3">
         <Label>Products sold</Label>
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="w-32">Qty sold</TableHead>
-                <TableHead className="w-24">Unit</TableHead>
+                <TableHead className="min-w-[200px]">Product</TableHead>
+                <TableHead className="min-w-[150px]">Qty sold</TableHead>
+                <TableHead className="min-w-[150px]">Unit</TableHead>
                 <TableHead className="w-8" />
               </TableRow>
             </TableHeader>

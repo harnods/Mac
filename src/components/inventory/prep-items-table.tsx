@@ -43,13 +43,13 @@ export function PrepItemsTable({ list }: { list: PrepItemRow[] }) {
 
   return (
     <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            {isVisible("available") && <TableHead className="w-36">Available</TableHead>}
-            {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
-            <TableHead />
+            <TableHead className="min-w-[200px]">Name</TableHead>
+            {isVisible("available") && <TableHead className="min-w-[150px]">Available</TableHead>}
+            {isVisible("lastUpdated") && <TableHead className="min-w-[150px]">Last updated</TableHead>}
+            <TableHead className="w-0 p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>

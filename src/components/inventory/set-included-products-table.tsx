@@ -38,12 +38,12 @@ export function SetIncludedProductsTable({ items }: { items: SetItem[] }) {
         <p className="text-sm text-muted-foreground py-2">No products found.</p>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-8">#</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="w-28">Qty</TableHead>
+                <TableHead className="min-w-[200px]">Product</TableHead>
+                <TableHead className="min-w-[150px]">Qty</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

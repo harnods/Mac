@@ -93,15 +93,15 @@ export default async function SalesPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full">
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-28">No</TableHead>
-                <TableHead className="w-36">Date</TableHead>
-                <TableHead className="w-24"># Products</TableHead>
-                <TableHead>Notes</TableHead>
-                <TableHead className="w-44">Recorded by</TableHead>
-                <TableHead />
+                <TableHead className="min-w-[150px]">No</TableHead>
+                <TableHead className="min-w-[150px]">Date</TableHead>
+                <TableHead className="min-w-[150px]"># Products</TableHead>
+                <TableHead className="min-w-[200px]">Notes</TableHead>
+                <TableHead className="min-w-[150px]">Recorded by</TableHead>
+                <TableHead className="w-0 p-0" />
                 <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
               </TableRow>
             </TableHeader>
