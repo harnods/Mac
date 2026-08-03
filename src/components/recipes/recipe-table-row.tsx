@@ -58,17 +58,13 @@ export function RecipeTableRowClient({
         )}
         <TableCell className="font-medium">
           <span className="flex items-center gap-2 min-w-0">
-            <span className="truncate">{name}</span>
-            <Button
-              variant="outline"
-              size="xs"
-              asChild
-              className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            <Link
+              href={`/recipes/${id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate hover:underline"
             >
-              <Link href={`/recipes/${id}`} onClick={(e) => e.stopPropagation()}>
-                View
-              </Link>
-            </Button>
+              {name}
+            </Link>
           </span>
         </TableCell>
         {showType && (

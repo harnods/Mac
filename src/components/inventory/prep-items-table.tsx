@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -58,7 +59,15 @@ export function PrepItemsTable({ list }: { list: PrepItemRow[] }) {
 
             return (
               <ClickableTableRow key={item.id} href={`/inventory/prep-items/${item.id}`}>
-                <TableCell className="font-medium">{item.name}</TableCell>
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/inventory/prep-items/${item.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:underline"
+                  >
+                    {item.name}
+                  </Link>
+                </TableCell>
                 {isVisible("available") && (
                   <TableCell className="text-sm tabular-nums">
                     {formatNum(available)}{" "}

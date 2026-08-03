@@ -122,7 +122,9 @@ export default async function PrepOrdersPage({
               {list.map((order) => (
                 <ClickableTableRow key={order.id} href={`/prep-orders/${order.id}`}>
                   <TableCell className="font-medium tabular-nums">
-                    {formatId(order.id)}
+                    <Link href={`/prep-orders/${order.id}`} className="hover:underline">
+                      {formatId(order.id)}
+                    </Link>
                   </TableCell>
                   <TableCell className="text-sm truncate">
                     {order.product?.name ?? "—"}

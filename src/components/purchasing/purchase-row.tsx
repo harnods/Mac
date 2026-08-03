@@ -45,7 +45,11 @@ export function PurchaseRow({
 }: Props) {
   return (
     <ClickableTableRow href={`/purchasing/purchases/${id}`}>
-      <TableCell className="font-medium tabular-nums">{formatId(id)}</TableCell>
+      <TableCell className="font-medium tabular-nums">
+        <Link href={`/purchasing/purchases/${id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+          {formatId(id)}
+        </Link>
+      </TableCell>
       {showFromRequest && (
         <TableCell className="text-sm">
           {purchase_purchase_requests.length > 0 ? (

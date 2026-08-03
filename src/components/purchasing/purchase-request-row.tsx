@@ -50,7 +50,11 @@ export function PurchaseRequestRow({
   return (
     <>
       <ClickableTableRow href={`/purchasing/requests/${id}`}>
-        <TableCell className="font-medium tabular-nums">{formatId(id)}</TableCell>
+        <TableCell className="font-medium tabular-nums">
+          <Link href={`/purchasing/requests/${id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+            {formatId(id)}
+          </Link>
+        </TableCell>
         {showStatus && (
           <TableCell>
             <Badge variant={

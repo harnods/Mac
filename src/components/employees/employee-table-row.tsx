@@ -40,7 +40,13 @@ export function EmployeeTableRow({
     <>
       <ClickableTableRow href={`/employees/${employee.id}`}>
         <TableCell className="font-medium">
-          <span className="truncate block">{employee.name}</span>
+          <Link
+            href={`/employees/${employee.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="truncate block hover:underline"
+          >
+            {employee.name}
+          </Link>
         </TableCell>
         {showDepartment && (
           <TableCell className="text-sm">

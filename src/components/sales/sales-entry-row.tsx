@@ -33,7 +33,11 @@ export function SalesEntryRow({ id, entryDate, itemCount, notes, creator, create
   return (
     <>
       <ClickableTableRow href={`/sales/${id}`}>
-        <TableCell className="font-medium tabular-nums">{formatId(id)}</TableCell>
+        <TableCell className="font-medium tabular-nums">
+          <Link href={`/sales/${id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+            {formatId(id)}
+          </Link>
+        </TableCell>
         <TableCell className="text-sm">{formatDate(entryDate)}</TableCell>
         <TableCell className="tabular-nums text-sm">{itemCount}</TableCell>
         <TableCell className="text-sm truncate">

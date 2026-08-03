@@ -94,22 +94,18 @@ export function ItemTableRow({
         )}
         <TableCell className="font-medium">
           <span className="flex items-center gap-2 min-w-0">
-            <span className="truncate">{item.name}</span>
+            <Link
+              href={`/inventory/${itemTypeSlug}/${item.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate hover:underline"
+            >
+              {item.name}
+            </Link>
             {(item as ItemWithCategory & { status?: string }).status === "draft" && (
               <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                 Draft
               </span>
             )}
-            <Button
-              variant="outline"
-              size="xs"
-              asChild
-              className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Link href={`/inventory/${itemTypeSlug}/${item.id}`} onClick={(e) => e.stopPropagation()}>
-                View
-              </Link>
-            </Button>
           </span>
         </TableCell>
         {showCategory && (
