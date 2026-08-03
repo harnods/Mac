@@ -40,12 +40,12 @@ export function LinkedRecipeIngredientsTable({ ingredients }: { ingredients: Rec
         <p className="text-sm text-muted-foreground py-2">No ingredients found.</p>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[8%]">#</TableHead>
-                <TableHead className="w-[67%]">Ingredient</TableHead>
-                <TableHead className="w-[25%]">Qty</TableHead>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Ingredient</TableHead>
+                <TableHead className="w-28">Qty</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

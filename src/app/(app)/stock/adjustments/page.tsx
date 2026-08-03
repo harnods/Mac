@@ -90,16 +90,16 @@ export default async function StockAdjustmentsPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[10%]">Date</TableHead>
-                <TableHead className="w-[10%]">Number</TableHead>
-                <TableHead className="w-[24%]">Item</TableHead>
-                <TableHead className="w-[10%]">Direction</TableHead>
-                <TableHead className="w-[10%] text-right">Qty</TableHead>
-                <TableHead className="w-[20%]">Reason</TableHead>
-                <TableHead className="w-[16%]">Recorded by</TableHead>
+                <TableHead className="w-32">Date</TableHead>
+                <TableHead className="w-28">Number</TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead className="w-24">Direction</TableHead>
+                <TableHead className="w-28 text-right">Qty</TableHead>
+                <TableHead className="w-48">Reason</TableHead>
+                <TableHead className="w-40">Recorded by</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

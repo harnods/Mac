@@ -44,12 +44,12 @@ export function PrepOrderIngredientsTable({
         <p className="text-sm text-muted-foreground py-2">No matching ingredients.</p>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[8%]">#</TableHead>
-                <TableHead className="w-[67%]">Ingredient</TableHead>
-                <TableHead className="w-[25%]">{columnLabel}</TableHead>
+                <TableHead className="w-8">#</TableHead>
+                <TableHead>Ingredient</TableHead>
+                <TableHead className="w-36">{columnLabel}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

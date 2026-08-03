@@ -122,12 +122,12 @@ export function MasterDataManager({
   return (
     <>
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="w-full table-fixed">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[55%]">Name</TableHead>
-              {showSortOrder && isVisible("sortOrder") && <TableHead className="w-[20%]">Sort order</TableHead>}
-              {isVisible("lastUpdated") && <TableHead className="w-[25%]">Last updated</TableHead>}
+              <TableHead>Name</TableHead>
+              {showSortOrder && isVisible("sortOrder") && <TableHead className="w-28">Sort order</TableHead>}
+              {isVisible("lastUpdated") && <TableHead className="w-44">Last updated</TableHead>}
               {isAdmin && <TableHead />}
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>

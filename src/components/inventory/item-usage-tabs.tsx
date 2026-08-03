@@ -228,17 +228,17 @@ function StockMovementsTable({
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full table-fixed">
+      <Table className="w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[10%]">Date</TableHead>
-            <TableHead className="w-[10%]">Number</TableHead>
-            <TableHead className="w-[14%]">Type</TableHead>
-            <TableHead className="w-[18%]">Note</TableHead>
-            <TableHead className="w-[10%] text-right">Qty</TableHead>
-            <TableHead className="w-[12%] text-right">On hand</TableHead>
-            {showReserved && <TableHead className="w-[12%] text-right">Reserved</TableHead>}
-            <TableHead className="w-[12%] text-right">Available</TableHead>
+            <TableHead className="w-32">Date</TableHead>
+            <TableHead className="w-28">Number</TableHead>
+            <TableHead className="w-32">Type</TableHead>
+            <TableHead>Note</TableHead>
+            <TableHead className="w-28 text-right">Qty</TableHead>
+            <TableHead className="w-28 text-right">On hand</TableHead>
+            {showReserved && <TableHead className="w-28 text-right">Reserved</TableHead>}
+            <TableHead className="w-28 text-right">Available</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -338,13 +338,13 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
         </div>
       ) : (
       <div className="border table-outer rounded-lg overflow-x-auto">
-      <Table className="w-full table-fixed">
+      <Table className="w-full">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[46%]">Recipe</TableHead>
-            <TableHead className="w-[18%]">Type</TableHead>
-            <TableHead className="w-[24%]">Output</TableHead>
-            <TableHead className="w-[12%] text-right">Qty</TableHead>
+            <TableHead>Recipe</TableHead>
+            <TableHead className="w-36">Type</TableHead>
+            <TableHead className="w-48">Output</TableHead>
+            <TableHead className="w-28 text-right">Qty</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

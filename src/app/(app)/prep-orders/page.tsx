@@ -106,15 +106,15 @@ export default async function PrepOrdersPage({
         </div>
       ) : (
         <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-full table-fixed">
+          <Table className="w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[12%]">No</TableHead>
-                <TableHead className="w-[34%]">Product</TableHead>
-                <TableHead className="w-[12%]">Status</TableHead>
-                <TableHead className="w-[10%]">Qty</TableHead>
-                <TableHead className="w-[14%]">Date</TableHead>
-                <TableHead className="w-[18%]">Created by</TableHead>
+                <TableHead className="w-28">No</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead className="w-24">Status</TableHead>
+                <TableHead className="w-28">Qty</TableHead>
+                <TableHead className="w-36">Date</TableHead>
+                <TableHead className="w-44">Created by</TableHead>
                 <TableHead className="w-4" />
               </TableRow>
             </TableHeader>
