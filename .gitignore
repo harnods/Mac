@@ -49,3 +49,6 @@ next-env.d.ts
 
 # keep the env template
 !.env.example
+
+# local DB dumps pulled from production (contain business data)
+scripts/.prod-*.sql
