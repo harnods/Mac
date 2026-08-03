@@ -20,6 +20,8 @@ type Props = {
   defaultPurchaseCostUnit: UnitCode | null;
   purchaseUnit: UnitCode | null;
   purchaseUnitQty: number | null;
+  showSellPrice?: boolean;
+  sellPrice?: number | null;
   updatedAt: string;
   updaterLabel: string | null;
 };
@@ -37,6 +39,8 @@ export function ItemStockSection({
   defaultPurchaseCostUnit,
   purchaseUnit,
   purchaseUnitQty,
+  showSellPrice = false,
+  sellPrice = null,
   updatedAt,
   updaterLabel,
 }: Props) {
@@ -85,6 +89,14 @@ export function ItemStockSection({
         <div className="border-t" />
 
         <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
+          {showSellPrice && (
+            <>
+              <span className="text-muted-foreground">Selling price</span>
+              <span className="tabular-nums">
+                {sellPrice != null ? formatRp(sellPrice) : <span className="text-muted-foreground">—</span>}
+              </span>
+            </>
+          )}
           {purchaseUnit && purchaseUnitQty != null && (
             <><span className="text-muted-foreground">Purchase unit</span><span>1 {purchaseUnit} = {formatNum(purchaseUnitQty)} {baseUnit}</span></>
           )}

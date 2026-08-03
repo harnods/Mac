@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ImagePlus } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +17,9 @@ export function ItemPhotoThumbnail({
 
   if (!imageUrl) {
     return (
-      <div className={cn("rounded-md border bg-muted overflow-hidden shrink-0 flex items-center justify-center", className)}>
-        <ImagePlus className="size-4 text-muted-foreground" />
+      <div className={cn("rounded-md border bg-muted overflow-hidden shrink-0", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/no-photo.svg" alt={name} className="size-full object-cover" />
       </div>
     );
   }

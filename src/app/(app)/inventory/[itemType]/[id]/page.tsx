@@ -167,6 +167,8 @@ export default async function ItemDetailPage({
           defaultPurchaseCostUnit={item.default_purchase_cost_unit}
           purchaseUnit={item.purchase_unit}
           purchaseUnitQty={item.purchase_unit_qty}
+          showSellPrice={config.showSellable}
+          sellPrice={item.sell_price}
           updatedAt={item.updated_at}
           updaterLabel={item.updater ? updaterName(item.updater) : null}
         />
