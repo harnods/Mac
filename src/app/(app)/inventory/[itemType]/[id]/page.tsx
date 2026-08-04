@@ -159,6 +159,12 @@ export default async function ItemDetailPage({
         )}
       </div>
 
+      {item.description && (
+        <p className="max-w-2xl text-sm text-muted-foreground whitespace-pre-line">
+          {item.description}
+        </p>
+      )}
+
       <div className="max-w-2xl">
         <ItemStockSection
           baseUnit={item.unit}

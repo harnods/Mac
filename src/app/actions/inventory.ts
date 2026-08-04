@@ -338,6 +338,7 @@ const productSchema = z.object({
   sell_price: z.coerce.number().nonnegative().nullable().optional(),
   is_addon: z.boolean().default(false),
   image_url: z.string().url().nullable().optional(),
+  description: z.string().trim().max(2000).nullable().optional(),
   set_products: z.array(z.object({ id: z.string().uuid(), qty: z.coerce.number().positive() })).optional(),
 }).refine(
   (d) => d.status === "draft" || d.name.length > 0,
@@ -402,13 +403,13 @@ export async function createProductItem(input: unknown): Promise<ActionResult> {
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, image_url, set_products = [] } = parsed.data;
+  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, image_url, description, set_products = [] } = parsed.data;
 
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("items")
-    .insert({ name, category_id, unit, type: "product", product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, image_url: image_url ?? null, updated_by: profile.id })
+    .insert({ name, category_id, unit, type: "product", product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, image_url: image_url ?? null, description: description || null, updated_by: profile.id })
     .select("id")
     .single();
 
@@ -432,13 +433,13 @@ export async function updateProductItem(id: string, input: unknown): Promise<Act
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, image_url, set_products = [] } = parsed.data;
+  const { name, category_id, product_kind, unit, status, is_sellable, sell_price, is_addon, image_url, description, set_products = [] } = parsed.data;
 
   const supabase = await createClient();
 
   const { error } = await supabase
     .from("items")
-    .update({ name, category_id, unit, product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, image_url: image_url ?? null, updated_by: profile.id })
+    .update({ name, category_id, unit, product_kind, status, is_sellable, sell_price: sell_price ?? null, is_addon, image_url: image_url ?? null, description: description || null, updated_by: profile.id })
     .eq("id", id);
 
   if (error) return { ok: false, error: error.message };

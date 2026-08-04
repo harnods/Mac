@@ -7,6 +7,7 @@ import { Check, ChevronsUpDown, ImagePlus, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -55,6 +56,7 @@ export function ProductForm({
 
   const [productKind, setProductKind] = useState<ProductKind>(defaultKind);
   const [name, setName] = useState(item?.name ?? "");
+  const [description, setDescription] = useState((item as (Item & { description?: string | null }) | undefined)?.description ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(item?.category_id ?? null);
   const [unit, setUnit] = useState(productKind === "set" ? "set" : (item?.unit ?? "pcs"));
   const [unitOpen, setUnitOpen] = useState(false);
@@ -149,6 +151,7 @@ export function ProductForm({
         sell_price: isSellable && sellPrice.trim() ? parseDecimal(sellPrice) : null,
         is_addon: isAddon,
         image_url: imageUrl,
+        description: description.trim() || null,
         set_products: productKind === "set" ? setProducts : [],
       };
 
@@ -204,6 +207,18 @@ export function ProductForm({
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
+        />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="product-description">Description</Label>
+        <Textarea
+          id="product-description"
+          rows={3}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Short description of the product"
         />
       </div>
 

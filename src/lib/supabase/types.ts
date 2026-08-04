@@ -52,6 +52,7 @@ export type Item = {
   sell_price: number | null;
   is_addon: boolean;
   image_url: string | null;
+  description: string | null;
 };
 
 export type ItemWithCategory = Item & {
