@@ -34,7 +34,7 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
             {isVisible("jobLevel") && <TableHead className="w-[160px]">Job level</TableHead>}
             {isVisible("status") && <TableHead className="w-[160px]">Status</TableHead>}
             {isVisible("lastUpdated") && <TableHead className="w-[160px]">Last updated</TableHead>}
-            <TableHead className="w-0 p-0" />
+            <TableHead className="p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>

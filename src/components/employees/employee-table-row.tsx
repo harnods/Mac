@@ -38,10 +38,10 @@ export function EmployeeTableRow({
 
   return (
     <>
-      <ClickableTableRow href={`/employees/${employee.id}`}>
+      <ClickableTableRow href={`/hr/crew/${employee.id}`}>
         <TableCell className="font-medium">
           <Link
-            href={`/employees/${employee.id}`}
+            href={`/hr/crew/${employee.id}`}
             onClick={(e) => e.stopPropagation()}
             className="truncate block hover:underline"
           >
@@ -74,7 +74,7 @@ export function EmployeeTableRow({
             <div className="text-xs text-muted-foreground">{updaterName(employee.updater)}</div>
           </TableCell>
         )}
-        <TableCell />
+        <TableCell className="p-0" />
         <TableCell className={`w-12 ${STICKY_ACTION_CELL}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -85,12 +85,12 @@ export function EmployeeTableRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href={`/employees/${employee.id}`}>View details</Link>
+                <Link href={`/hr/crew/${employee.id}`}>View details</Link>
               </DropdownMenuItem>
               {canWrite && (
                 <>
                   <DropdownMenuItem asChild>
-                    <Link href={`/employees/${employee.id}/edit`}>Edit</Link>
+                    <Link href={`/hr/crew/${employee.id}/edit`}>Edit</Link>
                   </DropdownMenuItem>
                   {!employee.mac_user?.is_owner && (
                     <>
