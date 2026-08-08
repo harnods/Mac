@@ -26,7 +26,7 @@ export function ColumnsMenu({ columns, isVisible, toggle }: Props) {
           <Columns3 className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" className="w-[200px]">
         <DropdownMenuLabel>Show columns</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {columns.map((c) => (
