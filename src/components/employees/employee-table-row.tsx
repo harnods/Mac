@@ -24,6 +24,7 @@ export function EmployeeTableRow({
   showJobPosition = true,
   showJobLevel = true,
   showStatus = true,
+  showJoinDate = true,
   showLastUpdated = true,
 }: {
   employee: EmployeeWithRelations;
@@ -32,6 +33,7 @@ export function EmployeeTableRow({
   showJobPosition?: boolean;
   showJobLevel?: boolean;
   showStatus?: boolean;
+  showJoinDate?: boolean;
   showLastUpdated?: boolean;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -66,6 +68,11 @@ export function EmployeeTableRow({
         {showStatus && (
           <TableCell className="text-sm">
             {employee.employment_statuses?.name ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showJoinDate && (
+          <TableCell className="text-sm">
+            {employee.join_date ? formatDate(employee.join_date) : <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
         {showLastUpdated && (

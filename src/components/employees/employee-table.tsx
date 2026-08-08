@@ -16,7 +16,8 @@ export const EMPLOYEE_COLUMNS: ColumnDef[] = [
   { key: "department", label: "Department" },
   { key: "jobPosition", label: "Job position" },
   { key: "jobLevel", label: "Job level" },
-  { key: "status", label: "Status" },
+  { key: "status", label: "Employment status" },
+  { key: "joinDate", label: "Join date" },
   { key: "lastUpdated", label: "Last updated", defaultHidden: true },
 ];
 
@@ -32,7 +33,8 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
             {isVisible("department") && <TableHead className="w-[160px]">Department</TableHead>}
             {isVisible("jobPosition") && <TableHead className="w-[160px]">Job position</TableHead>}
             {isVisible("jobLevel") && <TableHead className="w-[160px]">Job level</TableHead>}
-            {isVisible("status") && <TableHead className="w-[160px]">Status</TableHead>}
+            {isVisible("status") && <TableHead className="w-[180px]">Employment status</TableHead>}
+            {isVisible("joinDate") && <TableHead className="w-[160px]">Join date</TableHead>}
             {isVisible("lastUpdated") && <TableHead className="w-[160px]">Last updated</TableHead>}
             <TableHead className="p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
@@ -48,6 +50,7 @@ export function EmployeeTable({ list, canWrite }: { list: EmployeeWithRelations[
               showJobPosition={isVisible("jobPosition")}
               showJobLevel={isVisible("jobLevel")}
               showStatus={isVisible("status")}
+              showJoinDate={isVisible("joinDate")}
               showLastUpdated={isVisible("lastUpdated")}
             />
           ))}
