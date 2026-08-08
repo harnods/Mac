@@ -5,7 +5,13 @@ import { usePathname } from "next/navigation";
 import { useState, type ComponentType, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
 import { OrderShiftSidebar } from "@/components/orders/order-shift-sidebar";
-import { ChevronRight, Calculator, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import {
+  ChevronRight,
+  Calculator,
+  PanelLeftClose,
+  PanelLeftOpen,
+  CalendarX,
+} from "lucide-react";
 import {
   OrdersIcon,
   OfficeIcon,
@@ -15,6 +21,11 @@ import {
   PrepOrdersIcon,
   PurchasingIcon,
   SettingsIcon,
+  HrIcon,
+  CrewIcon,
+  AttendanceIcon,
+  OvertimeIcon,
+  PayrollIcon,
 } from "@/components/icons/nav-icons";
 
 type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -61,12 +72,24 @@ const MENU: MenuNode[] = [
       { label: "Roles & permissions", href: "/settings/roles" },
       { label: "Tables & QR", href: "/settings/tables" },
       { label: "Loyalty points", href: "/settings/loyalty" },
-      "divider",
-      { label: "Employees", href: "/employees" },
-      { label: "Departments", href: "/employees/departments" },
-      { label: "Job positions", href: "/employees/job-positions" },
-      { label: "Job levels", href: "/employees/job-levels" },
-      { label: "Employment status", href: "/employees/employment-statuses" },
+    ],
+  },
+];
+
+const HR_MENU: MenuNode[] = [
+  { label: "Crew", icon: CrewIcon, href: "/hr/crew" },
+  { label: "Attendance", icon: AttendanceIcon, href: "/hr/attendance" },
+  { label: "Overtime", icon: OvertimeIcon, href: "/hr/overtime" },
+  { label: "Time off", icon: CalendarX, href: "/hr/time-off" },
+  { label: "Payroll", icon: PayrollIcon, href: "/hr/payroll" },
+  {
+    label: "Settings",
+    icon: SettingsIcon,
+    children: [
+      { label: "Job position", href: "/hr/job-positions" },
+      { label: "Job level", href: "/hr/job-levels" },
+      { label: "Employment type", href: "/hr/employment-statuses" },
+      { label: "Department", href: "/hr/departments" },
     ],
   },
 ];
@@ -86,7 +109,8 @@ const ORDERS_MENU: MenuNode[] = [
 
 const RAIL = [
   { label: "Orders", icon: OrdersIcon, href: "/orders", match: (p: string) => p.startsWith("/orders") },
-  { label: "Office", icon: OfficeIcon, href: "/inventory/ingredients", match: (p: string) => !p.startsWith("/orders") },
+  { label: "Office", icon: OfficeIcon, href: "/inventory/ingredients", match: (p: string) => !p.startsWith("/orders") && !p.startsWith("/hr") },
+  { label: "HR", icon: HrIcon, href: "/hr/crew", match: (p: string) => p.startsWith("/hr") },
 ];
 
 function isLeafActive(pathname: string, href: string) {
@@ -103,14 +127,15 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const isOrders = pathname.startsWith("/orders");
-  const menu = isOrders ? ORDERS_MENU : MENU;
+  const isHr = pathname.startsWith("/hr");
+  const menu = isOrders ? ORDERS_MENU : isHr ? HR_MENU : MENU;
   const title = "Mac";
-  const homeHref = isOrders ? "/orders" : "/inventory/ingredients";
+  const homeHref = isOrders ? "/orders" : isHr ? "/hr/crew" : "/inventory/ingredients";
 
   return (
     <div className="hidden md:flex shrink-0">
       {/* App rail */}
-      <nav className="w-[68px] bg-[#f8fafe] flex flex-col items-center">
+      <nav className="w-[68px] bg-[#E9EEF6] flex flex-col items-center">
         <div className="h-[72px] flex items-center justify-center">
           <button
             type="button"
