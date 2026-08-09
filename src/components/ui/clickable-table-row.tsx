@@ -12,7 +12,7 @@ export function ClickableTableRow({ href, className, children, ...props }: Props
   return (
     <TableRow
       onDoubleClick={() => router.push(href)}
-      className={cn("cursor-pointer", className)}
+      className={cn("cursor-pointer hover:bg-muted/50", className)}
       {...props}
     >
       {children}

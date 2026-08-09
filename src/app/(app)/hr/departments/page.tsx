@@ -21,8 +21,16 @@ export default async function DepartmentsPage({
 
   let query = supabase.from("departments").select("id,name,updated_at,updater:profiles!updated_by(full_name,email)").order("name");
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
-  const { data } = await query;
-  const items = (data ?? []) as unknown as { id: string; name: string; updated_at: string; updater: { full_name: string | null; email: string } | null }[];
+  const [{ data }, { data: empRows }] = await Promise.all([
+    query,
+    supabase.from("employees").select("department_id").is("deleted_at", null),
+  ]);
+  const counts = new Map<string, number>();
+  for (const r of (empRows ?? []) as { department_id: string | null }[]) {
+    if (r.department_id) counts.set(r.department_id, (counts.get(r.department_id) ?? 0) + 1);
+  }
+  const items = ((data ?? []) as unknown as { id: string; name: string; updated_at: string; updater: { full_name: string | null; email: string } | null }[])
+    .map((it) => ({ ...it, crew_count: counts.get(it.id) ?? 0 }));
 
   return (
     <div className="space-y-4">

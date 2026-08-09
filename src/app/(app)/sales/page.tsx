@@ -17,11 +17,10 @@ import { Plus } from "lucide-react";
 import { SalesFilter } from "@/components/sales/sales-filter";
 import { SalesEntryRow } from "@/components/sales/sales-entry-row";
 import type { Updater } from "@/lib/supabase/types";
-import { PaginationBar } from "@/components/ui/pagination-bar";
+import { PaginationBar, parsePageSize, DEFAULT_PAGE_SIZE } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 25;
 
 type SalesEntry = {
   id: string;
@@ -35,11 +34,12 @@ type SalesEntry = {
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; size?: string }>;
 }) {
-  const { q = "", page: rawPageStr } = await searchParams;
+  const { q = "", page: rawPageStr, size: rawSizeStr } = await searchParams;
   const rawPage = Number(rawPageStr ?? 1);
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const PAGE_SIZE = parsePageSize(rawSizeStr);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
@@ -60,9 +60,10 @@ export default async function SalesPage({
   const list = (data ?? []) as unknown as SalesEntry[];
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
-  const buildHref = (p: number) => {
+  const buildHref = (p: number, size: number = PAGE_SIZE) => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
+    if (size !== DEFAULT_PAGE_SIZE) sp.set("size", String(size));
     if (p > 1) sp.set("page", String(p));
     return `?${sp.toString()}`;
   };
@@ -122,7 +123,7 @@ export default async function SalesPage({
           </Table>
         </div>
       )}
-      <PaginationBar page={page} totalPages={totalPages} buildHref={buildHref} />
+      <PaginationBar page={page} totalPages={totalPages} pageSize={PAGE_SIZE} buildHref={buildHref} buildSizeHref={(s) => buildHref(1, s)} />
     </div>
   );
 }

@@ -9,15 +9,15 @@ export const dynamic = "force-dynamic";
 
 export default async function NewEmployeePage() {
   const formData = await getEmployeeFormData();
-  if (!formData) redirect("/employees");
+  if (!formData) redirect("/hr/crew");
 
   return (
-    <div className="flex flex-col flex-1 gap-6 max-w-2xl">
+    <div className="flex flex-col flex-1 gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2">
-          <Link href="/employees"><ArrowLeft className="size-4" /></Link>
+          <Link href="/hr/crew"><ArrowLeft className="size-4" /></Link>
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight">New employee</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">New crew</h1>
       </div>
 
       <EmployeeForm
@@ -25,6 +25,7 @@ export default async function NewEmployeePage() {
         jobPositions={formData.jobPositions}
         employmentStatuses={formData.employmentStatuses}
         jobLevels={formData.jobLevels}
+        allowances={formData.allowances}
       />
     </div>
   );

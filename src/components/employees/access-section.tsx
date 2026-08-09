@@ -37,7 +37,7 @@ export function AccessSection({ employeeId, employeeEmail, userId, userEmail, us
   // Grant dialog state
   const [grantOpen, setGrantOpen] = useState(false);
   const [email, setEmail] = useState(employeeEmail ?? "");
-  const [role, setRole] = useState<"staff" | "admin">("staff");
+  const [role, setRole] = useState<"crew" | "admin">("crew");
   const [granting, startGrant] = useTransition();
 
   // Credentials dialog (shown after successful grant)
@@ -132,12 +132,12 @@ export function AccessSection({ employeeId, employeeEmail, userId, userEmail, us
             </div>
             <div className="space-y-2">
               <Label htmlFor="access-role">Role</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as "staff" | "admin")}>
+              <Select value={role} onValueChange={(v) => setRole(v as "crew" | "admin")}>
                 <SelectTrigger id="access-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="crew">Crew</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>

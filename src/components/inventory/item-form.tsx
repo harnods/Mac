@@ -7,6 +7,7 @@ import { ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupText } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -249,12 +250,14 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
                 />
               </div>
               <span className="text-sm text-muted-foreground shrink-0">=</span>
-              <DecimalInput
-                value={purchaseUnitQty}
-                onValueChange={setPurchaseUnitQty}
-                className="w-24 shrink-0"
-              />
-              <span className="text-sm text-muted-foreground shrink-0">{unit || "unit"}</span>
+              <InputGroup className="h-10 w-32 shrink-0">
+                <DecimalInput
+                  value={purchaseUnitQty}
+                  onValueChange={setPurchaseUnitQty}
+                  className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                />
+                <InputGroupAddon align="inline-end"><InputGroupText>{unit || "unit"}</InputGroupText></InputGroupAddon>
+              </InputGroup>
             </div>
           </div>
         )}

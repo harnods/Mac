@@ -31,7 +31,8 @@ export function EmployeesFilter({
 
   const q = params.get("q") ?? "";
   const dept = params.get("dept") ?? ALL;
-  const hasFilter = q !== "" || dept !== ALL;
+  const status = params.get("status") ?? "active";
+  const hasFilter = q !== "" || dept !== ALL || status !== "active";
 
   const push = useCallback(
     (next: Record<string, string>) => {
@@ -64,11 +65,21 @@ export function EmployeesFilter({
             </SelectContent>
           </Select>
         )}
+        <Select value={status} onValueChange={(v) => push({ status: v === "active" ? "" : v })}>
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="resigned">Resigned</SelectItem>
+            <SelectItem value="all">All statuses</SelectItem>
+          </SelectContent>
+        </Select>
         {hasFilter && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => push({ q: "", dept: ALL })}
+            onClick={() => push({ q: "", dept: ALL, status: "" })}
             className="text-muted-foreground"
           >
             <X className="size-4" /> Clear
@@ -78,7 +89,7 @@ export function EmployeesFilter({
       <div className="flex items-center gap-2 w-full sm:w-auto">
         <ColumnsMenu columns={EMPLOYEE_COLUMNS} isVisible={isVisible} toggle={toggle} />
         <Input
-          placeholder="Search employees..."
+          placeholder="Search crew..."
           defaultValue={q}
           onChange={(e) => push({ q: e.target.value })}
           className="w-full sm:w-56"

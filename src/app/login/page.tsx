@@ -27,11 +27,19 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
+    let dest = next;
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signIn, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast.error(error.message);
         return;
+      }
+      // Route crew to their mobile app; force a password change if required.
+      const uid = signIn.user?.id;
+      if (uid) {
+        const { data: prof } = await supabase.from("profiles").select("role, must_change_password").eq("id", uid).maybeSingle();
+        if (prof?.must_change_password) dest = "/me/change-password";
+        else if (prof?.role === "crew") dest = "/me";
       }
     } catch {
       toast.error("Could not reach Supabase. Check that local Supabase is running.");
@@ -40,7 +48,7 @@ function LoginForm() {
       setLoading(false);
     }
 
-    router.replace(next);
+    router.replace(dest);
     router.refresh();
   }
 

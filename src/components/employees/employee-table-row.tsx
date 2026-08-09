@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { TableCell, STICKY_ACTION_CELL } from "@/components/ui/table";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { formatDate, updaterName } from "@/lib/format";
 import { EmployeeDeleteDialog } from "@/components/employees/employee-delete-dialog";
@@ -20,20 +22,24 @@ import type { EmployeeWithRelations } from "@/lib/supabase/types";
 export function EmployeeTableRow({
   employee,
   canWrite,
+  showActiveStatus = true,
   showDepartment = true,
   showJobPosition = true,
   showJobLevel = true,
   showStatus = true,
   showJoinDate = true,
+  showLastDay = false,
   showLastUpdated = true,
 }: {
   employee: EmployeeWithRelations;
   canWrite: boolean;
+  showActiveStatus?: boolean;
   showDepartment?: boolean;
   showJobPosition?: boolean;
   showJobLevel?: boolean;
   showStatus?: boolean;
   showJoinDate?: boolean;
+  showLastDay?: boolean;
   showLastUpdated?: boolean;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -42,14 +48,31 @@ export function EmployeeTableRow({
     <>
       <ClickableTableRow href={`/hr/crew/${employee.id}`}>
         <TableCell className="font-medium">
-          <Link
-            href={`/hr/crew/${employee.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="truncate block hover:underline"
-          >
-            {employee.name}
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <Avatar className="size-9 shrink-0">
+              {employee.photo_url && <AvatarImage src={employee.photo_url} alt={employee.name} className="object-cover" />}
+              <AvatarFallback className="bg-[#cddbf1] text-[#0a0a0a] text-xs font-medium">
+                {employee.name.split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <Link
+              href={`/hr/crew/${employee.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="truncate hover:underline"
+            >
+              {employee.name}
+            </Link>
+          </div>
         </TableCell>
+        {showActiveStatus && (
+          <TableCell>
+            {employee.termination_date ? (
+              <Badge variant="secondary">Resigned</Badge>
+            ) : (
+              <Badge variant="success">Active</Badge>
+            )}
+          </TableCell>
+        )}
         {showDepartment && (
           <TableCell className="text-sm">
             {employee.departments?.name ?? <span className="text-muted-foreground">—</span>}
@@ -73,6 +96,11 @@ export function EmployeeTableRow({
         {showJoinDate && (
           <TableCell className="text-sm">
             {employee.join_date ? formatDate(employee.join_date) : <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showLastDay && (
+          <TableCell className="text-sm">
+            {employee.last_day ? formatDate(employee.last_day) : <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
         {showLastUpdated && (

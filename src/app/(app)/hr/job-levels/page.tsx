@@ -21,12 +21,19 @@ export default async function JobLevelsPage({
 
   let query = supabase
     .from("job_levels")
-    .select("id,name,sort_order,updated_at,updater:profiles!updated_by(full_name,email)")
-    .order("sort_order")
+    .select("id,name,updated_at,updater:profiles!updated_by(full_name,email)")
     .order("name");
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
-  const { data } = await query;
-  const items = (data ?? []) as unknown as { id: string; name: string; sort_order: number; updated_at: string; updater: { full_name: string | null; email: string } | null }[];
+  const [{ data }, { data: empRows }] = await Promise.all([
+    query,
+    supabase.from("employees").select("job_level_id").is("deleted_at", null),
+  ]);
+  const counts = new Map<string, number>();
+  for (const r of (empRows ?? []) as { job_level_id: string | null }[]) {
+    if (r.job_level_id) counts.set(r.job_level_id, (counts.get(r.job_level_id) ?? 0) + 1);
+  }
+  const items = ((data ?? []) as unknown as { id: string; name: string; updated_at: string; updater: { full_name: string | null; email: string } | null }[])
+    .map((it) => ({ ...it, crew_count: counts.get(it.id) ?? 0 }));
 
   return (
     <div className="space-y-4">
@@ -35,21 +42,19 @@ export default async function JobLevelsPage({
         {isAdmin && (
           <AddMasterDataButton
             title="Job level"
-            showSortOrder
             onCreate={createJobLevel}
           />
         )}
       </div>
 
       <Suspense fallback={null}>
-        <MasterDataFilter placeholder="Search job levels..." title="Job level" showSortOrder />
+        <MasterDataFilter placeholder="Search job levels..." title="Job level" />
       </Suspense>
 
       <MasterDataManager
         title="Job level"
         items={items}
         isAdmin={isAdmin}
-        showSortOrder
         onUpdate={updateJobLevel}
         onDelete={deleteJobLevel}
       />

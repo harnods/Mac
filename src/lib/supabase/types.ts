@@ -9,6 +9,7 @@ export type Profile = {
   full_name: string | null;
   role: UserRole;
   is_owner: boolean;
+  must_change_password: boolean;
   created_at: string;
 };
 
@@ -167,8 +168,13 @@ export type Department = {
 export type JobPosition = {
   id: string;
   name: string;
+  department_id: string | null;
   updated_by: string | null;
   updated_at: string;
+};
+
+export type JobPositionWithDepartment = JobPosition & {
+  departments: Pick<Department, 'id' | 'name'> | null;
 };
 
 export type EmploymentStatus = {
@@ -195,19 +201,54 @@ export type Employee = {
   email: string | null;
   phone: string | null;
   birthdate: string | null;
+  join_date: string | null;
+  termination_date: string | null;
+  last_day: string | null;
   nik: string | null;
   address: string | null;
   marital_status: MaritalStatus | null;
   gender: Gender | null;
+  photo_url: string | null;
   department_id: string | null;
   job_position_id: string | null;
   job_level_id: string | null;
   employment_status_id: string | null;
+  bank_name: string | null;
+  bank_account_no: string | null;
+  account_holder_name: string | null;
+  basic_salary: number | null;
+  salary_unit: 'day' | 'month' | null;
+  daily_allowance: number | null;
+  allowances: EmployeeAllowance[];
   user_id: string | null;
   updated_by: string | null;
   updated_at: string;
   created_at: string;
   deleted_at: string | null;
+};
+
+export type EmployeeAllowance = { allowance_id: string; amount: number };
+
+export type PayrollComponentType = 'earning' | 'deduction';
+export type RateUnit = 'day' | 'week' | 'month';
+
+export type PayrollComponentVersion = {
+  id: string;
+  component_id: string;
+  effective_date: string;
+  amount: number;
+  rate_unit: RateUnit;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type Allowance = {
+  id: string;
+  name: string;
+  type: PayrollComponentType;
+  is_default: boolean;
+  updated_by: string | null;
+  updated_at: string;
 };
 
 export type EmployeeWithRelations = Employee & {
@@ -216,5 +257,158 @@ export type EmployeeWithRelations = Employee & {
   job_levels: Pick<JobLevel, 'id' | 'name'> | null;
   employment_statuses: Pick<EmploymentStatus, 'id' | 'name'> | null;
   mac_user: Pick<Profile, 'id' | 'email' | 'role' | 'is_owner'> | null;
+  updater: Updater | null;
+};
+
+export type Shift = {
+  id: string;
+  name: string;
+  start_time: string | null;
+  end_time: string | null;
+  break_minutes: number;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type PayrollSettings = {
+  id: string;
+  cutoff_start_day: number;
+  cutoff_end_day: number;
+  payday: number;
+  daily_allowance_by_attendance: boolean;
+  deduct_absence_from_salary: boolean;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type PayrollSettingsVersion = {
+  id: string;
+  effective_date: string;
+  cutoff_start_day: number;
+  cutoff_end_day: number;
+  payday: number;
+  daily_allowance_by_attendance: boolean;
+  deduct_absence_from_salary: boolean;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type OvertimeCompensation = {
+  id: string;
+  name: string;
+  job_level_id: string | null;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
+export type OvertimeCompensationVersion = {
+  id: string;
+  compensation_id: string;
+  effective_date: string;
+  amount_per_hour: number;
+  cap_hours: boolean;
+  max_hours_per_day: number;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type PayrollRunStatus = 'draft' | 'finalized';
+
+export type PayrollRun = {
+  id: string;
+  anchor_year: number;
+  anchor_month: number;
+  period_start: string;
+  period_end: string;
+  payday: string;
+  status: PayrollRunStatus;
+  sent_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PayslipLine = {
+  id: string;
+  payslip_id: string;
+  kind: 'earning' | 'deduction';
+  label: string;
+  detail: string | null;
+  amount: number;
+  sort: number;
+};
+
+export type Payslip = {
+  id: string;
+  run_id: string;
+  employee_id: string;
+  working_days: number;
+  present_days: number;
+  absent_days: number;
+  day_off_days: number;
+  overtime_hours: number;
+  earnings_total: number;
+  deductions_total: number;
+  thp: number;
+  created_at: string;
+};
+
+export type OvertimeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export type OvertimeRequest = {
+  id: string;
+  employee_id: string;
+  work_date: string;
+  hours: number;
+  reason: string | null;
+  status: OvertimeRequestStatus;
+  requested_by: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OvertimeRequestWithCrew = OvertimeRequest & {
+  employees: Pick<Employee, 'id' | 'name'> | null;
+};
+
+export type ToleranceDirection = 'before' | 'after';
+
+export type AttendanceSettings = {
+  id: string;
+  late_grace_minutes: number;
+  late_tolerance_direction: ToleranceDirection;
+  early_leave_grace_minutes: number;
+  working_days_per_week: number;
+  allowed_ips: string | null;
+  updated_by: string | null;
+  updated_at: string;
+};
+
+export type AttendanceSource = 'web' | 'mobile';
+
+export type Attendance = {
+  id: string;
+  employee_id: string;
+  shift_id: string | null;
+  work_date: string;
+  clock_in: string | null;
+  clock_out: string | null;
+  break_minutes: number;
+  break_start: string | null;
+  note: string | null;
+  source: AttendanceSource;
+  created_by: string | null;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
+export type AttendanceWithRelations = Attendance & {
+  employees: Pick<Employee, 'id' | 'name'> | null;
+  shifts: Pick<Shift, 'id' | 'name' | 'start_time' | 'end_time'> | null;
+  creator: Updater | null;
   updater: Updater | null;
 };

@@ -3,10 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
+import { MasterDataCombobox } from "@/components/employees/master-data-combobox";
 import {
   Select,
   SelectContent,
@@ -14,35 +17,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createEmployee, updateEmployee, grantEmployeeAccess } from "@/app/actions/employees";
-import { Copy, Check } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import type { Department, JobPosition, EmploymentStatus, JobLevel, Employee } from "@/lib/supabase/types";
+  createEmployee,
+  updateEmployee,
+  createDepartment,
+  createJobPosition,
+  createJobLevel,
+  createEmploymentStatus,
+} from "@/app/actions/employees";
+import { ImagePlus, Trash2, Plus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { compressImage } from "@/lib/compress-image";
+import type { Department, JobPosition, EmploymentStatus, JobLevel, Employee, Allowance, EmployeeAllowance } from "@/lib/supabase/types";
 
 type Props = {
   departments: Department[];
   jobPositions: JobPosition[];
   employmentStatuses: EmploymentStatus[];
   jobLevels: JobLevel[];
+  allowances: Allowance[];
   employee?: Employee;
   onSuccess?: () => void;
   onCancel?: () => void;
 };
 
-const EMPTY = "__none__";
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
+function Required() {
+  return <span className="text-destructive">*</span>;
+}
 
 export function EmployeeForm({
   departments,
   jobPositions,
   employmentStatuses,
   jobLevels,
+  allowances,
   employee,
   onSuccess,
   onCancel,
@@ -55,50 +65,94 @@ export function EmployeeForm({
   const [email, setEmail] = useState(employee?.email ?? "");
   const [phone, setPhone] = useState(employee?.phone ?? "");
   const [birthdate, setBirthdate] = useState(employee?.birthdate ?? "");
+  const [joinDate, setJoinDate] = useState(employee?.join_date ?? "");
   const [nik, setNik] = useState(employee?.nik ?? "");
   const [address, setAddress] = useState(employee?.address ?? "");
-  const [gender, setGender] = useState<string>(employee?.gender ?? EMPTY);
-  const [maritalStatus, setMaritalStatus] = useState<string>(employee?.marital_status ?? EMPTY);
-  const [departmentId, setDepartmentId] = useState<string>(employee?.department_id ?? EMPTY);
-  const [jobPositionId, setJobPositionId] = useState<string>(employee?.job_position_id ?? EMPTY);
-  const [jobLevelId, setJobLevelId] = useState<string>(employee?.job_level_id ?? EMPTY);
-  const [employmentStatusId, setEmploymentStatusId] = useState<string>(employee?.employment_status_id ?? EMPTY);
+  const [gender, setGender] = useState<string>(employee?.gender ?? "");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(employee?.photo_url ?? null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [departmentId, setDepartmentId] = useState<string | null>(employee?.department_id ?? null);
+  const [jobPositionId, setJobPositionId] = useState<string | null>(employee?.job_position_id ?? null);
+  const [jobLevelId, setJobLevelId] = useState<string | null>(employee?.job_level_id ?? null);
+  const [employmentStatusId, setEmploymentStatusId] = useState<string | null>(employee?.employment_status_id ?? null);
+  const [bankName, setBankName] = useState(employee?.bank_name ?? "");
+  const [bankAccountNo, setBankAccountNo] = useState(employee?.bank_account_no ?? "");
+  const [accountHolderName, setAccountHolderName] = useState(employee?.account_holder_name ?? "");
+  const [basicSalary, setBasicSalary] = useState(employee?.basic_salary != null ? String(employee.basic_salary) : "");
+  const [salaryUnit, setSalaryUnit] = useState<"day" | "month">(employee?.salary_unit ?? "month");
+  const [dailyAllowance, setDailyAllowance] = useState(employee?.daily_allowance != null ? String(employee.daily_allowance) : "");
+  const [allowanceRows, setAllowanceRows] = useState<EmployeeAllowance[]>(employee?.allowances ?? []);
 
-  // System access (create mode only)
-  const [grantAccess, setGrantAccess] = useState(false);
-  const [accessRole, setAccessRole] = useState<"staff" | "admin">("staff");
+  // Basic salary is per month; part-time crew can choose per day or per month.
+  const statusName = employmentStatuses.find((s) => s.id === employmentStatusId)?.name.toLowerCase() ?? "";
+  const isPartTime = statusName.includes("part");
+  const effectiveSalaryUnit = isPartTime ? salaryUnit : "month";
+  // Additional allowances come from the non-default master entries.
+  const addableAllowances = allowances.filter((a) => !a.is_default && a.type === "earning");
+  const usedIds = new Set(allowanceRows.map((r) => r.allowance_id));
+  const availableToAdd = addableAllowances.filter((a) => !usedIds.has(a.id));
 
-  // Credentials dialog after creation with access
-  const [credsOpen, setCredsOpen] = useState(false);
-  const [creds, setCreds] = useState<{ email: string; password: string } | null>(null);
-  const [copied, setCopied] = useState<"email" | "password" | null>(null);
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+    if (file.size > MAX_IMAGE_BYTES) { toast.error("Image must be under 10MB"); return; }
 
-  function handleCopy(type: "email" | "password", value: string) {
-    navigator.clipboard.writeText(value);
-    setCopied(type);
-    setTimeout(() => setCopied(null), 2000);
-  }
-
-  function toPayloadValue(val: string): string | null {
-    return val === EMPTY ? "" : val;
+    setUploadingPhoto(true);
+    try {
+      const compressed = await compressImage(file);
+      const supabase = createClient();
+      const path = `${employee?.id ?? crypto.randomUUID()}/${Date.now()}.jpg`;
+      const { error } = await supabase.storage
+        .from("crew-photos")
+        .upload(path, compressed, { upsert: true, contentType: "image/jpeg" });
+      if (error) { toast.error(error.message); return; }
+      const { data } = supabase.storage.from("crew-photos").getPublicUrl(path);
+      setPhotoUrl(data.publicUrl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not upload the photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!name.trim()) { toast.error("Name is required"); return; }
+    if (!email.trim()) { toast.error("Email is required"); return; }
+    if (!phone.trim()) { toast.error("WhatsApp no is required"); return; }
+    if (!joinDate) { toast.error("Join date is required"); return; }
+    if (!departmentId) { toast.error("Department is required"); return; }
+    if (!jobPositionId) { toast.error("Job position is required"); return; }
+    if (!jobLevelId) { toast.error("Job level is required"); return; }
+    if (!employmentStatusId) { toast.error("Employment status is required"); return; }
+
     start(async () => {
       const payload = {
-        name,
-        email: toPayloadValue(email) ?? "",
-        phone: toPayloadValue(phone) ?? "",
-        birthdate: toPayloadValue(birthdate) ?? "",
-        nik: toPayloadValue(nik) ?? "",
-        address: toPayloadValue(address) ?? "",
-        gender: gender === EMPTY ? null : gender,
-        marital_status: maritalStatus === EMPTY ? null : maritalStatus,
-        department_id: departmentId === EMPTY ? null : departmentId,
-        job_position_id: jobPositionId === EMPTY ? null : jobPositionId,
-        job_level_id: jobLevelId === EMPTY ? null : jobLevelId,
-        employment_status_id: employmentStatusId === EMPTY ? null : employmentStatusId,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        birthdate,
+        join_date: joinDate,
+        nik: nik.trim(),
+        address: address.trim(),
+        gender: gender || null,
+        photo_url: photoUrl,
+        department_id: departmentId,
+        job_position_id: jobPositionId,
+        job_level_id: jobLevelId,
+        employment_status_id: employmentStatusId,
+        bank_name: bankName.trim(),
+        bank_account_no: bankAccountNo.trim(),
+        account_holder_name: accountHolderName.trim(),
+        basic_salary: basicSalary === "" ? null : Number(basicSalary),
+        salary_unit: effectiveSalaryUnit,
+        daily_allowance: dailyAllowance === "" ? null : Number(dailyAllowance),
+        allowances: allowanceRows
+          .filter((r) => r.allowance_id)
+          .map((r) => ({ allowance_id: r.allowance_id, amount: Number(r.amount) || 0 })),
       };
 
       const res = isEdit
@@ -107,271 +161,316 @@ export function EmployeeForm({
 
       if (!res.ok) { toast.error(res.error); return; }
 
-      // Grant access if requested (create mode only)
-      if (!isEdit && grantAccess && res.id && email.trim()) {
-        const accessRes = await grantEmployeeAccess(res.id, { email: email.trim(), role: accessRole });
-        if (!accessRes.ok) {
-          toast.warning(`Employee created, but access grant failed: ${accessRes.error}`);
-        } else {
-          setCreds({ email: accessRes.email, password: accessRes.password });
-          setCredsOpen(true);
-          router.refresh();
-          return; // wait for credentials dialog close before navigating
-        }
-      }
-
-      toast.success(isEdit ? "Saved" : "Employee created");
+      toast.success(isEdit ? "Saved" : "Crew created");
       router.refresh();
       if (onSuccess) {
         onSuccess();
       } else if (isEdit) {
-        router.push(`/employees/${employee!.id}`);
+        router.push(`/hr/crew/${employee!.id}`);
       } else {
-        router.push(res.id ? `/employees/${res.id}` : "/employees");
+        router.push(res.id ? `/hr/crew/${res.id}` : "/hr/crew");
       }
     });
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
-      {/* Personal info */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="sm:col-span-2 space-y-2">
-          <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
-          <Input
-            id="name"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </div>
+      <div className="flex flex-col gap-8 md:flex-row md:gap-10">
+        {/* Left: the 6-column form */}
+        <div className="order-2 flex min-w-0 flex-1 flex-col gap-8 md:order-1">
+          {/* Employee info */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Employee info</h2>
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-6 space-y-2">
+                <Label htmlFor="name">Name <Required /></Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="email">Email <Required /></Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            type="text"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </div>
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="phone">WhatsApp no <Required /></Label>
+                <Input
+                  id="phone"
+                  type="text"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="birthdate">Birthdate</Label>
-          <Input
-            id="birthdate"
-            type="date"
-            value={birthdate}
-            onChange={(e) => setBirthdate(e.target.value)}
-          />
-        </div>
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="birthdate">Birthdate</Label>
+                <Input id="birthdate" type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} />
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="nik">NIK (ID number)</Label>
-          <Input
-            id="nik"
-            type="text"
-            value={nik}
-            onChange={(e) => setNik(e.target.value)}
-          />
-        </div>
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="nik">NIK</Label>
+                <Input id="nik" type="text" value={nik} onChange={(e) => setNik(e.target.value)} />
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="gender">Gender</Label>
-          <Select value={gender} onValueChange={setGender}>
-            <SelectTrigger id="gender">
-              <SelectValue placeholder="Select gender" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EMPTY}>—</SelectItem>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              <div className="col-span-6 space-y-2">
+                <Label>Gender</Label>
+                <div className="flex h-8 items-center gap-6">
+                  {(["male", "female"] as const).map((g) => (
+                    <label key={g} className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="gender"
+                        value={g}
+                        checked={gender === g}
+                        onChange={() => setGender(g)}
+                        className="accent-primary"
+                      />
+                      {g === "male" ? "Male" : "Female"}
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="marital-status">Marital status</Label>
-          <Select value={maritalStatus} onValueChange={setMaritalStatus}>
-            <SelectTrigger id="marital-status">
-              <SelectValue placeholder="Select marital status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EMPTY}>—</SelectItem>
-              <SelectItem value="single">Single</SelectItem>
-              <SelectItem value="married">Married</SelectItem>
-              <SelectItem value="divorced">Divorced</SelectItem>
-              <SelectItem value="widowed">Widowed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="sm:col-span-2 space-y-2">
-          <Label htmlFor="address">Address</Label>
-          <Textarea
-            id="address"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            rows={3}
-          />
-        </div>
-      </div>
-
-      {/* Employment info */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="department">Department</Label>
-          <Select value={departmentId} onValueChange={setDepartmentId}>
-            <SelectTrigger id="department">
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EMPTY}>—</SelectItem>
-              {departments.map((d) => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="job-position">Job position</Label>
-          <Select value={jobPositionId} onValueChange={setJobPositionId}>
-            <SelectTrigger id="job-position">
-              <SelectValue placeholder="Select position" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EMPTY}>—</SelectItem>
-              {jobPositions.map((p) => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="job-level">Job level</Label>
-          <Select value={jobLevelId} onValueChange={setJobLevelId}>
-            <SelectTrigger id="job-level">
-              <SelectValue placeholder="Select level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EMPTY}>—</SelectItem>
-              {jobLevels.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="employment-status">Employment status</Label>
-          <Select value={employmentStatusId} onValueChange={setEmploymentStatusId}>
-            <SelectTrigger id="employment-status">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={EMPTY}>—</SelectItem>
-              {employmentStatuses.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* System access — create mode only */}
-      {!isEdit && (
-        <div className="border rounded-lg p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">System access</p>
-              <p className="text-xs text-muted-foreground">Allow this employee to sign in to Mac</p>
+              <div className="col-span-6 space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Textarea id="address" value={address} onChange={(e) => setAddress(e.target.value)} rows={3} />
+              </div>
             </div>
-            <Switch checked={grantAccess} onCheckedChange={setGrantAccess} />
-          </div>
-          {grantAccess && (
-            <div className="space-y-2 pt-1">
-              <p className="text-xs text-muted-foreground">
-                Login email will be taken from the Email field above. Make sure it&apos;s filled in.
-              </p>
+          </section>
+
+          {/* Employment info */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Employment info</h2>
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="join-date">Join date <Required /></Label>
+                <Input id="join-date" type="date" value={joinDate} onChange={(e) => setJoinDate(e.target.value)} />
+              </div>
+
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Job position <Required /></Label>
+                <MasterDataCombobox
+                  options={jobPositions}
+                  value={jobPositionId}
+                  onChange={(id) => {
+                    setJobPositionId(id);
+                    // Department follows the position's department.
+                    const pos = jobPositions.find((p) => p.id === id);
+                    if (pos?.department_id) setDepartmentId(pos.department_id);
+                  }}
+                  placeholder="Select position"
+                  entityLabel="Job position"
+                  onCreate={(dataName) => createJobPosition({ name: dataName, department_id: departmentId })}
+                />
+              </div>
+
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Department <Required /></Label>
+                <MasterDataCombobox
+                  options={departments}
+                  value={departmentId}
+                  onChange={setDepartmentId}
+                  placeholder="Select department"
+                  entityLabel="Department"
+                  onCreate={(dataName) => createDepartment({ name: dataName })}
+                />
+              </div>
+
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Job level <Required /></Label>
+                <MasterDataCombobox
+                  options={jobLevels}
+                  value={jobLevelId}
+                  onChange={setJobLevelId}
+                  placeholder="Select level"
+                  entityLabel="Job level"
+                  onCreate={(dataName) => createJobLevel({ name: dataName })}
+                />
+              </div>
+
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Employment status <Required /></Label>
+                <MasterDataCombobox
+                  options={employmentStatuses}
+                  value={employmentStatusId}
+                  onChange={setEmploymentStatusId}
+                  placeholder="Select status"
+                  entityLabel="Employment status"
+                  onCreate={(dataName) => createEmploymentStatus({ name: dataName })}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Bank info */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Bank info</h2>
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="bank-name">Bank name</Label>
+                <Input id="bank-name" value={bankName} onChange={(e) => setBankName(e.target.value)} />
+              </div>
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="bank-account-no">Bank account number</Label>
+                <Input id="bank-account-no" inputMode="numeric" value={bankAccountNo} onChange={(e) => setBankAccountNo(e.target.value)} />
+              </div>
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label htmlFor="account-holder">Account holder name</Label>
+                <Input id="account-holder" value={accountHolderName} onChange={(e) => setAccountHolderName(e.target.value)} />
+              </div>
+            </div>
+          </section>
+
+          {/* Compensation */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Compensation</h2>
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="access-role">Role</Label>
-                <Select value={accessRole} onValueChange={(v) => setAccessRole(v as "staff" | "admin")}>
-                  <SelectTrigger id="access-role" className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="basic-salary">Basic salary</Label>
+                {isPartTime ? (
+                  <div className="flex items-center gap-2">
+                    <InputGroup className="h-10 flex-1">
+                      <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+                      <InputGroupInput id="basic-salary" type="number" min="0" value={basicSalary} onChange={(e) => setBasicSalary(e.target.value)} />
+                    </InputGroup>
+                    <Select value={salaryUnit} onValueChange={(v) => setSalaryUnit(v as "day" | "month")}>
+                      <SelectTrigger className="w-36 shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="day">per day</SelectItem>
+                        <SelectItem value="month">per month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <InputGroup className="h-10">
+                    <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+                    <InputGroupInput id="basic-salary" type="number" min="0" value={basicSalary} onChange={(e) => setBasicSalary(e.target.value)} />
+                    <InputGroupAddon align="inline-end"><InputGroupText>per month</InputGroupText></InputGroupAddon>
+                  </InputGroup>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="daily-allowance">Daily allowance</Label>
+                <InputGroup className="h-10">
+                  <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+                  <InputGroupInput id="daily-allowance" type="number" min="0" value={dailyAllowance} onChange={(e) => setDailyAllowance(e.target.value)} />
+                  <InputGroupAddon align="inline-end"><InputGroupText>/day</InputGroupText></InputGroupAddon>
+                </InputGroup>
+              </div>
+
+              {/* Additional allowances */}
+              <div className="space-y-2">
+                <Label>Allowances</Label>
+                {allowanceRows.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No additional allowances.</p>
+                )}
+                {allowanceRows.map((row, i) => {
+                  const opts = addableAllowances.filter(
+                    (a) => a.id === row.allowance_id || !usedIds.has(a.id),
+                  );
+                  return (
+                    <div key={i} className="space-y-2 rounded-lg border p-3">
+                      <Select
+                        value={row.allowance_id}
+                        onValueChange={(v) =>
+                          setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, allowance_id: v } : r)))
+                        }
+                      >
+                        <SelectTrigger className="w-full"><SelectValue placeholder="Select allowance" /></SelectTrigger>
+                        <SelectContent>
+                          {opts.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-2">
+                        <InputGroup className="h-10 flex-1">
+                          <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+                          <InputGroupInput
+                            type="number"
+                            min="0"
+                            value={String(row.amount ?? "")}
+                            onChange={(e) =>
+                              setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, amount: Number(e.target.value) || 0 } : r)))
+                            }
+                          />
+                        </InputGroup>
+                        <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setAllowanceRows((rows) => rows.filter((_, j) => j !== i))}>
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={availableToAdd.length === 0}
+                  onClick={() => setAllowanceRows((rows) => [...rows, { allowance_id: availableToAdd[0]?.id ?? "", amount: 0 }])}
+                >
+                  <Plus className="size-4" /> Add allowance
+                </Button>
+                {addableAllowances.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Add allowance types in Settings → Allowance.</p>
+                )}
               </div>
             </div>
-          )}
+          </section>
+
+          {/* Actions — directly below the form, full width (6 columns) */}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving..." : isEdit ? "Save changes" : "Save"}
+            </Button>
+          </div>
         </div>
-      )}
 
-      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving..." : isEdit ? "Save changes" : "Create employee"}
-        </Button>
-      </div>
-
-      {/* Credentials dialog shown after grant on create */}
-      <Dialog open={credsOpen} onOpenChange={(open) => {
-        if (!open) {
-          setCredsOpen(false);
-          router.push(creds ? `/employees` : "/employees");
-        }
-      }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Employee created with access</DialogTitle>
-            <DialogDescription>
-              Share these credentials with the employee. The password won&apos;t be shown again.
-            </DialogDescription>
-          </DialogHeader>
-          {creds && (
-            <div className="space-y-3 pt-1">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Email</Label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-sm bg-muted rounded px-2 py-1.5 font-mono truncate">{creds.email}</code>
-                  <Button size="icon" variant="ghost" className="size-8 shrink-0" onClick={() => handleCopy("email", creds.email)}>
-                    {copied === "email" ? <Check className="size-3.5 text-green-600" /> : <Copy className="size-3.5" />}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Password</Label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 text-sm bg-muted rounded px-2 py-1.5 font-mono truncate">{creds.password}</code>
-                  <Button size="icon" variant="ghost" className="size-8 shrink-0" onClick={() => handleCopy("password", creds.password)}>
-                    {copied === "password" ? <Check className="size-3.5 text-green-600" /> : <Copy className="size-3.5" />}
-                  </Button>
-                </div>
-              </div>
-              <Button className="w-full mt-2" onClick={() => { setCredsOpen(false); router.push("/employees"); }}>
-                Done
-              </Button>
+        {/* Photo — outside the 6-column grid, its own column */}
+        <div className="order-1 space-y-2 md:order-2 md:w-48 md:shrink-0">
+          <Label>Photo</Label>
+          <div className="flex flex-col items-start gap-3">
+            <div className="size-32 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
+              {photoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoUrl} alt={name || "Crew"} className="size-full object-cover" />
+              ) : (
+                <ImagePlus className="size-7 text-muted-foreground" />
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="crew-photo" className="cursor-pointer">
+                <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+                  {uploadingPhoto ? "Uploading..." : photoUrl ? "Change photo" : "Upload photo"}
+                </span>
+                <input
+                  id="crew-photo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={uploadingPhoto}
+                  onChange={handlePhotoChange}
+                />
+              </Label>
+              {photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl(null)}
+                  className="text-left text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Auto-compressed on upload.</p>
+          </div>
+        </div>
+      </div>
     </form>
   );
 }

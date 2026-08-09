@@ -111,7 +111,7 @@ export function ItemUsageTabs({
   return (
     <div className="space-y-3">
       <div className="border-b">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 -ml-3">
           <TabButton active={tab === "stock"} onClick={() => setTab("stock")}>
             Stock movements
           </TabButton>
@@ -156,7 +156,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={[
-        "-mb-px border-b-2 px-0 py-2 text-sm font-medium transition-colors",
+        "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
         active
           ? "border-foreground text-foreground"
           : "border-transparent text-muted-foreground hover:text-foreground",

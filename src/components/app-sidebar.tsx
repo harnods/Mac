@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   CalendarX,
+  ChartColumn,
 } from "lucide-react";
 import {
   OrdersIcon,
@@ -31,9 +32,11 @@ import {
 type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 type Leaf = { label: string; href: string };
+type Heading = { heading: string };
+type Child = Leaf | "divider" | Heading;
 type MenuNode =
   | { label: string; icon: NavIcon; href: string; children?: undefined }
-  | { label: string; icon: NavIcon; href?: undefined; children: (Leaf | "divider")[] };
+  | { label: string; icon: NavIcon; href?: undefined; children: Child[] };
 
 const MENU: MenuNode[] = [
   { label: "Products", icon: ProductsIcon, href: "/inventory/products" },
@@ -83,13 +86,28 @@ const HR_MENU: MenuNode[] = [
   { label: "Time off", icon: CalendarX, href: "/hr/time-off" },
   { label: "Payroll", icon: PayrollIcon, href: "/hr/payroll" },
   {
+    label: "Reports",
+    icon: ChartColumn,
+    children: [
+      { label: "Turnover", href: "/hr/reports/turnover" },
+      { label: "Attendance", href: "/hr/reports/attendance" },
+    ],
+  },
+  {
     label: "Settings",
     icon: SettingsIcon,
     children: [
-      { label: "Job position", href: "/hr/job-positions" },
-      { label: "Job level", href: "/hr/job-levels" },
+      { label: "Job positions", href: "/hr/job-positions" },
+      { label: "Job levels", href: "/hr/job-levels" },
       { label: "Employment type", href: "/hr/employment-statuses" },
-      { label: "Department", href: "/hr/departments" },
+      { label: "Departments", href: "/hr/departments" },
+      "divider",
+      { label: "Shifts", href: "/hr/shifts" },
+      { label: "Attendance", href: "/hr/attendance-settings" },
+      { label: "Overtime", href: "/hr/overtime-settings" },
+      "divider",
+      { label: "Payroll", href: "/hr/payroll-settings" },
+      { label: "Payroll components", href: "/hr/allowances" },
     ],
   },
 ];
@@ -119,12 +137,13 @@ function isLeafActive(pathname: string, href: string) {
 }
 
 function isNodeActive(pathname: string, node: MenuNode) {
-  if (node.children) return node.children.some((c) => c !== "divider" && isLeafActive(pathname, c.href));
+  if (node.children) return node.children.some((c) => c !== "divider" && !("heading" in c) && isLeafActive(pathname, c.href));
   return isLeafActive(pathname, node.href);
 }
 
-export function AppSidebar() {
+export function AppSidebar({ canHr = true }: { canHr?: boolean }) {
   const pathname = usePathname();
+  const rail = RAIL.filter((r) => r.label !== "HR" || canHr);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const isOrders = pathname.startsWith("/orders");
   const isHr = pathname.startsWith("/hr");
@@ -152,7 +171,7 @@ export function AppSidebar() {
           </button>
         </div>
         <div className="flex flex-col items-center gap-4">
-          {RAIL.map((app) => {
+          {rail.map((app) => {
             const active = app.match(pathname);
             const Icon = app.icon;
             return (
@@ -229,10 +248,18 @@ function MenuItem({ node, pathname }: { node: MenuNode; pathname: string }) {
       </button>
       {open && (
         <div className="mt-0.5">
-          {node.children.map((child, i) =>
-            child === "divider" ? (
-              <div key={`d${i}`} className="my-1 border-b border-[#e8ecf5]" />
-            ) : (
+          {node.children.map((child, i) => {
+            if (child === "divider") {
+              return <div key={`d${i}`} className="my-1 border-b border-[#e8ecf5]" />;
+            }
+            if ("heading" in child) {
+              return (
+                <div key={`h${i}`} className="px-2 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#0a0a0a]/45">
+                  {child.heading}
+                </div>
+              );
+            }
+            return (
               <Link
                 key={child.href}
                 href={child.href}
@@ -246,8 +273,8 @@ function MenuItem({ node, pathname }: { node: MenuNode; pathname: string }) {
               >
                 <span className="truncate">{child.label}</span>
               </Link>
-            ),
-          )}
+            );
+          })}
         </div>
       )}
     </div>

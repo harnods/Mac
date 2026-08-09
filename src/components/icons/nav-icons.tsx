@@ -111,6 +111,78 @@ export function PurchasingIcon(props: NavIconProps) {
   );
 }
 
+export function HrIcon(props: NavIconProps) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <g clipPath="url(#hr-clip)">
+        <path d="M4.94141 17.3505L5.10496 16.6527C5.37777 15.6253 5.96784 14.7072 6.79476 14.0313C7.69931 13.2919 8.83165 12.8881 9.99991 12.8881C11.1682 12.8881 12.3005 13.2919 13.2051 14.0313C14.0319 14.7072 14.6221 15.6253 14.8948 16.6527L15.0586 17.3711" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M10.0001 18.5893C15.4972 18.5893 18.5893 15.4971 18.5893 10C18.5893 4.50286 15.4972 1.41072 10.0001 1.41072C4.50291 1.41072 1.41077 4.50286 1.41077 10C1.41077 15.4971 4.50291 18.5893 10.0001 18.5893Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9.99915 10.7664C11.8491 10.7664 12.8898 9.72576 12.8898 7.87576C12.8898 6.02576 11.8491 4.98514 9.99915 4.98514C8.14915 4.98514 7.10852 6.02576 7.10852 7.87576C7.10852 9.72576 8.14915 10.7664 9.99915 10.7664Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <defs>
+        <clipPath id="hr-clip"><rect width="20" height="20" fill="white" /></clipPath>
+      </defs>
+    </svg>
+  );
+}
+
+export function CrewIcon(props: NavIconProps) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <g clipPath="url(#crew-clip)">
+        <path d="M15.938 9.261C15.9006 7.57735 15.7443 5.93153 15.5927 4.3367C15.5909 4.316 15.5889 4.29532 15.5869 4.27466C15.5853 4.25878 15.5838 4.24294 15.5819 4.22714C15.8445 4.19924 16.1114 4.17971 16.3818 4.17971C16.6889 4.17971 16.9913 4.20488 17.288 4.2389C17.9455 4.31427 18.465 4.84116 18.5224 5.47554C18.5592 5.8839 18.5891 6.30228 18.5891 6.72832C18.5891 7.15437 18.5592 7.57274 18.5224 7.9811C18.465 8.61548 17.9455 9.14238 17.288 9.21775C16.9913 9.25176 16.6889 9.27694 16.3818 9.27694C16.2327 9.27694 16.0848 9.271 15.938 9.261Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M15.7162 14.3401C15.8424 12.9265 15.9465 11.4769 15.9465 10C15.9465 9.76353 15.9439 9.52778 15.9388 9.29275C16.0854 9.28278 16.2331 9.27686 16.3821 9.27686C16.689 9.27686 16.9915 9.30204 17.2882 9.33605C17.9458 9.41142 18.4652 9.93832 18.5225 10.5727C18.5594 10.9811 18.5892 11.3994 18.5892 11.8255C18.5892 12.2515 18.5594 12.6699 18.5225 13.0783C18.4652 13.7126 17.9458 14.2395 17.2882 14.3149C16.9915 14.349 16.689 14.3741 16.3821 14.3741C16.1574 14.3741 15.9354 14.3606 15.7162 14.3401Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M1.76976 15.7203C1.89023 16.9886 2.88268 18.0162 4.14493 18.1889C5.61135 18.3895 7.12727 18.5893 8.67862 18.5893C10.23 18.5893 11.7459 18.3895 13.2123 18.1889C14.4745 18.0162 15.4671 16.9886 15.5874 15.7203C15.7628 13.8753 15.9465 11.9617 15.9465 10C15.9465 8.03827 15.7628 6.12466 15.5874 4.27963C15.4671 3.01132 14.4745 1.98383 13.2123 1.81113C11.7459 1.6105 10.23 1.41071 8.67862 1.41071C7.12727 1.41071 5.61135 1.6105 4.14493 1.81113C2.88268 1.98383 1.89023 3.01132 1.76976 4.27963C1.5945 6.12466 1.41077 8.03827 1.41077 10C1.41077 11.9617 1.5945 13.8753 1.76976 15.7203Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M5.78579 7.95954C5.87023 8.58472 6.40777 9.06325 7.03682 9.11094C7.57007 9.15138 8.11872 9.18766 8.67874 9.18766C9.23876 9.18766 9.7874 9.15138 10.3206 9.11094C10.9497 9.06325 11.4873 8.58472 11.5717 7.95954C11.6046 7.71581 11.6279 7.46782 11.6279 7.21641C11.6279 6.96498 11.6046 6.71699 11.5717 6.47328C11.4873 5.84808 10.9497 5.36955 10.3206 5.32186C9.7874 5.28143 9.23876 5.24514 8.67874 5.24514C8.11872 5.24514 7.57007 5.28143 7.03682 5.32186C6.40777 5.36955 5.87023 5.84808 5.78579 6.47328C5.75287 6.71699 5.72961 6.96498 5.72961 7.21641C5.72961 7.46784 5.75287 7.71581 5.78579 7.95954Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <defs>
+        <clipPath id="crew-clip"><rect width="20" height="20" fill="white" /></clipPath>
+      </defs>
+    </svg>
+  );
+}
+
+export function AttendanceIcon(props: NavIconProps) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <g clipPath="url(#attendance-clip)">
+        <path d="M10.0001 18.5893C15.4972 18.5893 18.5893 15.4971 18.5893 10C18.5893 4.50286 15.4972 1.41071 10.0001 1.41071C4.50291 1.41071 1.41077 4.50286 1.41077 10C1.41077 15.4971 4.50291 18.5893 10.0001 18.5893Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M10.0414 10.0211L13.3351 6.7274" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <defs>
+        <clipPath id="attendance-clip"><rect width="20" height="20" fill="white" /></clipPath>
+      </defs>
+    </svg>
+  );
+}
+
+export function OvertimeIcon(props: NavIconProps) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <g clipPath="url(#overtime-clip)">
+        <path d="M9.26777 14.5496C8.87118 14.5996 8.45428 14.625 8.01766 14.625C3.78909 14.625 1.41052 12.2464 1.41052 8.01786C1.41052 3.78929 3.78909 1.41072 8.01766 1.41072C12.2462 1.41072 14.6248 3.78929 14.6248 8.01786C14.6248 8.50205 14.5937 8.96197 14.5321 9.39685" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7.96237 4.80721V8.03713L6.02441 9.9751" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M15.2856 11.9821V18.5893M11.9821 15.2857H18.5892" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <defs>
+        <clipPath id="overtime-clip"><rect width="20" height="20" fill="white" /></clipPath>
+      </defs>
+    </svg>
+  );
+}
+
+export function PayrollIcon(props: NavIconProps) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+      <path d="M1.77187 12.1375C1.90109 12.797 2.46541 13.3021 3.13745 13.3021H14.0442C14.7162 13.3021 15.2801 12.7968 15.4141 12.1383C15.5878 11.2852 15.7709 10.5111 15.7709 8.0164C15.7709 5.52167 15.5878 4.74761 15.4141 3.8945C15.2801 3.236 14.7162 2.73068 14.0442 2.73068H3.13745C2.46541 2.73068 1.90109 3.23584 1.77187 3.89534C1.59682 4.78881 1.41077 5.5981 1.41077 8.0164C1.41077 10.4347 1.59682 11.244 1.77187 12.1375Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3.57483 7.84252L4.37902 7.83218" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.803 7.84252L13.6072 7.83218" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8.59071 9.64045C9.74149 9.64045 10.3888 8.99314 10.3888 7.84236C10.3888 6.69157 9.74149 6.04425 8.59071 6.04425C7.43993 6.04425 6.7926 6.69157 6.7926 7.84236C6.7926 8.99314 7.43993 9.64045 8.59071 9.64045Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18.2324 7.20067C18.4061 8.05376 18.589 8.82782 18.589 11.3226C18.589 13.8173 18.4061 14.5913 18.2324 15.4444C18.0982 16.103 17.5344 16.6083 16.8623 16.6083H5.95567C5.28363 16.6083 4.7193 16.1031 4.59009 15.4436" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function SettingsIcon(props: NavIconProps) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { formatRp } from "@/lib/format";
 import { updateLoyaltySettings } from "@/app/actions/loyalty";
@@ -32,18 +32,17 @@ export function LoyaltySettingsForm({ rpPerPoint }: { rpPerPoint: number }) {
     <div className="rounded-lg border p-5 space-y-5">
       <div className="space-y-2">
         <Label htmlFor="rpp">Rupiah per 1 Point</Label>
-        <div className="flex gap-2 items-center">
-          <span className="text-sm text-muted-foreground">Rp</span>
-          <Input
+        <InputGroup className="h-10 max-w-[160px]">
+          <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+          <InputGroupInput
             id="rpp"
             type="number"
             min={100}
             step={100}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="max-w-[160px]"
           />
-        </div>
+        </InputGroup>
         <p className="text-xs text-muted-foreground">
           Minimal Rp 100. Contoh: isi <strong>1000</strong> berarti setiap Rp 1.000 = 1 point.
         </p>

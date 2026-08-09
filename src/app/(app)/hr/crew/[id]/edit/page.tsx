@@ -18,10 +18,10 @@ export default async function EditEmployeePage({
   if (!formData || !formData.employee) notFound();
 
   return (
-    <div className="flex flex-col flex-1 gap-6 max-w-2xl">
+    <div className="flex flex-col flex-1 gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild className="-ml-2">
-          <Link href={`/employees/${id}`}><ArrowLeft className="size-4" /></Link>
+          <Link href={`/hr/crew/${id}`}><ArrowLeft className="size-4" /></Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">
           Edit {formData.employee.name}
@@ -33,6 +33,7 @@ export default async function EditEmployeePage({
         jobPositions={formData.jobPositions}
         employmentStatuses={formData.employmentStatuses}
         jobLevels={formData.jobLevels}
+        allowances={formData.allowances}
         employee={formData.employee}
       />
     </div>

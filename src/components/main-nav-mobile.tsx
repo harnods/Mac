@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function MainNavMobile() {
+export function MainNavMobile({ canHr = true }: { canHr?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -87,11 +87,6 @@ export function MainNavMobile() {
           <Link prefetch={false} href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Employees</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/employees" className="cursor-pointer">All employees</Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
@@ -108,18 +103,46 @@ export function MainNavMobile() {
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
         </DropdownMenuItem>
+        {canHr && (<>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>HR</DropdownMenuLabel>
         <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/employees/departments" className="cursor-pointer">Department</Link>
+          <Link prefetch={false} href="/hr/crew" className="cursor-pointer">Crew</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/employees/job-positions" className="cursor-pointer">Job positions</Link>
+          <Link prefetch={false} href="/hr/attendance" className="cursor-pointer">Attendance</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/employees/job-levels" className="cursor-pointer">Job levels</Link>
+          <Link prefetch={false} href="/hr/overtime" className="cursor-pointer">Overtime</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/employees/employment-statuses" className="cursor-pointer">Employment status</Link>
+          <Link prefetch={false} href="/hr/time-off" className="cursor-pointer">Time off</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/payroll" className="cursor-pointer">Payroll</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/job-positions" className="cursor-pointer">Job positions</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/job-levels" className="cursor-pointer">Job levels</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/employment-statuses" className="cursor-pointer">Employment type</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/departments" className="cursor-pointer">Departments</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/shifts" className="cursor-pointer">Shifts</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/overtime-settings" className="cursor-pointer">Overtime</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/hr/payroll-settings" className="cursor-pointer">Payroll</Link>
+        </DropdownMenuItem>
+        </>)}
       </DropdownMenuContent>
     </DropdownMenu>
   );

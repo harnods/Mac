@@ -183,3 +183,33 @@ Update stock: dua input (On hand dan Reserved).
 - **Staff**: read-only + update On hand item saja.
 - Tombol Add/Edit/Delete hanya muncul untuk admin.
 - Kebab menu tidak muncul untuk staff (atau hanya tampil "View details").
+
+---
+
+## Layout conventions (list, detail, tabs)
+
+- **Primary page action in the title bar.** The main action for a page — `Add <thing>` on a list, `Edit` on a detail — lives in the page title row, right-aligned next to the `<h1>`. Do NOT put it in the filter/search row or below the tabs.
+- **Filter bar: search is always right-aligned.** The search input sits at the right end of the filter bar. Left side holds any dropdown filters (department, status, etc.); if there are none, the search still stays right (`flex justify-end`).
+- **Tabs.** Underline tabs (the `TabButton` pattern) have **12px horizontal padding** per tab (`px-3 py-2`), tight gap between tabs (`gap-1`), and the tab row is offset `-ml-3` so the first tab's text still aligns with the content's left edge.
+
+---
+
+## Inputs with prefix / suffix (addons)
+
+Any prefix or suffix on an input — currency (`Rp`), unit (`kg`, `/day`), `%`, `per month`, etc. — goes **inside** the input via `InputGroup`, never as a separate `<span>` sitting beside it.
+
+```tsx
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
+
+<InputGroup>
+  <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+  <InputGroupInput type="number" value={amount} onChange={...} />
+  <InputGroupAddon align="inline-end"><InputGroupText>/day</InputGroupText></InputGroupAddon>
+</InputGroup>
+```
+
+- `align="inline-start"` for prefixes, `align="inline-end"` for suffixes.
+- For a custom control (e.g. `DecimalInput`), place it inside the `InputGroup` with `className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"` so the group draws the single border.
+- A separate **selector** next to the amount (e.g. the per day/week/month `Select`, or a unit dropdown) is a control, not an addon — keep it beside the `InputGroup`, not inside.
+- Do NOT render `<span>Rp</span>` + `<Input>` side by side. Ever.
+- **Height:** `InputGroup` defaults to `h-8`, but the base `Input` and `SelectTrigger` are `h-10`. Always add `className="h-10"` to `InputGroup` so it lines up with adjacent inputs/selects (otherwise it renders shorter).

@@ -18,6 +18,7 @@ export const P = {
   EMPLOYEES_READ:       'employees:read',
   EMPLOYEES_WRITE:      'employees:write',
   EMPLOYEES_ACCESS:     'employees:access',
+  EMPLOYEES_COMPENSATION: 'employees:compensation',
   SETTINGS_ROLES:       'settings:roles',
 } as const;
 
@@ -31,7 +32,7 @@ export const PERMISSION_MODULES = [
   { module: 'sales',       label: 'Sales',       keys: [P.SALES_READ, P.SALES_WRITE] },
   { module: 'purchasing',  label: 'Purchasing',  keys: [P.PURCHASING_READ, P.PURCHASING_REQUEST, P.PURCHASING_PURCHASE, P.PURCHASING_APPROVE] },
   { module: 'stock',       label: 'Stock',       keys: [P.STOCK_READ, P.STOCK_WRITE] },
-  { module: 'employees',   label: 'Employees',   keys: [P.EMPLOYEES_READ, P.EMPLOYEES_WRITE, P.EMPLOYEES_ACCESS] },
+  { module: 'employees',   label: 'Employees',   keys: [P.EMPLOYEES_READ, P.EMPLOYEES_WRITE, P.EMPLOYEES_ACCESS, P.EMPLOYEES_COMPENSATION] },
   { module: 'settings',    label: 'Settings',    keys: [P.SETTINGS_ROLES] },
 ] as const;
 
@@ -54,6 +55,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'employees:read':       'View',
   'employees:write':      'Add / edit / delete',
   'employees:access':     'Grant / revoke login',
+  'employees:compensation': 'View compensation (salary)',
   'settings:roles':       'Manage roles',
 };
 
@@ -63,4 +65,16 @@ export function can(
   key: PermissionKey,
 ): boolean {
   return !!profile && profile.permissions.includes(key);
+}
+
+// Accounts temporarily denied access to the HR module (regardless of role).
+export const HR_BLOCKED_EMAILS = ["ian@machimoto.local"];
+
+/** Whether a profile may access the HR module. */
+export function canAccessHr(
+  profile: { email: string; is_owner: boolean; permissions: string[] } | null | undefined,
+): boolean {
+  if (!profile) return false;
+  if (HR_BLOCKED_EMAILS.includes(profile.email)) return false;
+  return !!profile.is_owner || can(profile, P.EMPLOYEES_READ);
 }
