@@ -114,7 +114,7 @@ export async function clockIn(shiftId: string): Promise<ActionResult> {
     .maybeSingle();
   if (open) return { ok: false, error: "You're already clocked in." };
 
-  const { error } = await supabase.from("attendance").insert({
+  const { error } = await serviceClient().from("attendance").insert({
     employee_id: empId,
     work_date: today,
     shift_id: shiftId,
@@ -156,8 +156,7 @@ export async function clockOut(): Promise<ActionResult> {
   let breakMin = open.break_minutes ?? 0;
   if (open.break_start) breakMin += Math.max(0, toMin(now) - toMin(open.break_start)); // auto-end break
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { error } = await serviceClient()
     .from("attendance")
     .update({ clock_out: now, break_minutes: breakMin, break_start: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", open.id);
@@ -178,8 +177,7 @@ export async function breakStart(): Promise<ActionResult> {
   if (!open) return { ok: false, error: "You haven't clocked in." };
   if (open.break_start) return { ok: false, error: "You're already on break." };
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { error } = await serviceClient()
     .from("attendance")
     .update({ break_start: jakartaTime(), updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", open.id);
@@ -201,8 +199,7 @@ export async function breakEnd(): Promise<ActionResult> {
 
   const now = jakartaTime();
   const breakMin = (open.break_minutes ?? 0) + Math.max(0, toMin(now) - toMin(open.break_start));
-  const supabase = await createClient();
-  const { error } = await supabase
+  const { error } = await serviceClient()
     .from("attendance")
     .update({ break_minutes: breakMin, break_start: null, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", open.id);
