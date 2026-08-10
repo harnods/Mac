@@ -5,10 +5,14 @@ export async function updateSession(request: NextRequest) {
 
   const isPublic =
     pathname === "/login" ||
+    pathname === "/me/login" ||
     pathname === "/order" ||
     pathname.startsWith("/order/") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/");
+
+  // Crew app has its own login URL, separate from the back-office /login.
+  const isCrewPath = pathname === "/me" || pathname.startsWith("/me/");
 
   // Determine auth state purely from the Supabase session cookie — zero
   // network calls, no Edge Runtime timeout risk. Full token verification
@@ -22,7 +26,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!hasSession && !isPublic) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = isCrewPath ? "/me/login" : "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }

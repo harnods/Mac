@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogIn, LogOut, Coffee, Play, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -43,11 +43,6 @@ export function ClockCard({ context }: { context: MyContext }) {
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-sm text-muted-foreground">Hi,</p>
-        <h1 className="text-xl font-semibold tracking-tight">{context.employee?.name}</h1>
-      </div>
-
       {blocked && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300">
           <div className="flex items-center gap-2">
@@ -104,7 +99,7 @@ export function ClockCard({ context }: { context: MyContext }) {
             </Select>
           </div>
           <Button className="h-14 w-full text-base" disabled={pending || blocked || !shiftId} onClick={() => run(() => clockIn(shiftId), "Clocked in")}>
-            <LogIn className="size-5" /> Clock in
+            Clock in
           </Button>
           {completed && <p className="text-center text-xs text-muted-foreground">Clocking in again starts a new session.</p>}
         </div>
@@ -112,15 +107,15 @@ export function ClockCard({ context }: { context: MyContext }) {
         <div className="space-y-3">
           {onBreak ? (
             <Button className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(breakEnd, "Break ended")}>
-              <Play className="size-5" /> End break
+              End break
             </Button>
           ) : (
             <Button variant="outline" className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(breakStart, "Break started")}>
-              <Coffee className="size-5" /> Start break
+              Start break
             </Button>
           )}
           <Button variant="secondary" className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(clockOut, "Clocked out")}>
-            <LogOut className="size-5" /> Clock out
+            Clock out
           </Button>
         </div>
       )}

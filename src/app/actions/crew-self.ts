@@ -237,3 +237,87 @@ export async function changeMyPassword(newPassword: string): Promise<ActionResul
   await serviceClient().from("profiles").update({ must_change_password: false }).eq("id", profile.id);
   return { ok: true };
 }
+
+/** Name + photo for the app header. */
+export async function getMyIdentity(): Promise<{ name: string; photo_url: string | null } | null> {
+  const profile = await getCurrentProfile();
+  if (!profile) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("employees")
+    .select("name,photo_url")
+    .eq("user_id", profile.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  return data ?? null;
+}
+
+export type MyProfile = {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  birthdate: string | null;
+  nik: string | null;
+  gender: string | null;
+  address: string | null;
+  photo_url: string | null;
+  join_date: string | null;
+  termination_date: string | null;
+  last_day: string | null;
+  department: string | null;
+  job_position: string | null;
+  job_level: string | null;
+  employment_status: string | null;
+  bank_name: string | null;
+  bank_account_no: string | null;
+  account_holder_name: string | null;
+};
+
+/** The current crew's own profile: employee info, employment info, bank info (no compensation). */
+export async function getMyProfile(): Promise<MyProfile | null> {
+  const profile = await getCurrentProfile();
+  if (!profile) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("employees")
+    .select(
+      "name,email,phone,birthdate,nik,gender,address,photo_url,join_date,termination_date,last_day,bank_name,bank_account_no,account_holder_name, department:departments(name), job_position:job_positions(name), job_level:job_levels(name), employment_status:employment_statuses(name)",
+    )
+    .eq("user_id", profile.id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!data) return null;
+  const d = data as unknown as {
+    name: string; email: string | null; phone: string | null; birthdate: string | null;
+    nik: string | null; gender: string | null; address: string | null; photo_url: string | null;
+    join_date: string | null; termination_date: string | null; last_day: string | null;
+    bank_name: string | null; bank_account_no: string | null; account_holder_name: string | null;
+    department: { name: string } | null; job_position: { name: string } | null;
+    job_level: { name: string } | null; employment_status: { name: string } | null;
+  };
+  return {
+    name: d.name, email: d.email, phone: d.phone, birthdate: d.birthdate, nik: d.nik,
+    gender: d.gender, address: d.address, photo_url: d.photo_url, join_date: d.join_date,
+    termination_date: d.termination_date, last_day: d.last_day,
+    department: d.department?.name ?? null, job_position: d.job_position?.name ?? null,
+    job_level: d.job_level?.name ?? null, employment_status: d.employment_status?.name ?? null,
+    bank_name: d.bank_name, bank_account_no: d.bank_account_no, account_holder_name: d.account_holder_name,
+  };
+}
+
+export type MyOvertime = { id: string; work_date: string; hours: number; reason: string | null; status: "pending" | "approved" | "rejected" };
+
+/** The current crew's overtime requests (newest first). */
+export async function getMyOvertime(): Promise<MyOvertime[]> {
+  const profile = await getCurrentProfile();
+  if (!profile) return [];
+  const empId = await myEmployeeId(profile.id);
+  if (!empId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("overtime_requests")
+    .select("id,work_date,hours,reason,status")
+    .eq("employee_id", empId)
+    .order("work_date", { ascending: false });
+  return (data ?? []) as MyOvertime[];
+}
