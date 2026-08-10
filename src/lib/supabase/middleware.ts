@@ -7,6 +7,16 @@ export async function updateSession(request: NextRequest) {
   // Crew subdomain (me.machimoto.cafe) serves the /me/* app; every other host
   // (admin.machimoto.cafe, *.vercel.app, apex) serves the back-office.
   const isCrewHost = host.startsWith("me.");
+  // Apex + www show a public placeholder landing page.
+  const isApexHost = host === "machimoto.cafe" || host === "www.machimoto.cafe";
+
+  const isInfraEarly =
+    pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico";
+  if (isApexHost && !isInfraEarly) {
+    const rw = url.clone();
+    rw.pathname = "/landing";
+    return NextResponse.rewrite(rw);
+  }
 
   // Determine auth state purely from the Supabase session cookie — zero
   // network calls, no Edge Runtime timeout risk. Full token verification
