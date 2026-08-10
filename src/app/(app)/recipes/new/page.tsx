@@ -33,16 +33,12 @@ export default async function NewRecipePage({
   const availableProducts = (products ?? []).filter((p: { id: string }) => !takenIds.has(p.id));
 
   return (
-    <div className="flex flex-col flex-1 gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-            <Link href="/recipes"><ArrowLeft className="size-4" /></Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Add recipe</h1>
-          </div>
-        </div>
+    <div className="flex flex-col flex-1 gap-6 max-w-4xl">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" asChild className="-ml-2">
+          <Link href="/recipes"><ArrowLeft className="size-4" /></Link>
+        </Button>
+        <h1 className="text-2xl font-semibold tracking-tight">Add recipe</h1>
       </div>
       <RecipeForm
         items={(items ?? []) as Pick<Item, "id" | "name" | "unit" | "type">[]}

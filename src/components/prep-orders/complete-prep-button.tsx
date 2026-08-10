@@ -59,7 +59,7 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
 
   return (
     <>
-      <Button size="sm" onClick={handleOpen}>
+      <Button onClick={handleOpen}>
         Complete
       </Button>
 

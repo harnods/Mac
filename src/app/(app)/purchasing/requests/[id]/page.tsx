@@ -11,6 +11,7 @@ import { ReviewButtons } from "@/components/purchasing/review-buttons";
 import { PurchaseRequestDetailActions } from "@/components/purchasing/purchase-request-detail-actions";
 import { SubmitDraftButton } from "@/components/purchasing/submit-draft-button";
 import { PurchaseRequestItemsList } from "@/components/purchasing/purchase-request-items-list";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import type { PurchaseRequestStatus, Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -70,15 +71,23 @@ export default async function PurchaseRequestDetailPage({
   const canSubmitDraft = req.status === "draft" && (isOwn || isAdmin);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="-ml-2">
             <Link href="/purchasing/requests"><ArrowLeft className="size-4" /></Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">
             Request <span className="text-muted-foreground font-normal">{formatId(id)}</span>
           </h1>
+          <Badge variant={
+            req.status === "approved" ? "success" :
+            req.status === "rejected" ? "destructive" :
+            req.status === "draft" ? "outline" :
+            "secondary"
+          }>
+            {STATUS_LABEL[req.status]}
+          </Badge>
         </div>
         <div className="flex items-center gap-2">
           {canSubmitDraft && <SubmitDraftButton id={id} />}
@@ -87,55 +96,40 @@ export default async function PurchaseRequestDetailPage({
         </div>
       </div>
 
-      <div className="max-w-2xl space-y-4">
-        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
-          <span className="text-muted-foreground">Requested date</span>
-          <span>{formatDateTime(req.created_at)}</span>
-
-          <span className="text-muted-foreground">Requested by</span>
-          <span>{updaterName(req.creator) ?? "—"}</span>
-
-          <span className="text-muted-foreground">Status</span>
-          <span>
-            <Badge variant={
-              req.status === "approved" ? "success" :
-              req.status === "rejected" ? "destructive" :
-              req.status === "draft" ? "outline" :
-              "secondary"
-            }>
-              {STATUS_LABEL[req.status]}
-            </Badge>
-          </span>
-
-          {req.reviewer && (
-            <>
-              <span className="text-muted-foreground">
-                {req.status === "rejected" ? "Rejected by" : "Approved by"}
-              </span>
-              <span>{updaterName(req.reviewer)}</span>
-
-              {req.reviewed_at && (
-                <>
-                  <span className="text-muted-foreground">
-                    {req.status === "rejected" ? "Rejected on" : "Approved on"}
-                  </span>
-                  <span>{formatDateTime(req.reviewed_at)}</span>
-                </>
-              )}
-            </>
-          )}
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
+          <DetailSection title="Details">
+            <DetailRow label="Requested date" value={formatDateTime(req.created_at)} />
+            <DetailRow label="Requested by" value={updaterName(req.creator)} />
+            {req.reviewer && (
+              <>
+                <DetailRow
+                  label={req.status === "rejected" ? "Rejected by" : "Approved by"}
+                  value={updaterName(req.reviewer)}
+                />
+                {req.reviewed_at && (
+                  <DetailRow
+                    label={req.status === "rejected" ? "Rejected on" : "Approved on"}
+                    value={formatDateTime(req.reviewed_at)}
+                  />
+                )}
+              </>
+            )}
+          </DetailSection>
         </div>
+      </div>
 
-        {req.note && (
-          <div className="space-y-1">
-            <h2 className="text-sm font-medium">Notes</h2>
-            <p className="text-sm whitespace-pre-wrap">{req.note}</p>
-          </div>
-        )}
+      {req.note && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">Notes</h2>
+          <p className="text-sm whitespace-pre-wrap">{req.note}</p>
+        </section>
+      )}
 
-        {req.purchases.length > 0 && (
+      {req.purchases.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">Linked purchase</h2>
           <div className="border rounded-lg px-4 py-3 space-y-2">
-            <div className="text-xs uppercase text-muted-foreground tracking-wide">Linked purchase</div>
             {req.purchases.map((p) => (
               <div key={p.id} className="flex items-center gap-3 text-sm">
                 <Link href={`/purchasing/purchases/${p.id}`} className="font-medium underline hover:text-muted-foreground">
@@ -147,17 +141,17 @@ export default async function PurchaseRequestDetailPage({
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </section>
+      )}
 
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium">Items</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Items</h2>
         {req.purchase_request_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No items.</p>
         ) : (
           <PurchaseRequestItemsList items={req.purchase_request_items} />
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { ADJUSTMENT_COLUMNS } from "@/components/stock/adjustments-table";
 
 const ALL = "__all__";
 
 export function AdjustmentsFilter() {
+  const { isVisible, toggle } = useColumnVisibility("adjustments", ADJUSTMENT_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -62,12 +66,15 @@ export function AdjustmentsFilter() {
           </Button>
         )}
       </div>
-      <Input
-        placeholder="Search by item or reason..."
-        defaultValue={q}
-        onChange={(e) => push({ q: e.target.value })}
-        className="w-full sm:w-64"
-      />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <ColumnsMenu columns={ADJUSTMENT_COLUMNS} isVisible={isVisible} toggle={toggle} />
+        <Input
+          placeholder="Search by item or reason..."
+          defaultValue={q}
+          onChange={(e) => push({ q: e.target.value })}
+          className="w-full sm:w-64"
+        />
+      </div>
     </div>
   );
 }

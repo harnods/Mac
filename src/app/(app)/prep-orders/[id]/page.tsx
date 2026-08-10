@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, updaterName } from "@/lib/format";
-import { formatNum } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import { CompletePrepButton } from "@/components/prep-orders/complete-prep-button";
 import { CancelPrepButton } from "@/components/prep-orders/cancel-prep-button";
 import { PrepOrderIngredientsTable } from "@/components/prep-orders/prep-order-ingredients-table";
@@ -37,10 +38,10 @@ type PrepOrderDetail = {
   }[];
 };
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  pending:   { label: "Pending",   className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" },
-  completed: { label: "Completed", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
+const STATUS_BADGE: Record<string, { label: string; variant: "secondary" | "success" | "outline" }> = {
+  pending: { label: "Pending", variant: "secondary" },
+  completed: { label: "Completed", variant: "success" },
+  cancelled: { label: "Cancelled", variant: "outline" },
 };
 
 export default async function PrepOrderDetailPage({
@@ -67,13 +68,13 @@ export default async function PrepOrderDetailPage({
   if (error || !data) notFound();
   const order = data as unknown as PrepOrderDetail;
 
-  const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+  const statusCfg = STATUS_BADGE[order.status] ?? STATUS_BADGE.pending;
   const yieldUnit = order.product?.unit ?? order.unit;
 
   const variance = order.qty_to_prep != null ? order.qty_to_prep - order.target_qty : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="-ml-2">
@@ -87,9 +88,7 @@ export default async function PrepOrderDetailPage({
               {formatId(id)}
             </span>
           </h1>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusCfg.className}`}>
-            {statusCfg.label}
-          </span>
+          <Badge variant={statusCfg.variant}>{statusCfg.label}</Badge>
         </div>
 
         {isAdmin && order.status === "pending" && (
@@ -104,57 +103,42 @@ export default async function PrepOrderDetailPage({
         )}
       </div>
 
-      {/* Metadata */}
-      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm max-w-lg">
-        <span className="text-muted-foreground">Date</span>
-        <span>{formatDate(order.planned_date)}</span>
-
-        <span className="text-muted-foreground">Product</span>
-        <span>{order.product?.name ?? "—"}</span>
-
-        <span className="text-muted-foreground">Target qty</span>
-        <span className="tabular-nums"><Qty value={order.target_qty} unit={yieldUnit} /></span>
-
-        {order.qty_to_prep != null && (
-          <>
-            <span className="text-muted-foreground">Actual yield</span>
-            <span className="tabular-nums"><Qty value={order.qty_to_prep} unit={yieldUnit} /></span>
-          </>
-        )}
-
-        {variance !== null && variance !== 0 && (
-          <>
-            <span className="text-muted-foreground">Variance</span>
-            <span className={`tabular-nums font-medium ${variance < 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
-              {variance > 0 ? "+" : ""}<Qty value={Math.abs(variance)} unit={yieldUnit} />
-              <span className="font-normal text-muted-foreground ml-1.5 text-xs">
-                {variance < 0 ? "waste" : "non-standard"}
-              </span>
-            </span>
-          </>
-        )}
-
-        {order.yield_variance_reason && (
-          <>
-            <span className="text-muted-foreground">Reason</span>
-            <span className="text-sm">{order.yield_variance_reason}</span>
-          </>
-        )}
-
-        <span className="text-muted-foreground">Created by</span>
-        <span>{updaterName(order.creator)}</span>
-
-        {order.notes && (
-          <>
-            <span className="text-muted-foreground">Notes</span>
-            <span className="whitespace-pre-wrap">{order.notes}</span>
-          </>
-        )}
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
+          <DetailSection title="Details">
+            <DetailRow label="Date" value={formatDate(order.planned_date)} />
+            <DetailRow label="Product" value={order.product?.name} />
+            <DetailRow label="Target qty" value={<span className="tabular-nums"><Qty value={order.target_qty} unit={yieldUnit} /></span>} />
+            {order.qty_to_prep != null && (
+              <DetailRow label="Actual yield" value={<span className="tabular-nums"><Qty value={order.qty_to_prep} unit={yieldUnit} /></span>} />
+            )}
+            {variance !== null && variance !== 0 && (
+              <DetailRow
+                label="Variance"
+                value={
+                  <span className={`tabular-nums font-medium ${variance < 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`}>
+                    {variance > 0 ? "+" : ""}<Qty value={Math.abs(variance)} unit={yieldUnit} />
+                    <span className="font-normal text-muted-foreground ml-1.5 text-xs">
+                      {variance < 0 ? "waste" : "non-standard"}
+                    </span>
+                  </span>
+                }
+              />
+            )}
+            {order.yield_variance_reason && (
+              <DetailRow label="Reason" value={order.yield_variance_reason} />
+            )}
+            <DetailRow label="Created by" value={updaterName(order.creator)} />
+            {order.notes && (
+              <DetailRow label="Notes" value={<span className="whitespace-pre-wrap">{order.notes}</span>} />
+            )}
+          </DetailSection>
+        </div>
       </div>
 
       {/* Ingredients table */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-medium">Ingredients</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Ingredients</h2>
 
         {order.prep_order_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No ingredients.</p>
@@ -164,7 +148,7 @@ export default async function PrepOrderDetailPage({
             columnLabel={order.status === "completed" ? "Used" : "Planned"}
           />
         )}
-      </div>
+      </section>
     </div>
   );
 }

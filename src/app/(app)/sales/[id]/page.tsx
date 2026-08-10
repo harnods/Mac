@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, formatDateTime, updaterName } from "@/lib/format";
 import { DeleteSalesEntryButtonClient } from "@/components/sales/delete-sales-entry-button";
 import { SalesEntryItemsTable } from "@/components/sales/sales-entry-items-table";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -51,10 +52,10 @@ export default async function SalesEntryDetailPage({
   const totalProducts = entry.sales_entry_items.length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
+          <Button variant="ghost" size="icon" asChild className="-ml-2">
             <Link href="/sales">
               <ArrowLeft className="size-4" />
             </Link>
@@ -67,37 +68,29 @@ export default async function SalesEntryDetailPage({
         {can(profile, P.SALES_WRITE) && <DeleteSalesEntryButtonClient id={id} />}
       </div>
 
-      {/* Metadata */}
-      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm max-w-lg">
-        <span className="text-muted-foreground">Date</span>
-        <span>{formatDate(entry.entry_date)}</span>
-
-        <span className="text-muted-foreground">Products sold</span>
-        <span className="tabular-nums">{totalProducts}</span>
-
-        <span className="text-muted-foreground">Recorded by</span>
-        <span>{updaterName(entry.creator)}</span>
-
-        <span className="text-muted-foreground">Recorded at</span>
-        <span>{formatDateTime(entry.created_at)}</span>
-
-        {entry.notes && (
-          <>
-            <span className="text-muted-foreground">Notes</span>
-            <span className="whitespace-pre-wrap">{entry.notes}</span>
-          </>
-        )}
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
+          <DetailSection title="Details">
+            <DetailRow label="Date" value={formatDate(entry.entry_date)} />
+            <DetailRow label="Products sold" value={<span className="tabular-nums">{totalProducts}</span>} />
+            <DetailRow label="Recorded by" value={updaterName(entry.creator)} />
+            <DetailRow label="Recorded at" value={formatDateTime(entry.created_at)} />
+            {entry.notes && (
+              <DetailRow label="Notes" value={<span className="whitespace-pre-wrap">{entry.notes}</span>} />
+            )}
+          </DetailSection>
+        </div>
       </div>
 
       {/* Products table */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-medium">Products sold</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Products sold</h2>
         {entry.sales_entry_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No products recorded.</p>
         ) : (
           <SalesEntryItemsTable items={entry.sales_entry_items} />
         )}
-      </div>
+      </section>
     </div>
   );
 }

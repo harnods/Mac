@@ -1,14 +1,18 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { convertToPieces, formatNum } from "@/lib/units";
 import { formatRp } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Qty } from "@/components/ui/qty";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import { RecipeDetailActions } from "@/components/recipes/recipe-detail-actions";
 import { ProductDrawerTrigger } from "@/components/inventory/product-drawer";
 import { IngredientDrawerTrigger } from "@/components/inventory/ingredient-drawer";
-import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
 import { RecipeIngredientsList } from "@/components/recipes/recipe-ingredients-list";
 import type { CostableItem } from "@/lib/cogs";
 import { calculateRecipeCostRecursive } from "@/lib/cogs-server";
@@ -62,54 +66,61 @@ export default async function RecipeDetailPage({
   const yieldUnit = isWip ? (recipe.unit ?? recipe.product?.unit ?? null) : (recipe.product?.unit ?? null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <PageBreadcrumb items={[{ label: "Recipes", href: "/recipes" }]} />
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="-ml-2">
+            <Link href="/recipes"><ArrowLeft className="size-4" /></Link>
+          </Button>
           <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
+          <Badge variant="secondary">{isWip ? "For prep item" : "Product"}</Badge>
         </div>
         {isAdmin && <RecipeDetailActions id={id} name={recipe.name} />}
       </div>
 
-      <div className="space-y-4">
-        <div className="max-w-2xl space-y-4">
-          <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-            <span className="text-muted-foreground">Type</span>
-            <span>{isWip ? "For prep item" : "Product"}</span>
-          </div>
-          {recipe.product && (
-            <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
-              <span className="text-muted-foreground">Output</span>
-              {isWip ? (
-                <IngredientDrawerTrigger itemId={recipe.product.id} itemName={recipe.product.name} />
-              ) : (
-                <ProductDrawerTrigger productId={recipe.product.id} productName={recipe.product.name} />
-              )}
-              <>
-                <span className="text-muted-foreground">Yield</span>
-                <span className="tabular-nums">
-                  <Qty value={recipe.yield_qty} unit={isWip ? (recipe.unit ?? recipe.product.unit) : recipe.product.unit} /> per prep
-                </span>
-              </>
-              {recipe.weight_per_pcs != null && (
-                <>
-                  <span className="text-muted-foreground">Weight per pcs</span>
+      {recipe.product && (
+        <div className="grid grid-cols-12 gap-8">
+          <div className="col-span-12 space-y-8 lg:col-span-6">
+            <DetailSection title="Details">
+              <DetailRow
+                label="Output"
+                value={isWip ? (
+                  <IngredientDrawerTrigger itemId={recipe.product.id} itemName={recipe.product.name} />
+                ) : (
+                  <ProductDrawerTrigger productId={recipe.product.id} productName={recipe.product.name} />
+                )}
+              />
+              <DetailRow
+                label="Yield"
+                value={
                   <span className="tabular-nums">
-                    <Qty value={recipe.weight_per_pcs} unit={recipe.weight_unit ?? "g"} />
-                    {yieldUnit != null && (() => {
-                      const pcs = convertToPieces(recipe.yield_qty, yieldUnit, recipe.weight_per_pcs, recipe.weight_unit);
-                      return pcs != null && isFinite(pcs) ? (
-                        <span className="text-muted-foreground"> — {formatNum(pcs)} pcs total</span>
-                      ) : null;
-                    })()}
+                    <Qty value={recipe.yield_qty} unit={isWip ? (recipe.unit ?? recipe.product.unit) : recipe.product.unit} /> per prep
                   </span>
-                </>
+                }
+              />
+              {recipe.weight_per_pcs != null && (
+                <DetailRow
+                  label="Weight per pcs"
+                  value={
+                    <span className="tabular-nums">
+                      <Qty value={recipe.weight_per_pcs} unit={recipe.weight_unit ?? "g"} />
+                      {yieldUnit != null && (() => {
+                        const pcs = convertToPieces(recipe.yield_qty, yieldUnit, recipe.weight_per_pcs, recipe.weight_unit);
+                        return pcs != null && isFinite(pcs) ? (
+                          <span className="text-muted-foreground"> — {formatNum(pcs)} pcs total</span>
+                        ) : null;
+                      })()}
+                    </span>
+                  }
+                />
               )}
-            </div>
-          )}
+            </DetailSection>
+          </div>
         </div>
+      )}
 
-        <h2 className="text-sm font-medium">Ingredients</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Ingredients</h2>
         {recipe.recipe_items.length === 0 ? (
           <p className="text-sm text-muted-foreground">No ingredients.</p>
         ) : (
@@ -117,37 +128,36 @@ export default async function RecipeDetailPage({
             rows={recipe.recipe_items.map((ri, idx) => ({ ri, line: cogs.lines[idx] }))}
           />
         )}
+      </section>
 
-        {recipe.recipe_items.length > 0 && (
-          <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm pt-2 border-t max-w-2xl">
-            <span className="text-muted-foreground">Total COGS</span>
-            <span className="tabular-nums font-medium">
-              {formatRp(cogs.totalCost)}
-              {cogs.hasIncompleteCost && (
-                <span className="text-muted-foreground text-xs font-normal"> (incomplete — some ingredients have no cost data)</span>
+      {recipe.recipe_items.length > 0 && (
+        <div className="grid grid-cols-12 gap-8">
+          <div className="col-span-12 space-y-8 lg:col-span-6">
+            <DetailSection title="Cost">
+              <DetailRow
+                label="Total COGS"
+                value={
+                  <span className="tabular-nums font-medium">
+                    {formatRp(cogs.totalCost)}
+                    {cogs.hasIncompleteCost && (
+                      <span className="text-muted-foreground text-xs font-normal"> (incomplete — some ingredients have no cost data)</span>
+                    )}
+                  </span>
+                }
+              />
+              {recipe.yield_qty !== 1 && yieldUnit && (
+                <DetailRow label={`Cost per ${yieldUnit}`} value={<span className="tabular-nums">{formatRp(cogs.costPerYieldUnit)}</span>} />
               )}
-            </span>
-            {recipe.yield_qty !== 1 && yieldUnit && (
-              <>
-                <span className="text-muted-foreground">Cost per {yieldUnit}</span>
-                <span className="tabular-nums">{formatRp(cogs.costPerYieldUnit)}</span>
-              </>
-            )}
-            {sellPrice != null && (
-              <>
-                <span className="text-muted-foreground">Sell price</span>
-                <span className="tabular-nums">{formatRp(sellPrice)}</span>
-              </>
-            )}
-            {cogsPercent != null && (
-              <>
-                <span className="text-muted-foreground">COGS %</span>
-                <span className="tabular-nums">{formatNum(cogsPercent)}%</span>
-              </>
-            )}
+              {sellPrice != null && (
+                <DetailRow label="Sell price" value={<span className="tabular-nums">{formatRp(sellPrice)}</span>} />
+              )}
+              {cogsPercent != null && (
+                <DetailRow label="COGS %" value={<span className="tabular-nums">{formatNum(cogsPercent)}%</span>} />
+              )}
+            </DetailSection>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

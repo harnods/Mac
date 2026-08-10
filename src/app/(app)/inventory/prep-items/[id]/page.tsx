@@ -6,7 +6,9 @@ import { can, P } from "@/lib/permissions";
 import { ItemDetailActions } from "@/components/inventory/item-detail-actions";
 import { SellableToggleButton } from "@/components/inventory/sellable-toggle-button";
 import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
-import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
+import { DetailBackButton } from "@/components/employees/detail-back-button";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
+import { Badge } from "@/components/ui/badge";
 import { Qty } from "@/components/ui/qty";
 import { formatDate, updaterName } from "@/lib/format";
 import { PrepOrderHistoryTable } from "@/components/inventory/prep-order-history-table";
@@ -62,17 +64,13 @@ export default async function PrepItemDetailPage({
   const available = Number(item.on_hand) - Number(item.reserved);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <PageBreadcrumb items={[{ label: "Prep items", href: "/inventory/prep-items" }]} />
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
-            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-              Prep item
-            </span>
-          </div>
+        <div className="flex items-center gap-3">
+          <DetailBackButton href="/inventory/prep-items" />
+          <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+          <Badge variant="secondary">Prep item</Badge>
         </div>
         {isAdmin && (
           <div className="flex gap-2">
@@ -87,34 +85,38 @@ export default async function PrepItemDetailPage({
         )}
       </div>
 
-      {/* Stock */}
-      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm max-w-sm">
-        <span className="text-muted-foreground">On hand</span>
-        <span className="tabular-nums"><Qty value={available} unit={item.unit} /></span>
-        <span className="text-muted-foreground">Recipe</span>
-        {recipe ? (
-          <RecipeDrawerTrigger recipeId={recipe.id} recipeName={recipe.name} />
-        ) : (
-          <span className="text-muted-foreground">
-            No recipe yet.{" "}
-            <Link href={`/recipes/new?productId=${item.id}&type=wip`} className="underline hover:text-foreground">
-              Create recipe
-            </Link>
-          </span>
-        )}
-        <span className="text-muted-foreground">Last updated</span>
-        <span>{updaterName(item.updater)} · {formatDate(item.updated_at)}</span>
+      {/* Details */}
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
+          <DetailSection title="Details">
+            <DetailRow label="On hand" value={<span className="tabular-nums"><Qty value={available} unit={item.unit} /></span>} />
+            <DetailRow
+              label="Recipe"
+              value={recipe ? (
+                <RecipeDrawerTrigger recipeId={recipe.id} recipeName={recipe.name} />
+              ) : (
+                <span className="text-muted-foreground">
+                  No recipe yet.{" "}
+                  <Link href={`/recipes/new?productId=${item.id}&type=wip`} className="underline hover:text-foreground">
+                    Create recipe
+                  </Link>
+                </span>
+              )}
+            />
+            <DetailRow label="Last updated" value={`${updaterName(item.updater)} · ${formatDate(item.updated_at)}`} />
+          </DetailSection>
+        </div>
       </div>
 
       {/* Prep orders */}
-      <div className="space-y-2">
-        <h2 className="text-sm font-medium">Prep orders</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Prep orders</h2>
         {orders.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No prep orders yet.</p>
         ) : (
           <PrepOrderHistoryTable orders={orders} itemUnit={item.unit} />
         )}
-      </div>
+      </section>
     </div>
   );
 }

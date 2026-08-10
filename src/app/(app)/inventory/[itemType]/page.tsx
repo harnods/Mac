@@ -9,7 +9,6 @@ import { Plus } from "lucide-react";
 import { formatQty } from "@/lib/units";
 import { ItemsFilter } from "@/components/inventory/items-filter";
 import { ItemBulkTable } from "@/components/inventory/item-bulk-table";
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ImportItemsButton } from "@/components/inventory/import-items-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import type { Category, ItemWithCategory } from "@/lib/supabase/types";
@@ -85,14 +84,11 @@ export default async function ItemTypePage({
         {isAdmin && (
           <div className="flex items-center gap-2">
             <ImportItemsButton itemTypeSlug={itemType as ItemTypeSlug} />
-            <ItemFormDialog
-              itemTypeSlug={itemType as ItemTypeSlug}
-              trigger={
-                <Button>
-                  <Plus className="size-4" /> Add {config.singular.toLowerCase()}
-                </Button>
-              }
-            />
+            <Button asChild>
+              <Link href={`/inventory/${itemType}/new`}>
+                <Plus className="size-4" /> Add {config.singular.toLowerCase()}
+              </Link>
+            </Button>
           </div>
         )}
       </div>
@@ -119,14 +115,9 @@ export default async function ItemTypePage({
           {!isFiltered && isAdmin && (
             <>
               {" "}
-              <ItemFormDialog
-                itemTypeSlug={itemType as ItemTypeSlug}
-                trigger={
-                  <button className="underline">
-                    Add the first {config.singular.toLowerCase()}
-                  </button>
-                }
-              />
+              <Link href={`/inventory/${itemType}/new`} className="underline">
+                Add the first {config.singular.toLowerCase()}
+              </Link>
               .
             </>
           )}

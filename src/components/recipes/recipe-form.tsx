@@ -289,8 +289,10 @@ export function RecipeForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
-      <div className="max-w-lg space-y-6">
+    <form onSubmit={submit} className="flex flex-col gap-8">
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Recipe details</h2>
+        <div className="max-w-lg space-y-6">
       {/* Recipe type */}
       <div className="space-y-2">
         <Label>Recipe type</Label>
@@ -520,11 +522,13 @@ export function RecipeForm({
           })()}
         </div>
       )}
-      </div>
+        </div>
+      </section>
 
       {/* Ingredients */}
-      <div className="space-y-3">
-        <Label>Ingredients</Label>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Ingredients</h2>
+        <div className="space-y-3">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={rows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
             {rows.map((row, idx) => {
@@ -560,7 +564,8 @@ export function RecipeForm({
             })}
           </SortableContext>
         </DndContext>
-      </div>
+        </div>
+      </section>
 
       <QuickCreateItemDialog
         open={quickCreateOpen}
@@ -586,12 +591,12 @@ export function RecipeForm({
         }}
       />
 
-      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancel
         </Button>
         <Button type="submit" disabled={pending || !productId}>
-          {pending ? "Saving..." : isEdit ? "Save changes" : "Create recipe"}
+          {pending ? "Saving..." : isEdit ? "Save changes" : "Save"}
         </Button>
       </div>
     </form>

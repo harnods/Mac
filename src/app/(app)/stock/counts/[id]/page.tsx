@@ -9,6 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, formatDateTime, updaterName } from "@/lib/format";
 import type { Updater } from "@/lib/supabase/types";
 import { CountWorkspace } from "@/components/stock/count-workspace";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 
 export const dynamic = "force-dynamic";
 
@@ -83,69 +84,62 @@ export default async function StockCountDetailPage({
   const items = count.stock_count_items ?? [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-          <Link href="/stock/counts">
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="-ml-2">
+            <Link href="/stock/counts">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
           <h1 className="text-2xl font-semibold tracking-tight">
             Stock count {formatId(count.id)}
           </h1>
+          {statusBadge(count.status)}
         </div>
       </div>
 
       {/* Metadata */}
-      <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm max-w-md">
-        <span className="text-muted-foreground">Status</span>
-        <span>{statusBadge(count.status)}</span>
-        <span className="text-muted-foreground">Count date</span>
-        <span>
-          {count.count_date ? (
-            formatDate(count.count_date)
-          ) : (
-            <span className="text-muted-foreground">Not started</span>
-          )}
-        </span>
-        <span className="text-muted-foreground">Created by</span>
-        <span>{updaterName(count.creator)}</span>
-        <span className="text-muted-foreground">Created at</span>
-        <span>{formatDateTime(count.created_at)}</span>
-        {count.started_at && (
-          <>
-            <span className="text-muted-foreground">Started by</span>
-            <span>{updaterName(count.starter)}</span>
-            <span className="text-muted-foreground">Started at</span>
-            <span>{formatDateTime(count.started_at)}</span>
-          </>
-        )}
-        {count.completed_at && (
-          <>
-            <span className="text-muted-foreground">Finished by</span>
-            <span>{updaterName(count.completer)}</span>
-            <span className="text-muted-foreground">Finished at</span>
-            <span>{formatDateTime(count.completed_at)}</span>
-          </>
-        )}
-        {count.note && (
-          <>
-            <span className="text-muted-foreground">Global note</span>
-            <span>{count.note}</span>
-          </>
-        )}
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
+          <DetailSection title="Details">
+            <DetailRow
+              label="Count date"
+              value={count.count_date ? formatDate(count.count_date) : (
+                <span className="text-muted-foreground">Not started</span>
+              )}
+            />
+            <DetailRow label="Created by" value={updaterName(count.creator)} />
+            <DetailRow label="Created at" value={formatDateTime(count.created_at)} />
+            {count.started_at && (
+              <>
+                <DetailRow label="Started by" value={updaterName(count.starter)} />
+                <DetailRow label="Started at" value={formatDateTime(count.started_at)} />
+              </>
+            )}
+            {count.completed_at && (
+              <>
+                <DetailRow label="Finished by" value={updaterName(count.completer)} />
+                <DetailRow label="Finished at" value={formatDateTime(count.completed_at)} />
+              </>
+            )}
+            {count.note && <DetailRow label="Global note" value={count.note} />}
+          </DetailSection>
+        </div>
       </div>
 
-      {/* Items table */}
-      {items.length === 0 ? (
-        <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
-          No items in this count.
-        </div>
-      ) : (
-        <CountWorkspace count={count} items={items} canEdit={isAdmin} />
-      )}
+      {/* Items */}
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Items</h2>
+        {items.length === 0 ? (
+          <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
+            No items in this count.
+          </div>
+        ) : (
+          <CountWorkspace count={count} items={items} canEdit={isAdmin} />
+        )}
+      </section>
     </div>
   );
 }

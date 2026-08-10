@@ -2,37 +2,22 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Suspense } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  STICKY_ACTION_HEAD,
-  STICKY_ACTION_CELL,
-} from "@/components/ui/table";
 import { AddUnitForm } from "@/components/inventory/add-unit-form";
-import { UnitRowActions } from "@/components/inventory/unit-row-actions";
 import { UnitsFilter } from "@/components/inventory/units-filter";
+import { UnitsTable, type UnitRow } from "@/components/settings/units-table";
+import { PaginationBar, parsePageSize, DEFAULT_PAGE_SIZE } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
-
-const CONVERSION_LABEL: Record<string, string> = {
-  g: "g ↔ kg",
-  kg: "g ↔ kg",
-  ml: "ml ↔ l",
-  l: "ml ↔ l",
-};
-
-type UnitRow = { code: string; is_system: boolean };
 
 export default async function SettingsUnitsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; size?: string }>;
 }) {
-  const { q = "" } = await searchParams;
+  const { q = "", page: rawPageStr, size: rawSizeStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const PAGE_SIZE = parsePageSize(rawSizeStr);
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.INVENTORY_WRITE);
   const supabase = await createClient();
@@ -46,6 +31,17 @@ export default async function SettingsUnitsPage({
   const { data: unitsData } = await unitsQuery;
 
   const units = (unitsData ?? []) as UnitRow[];
+  const totalPages = Math.ceil(units.length / PAGE_SIZE);
+  const from = (page - 1) * PAGE_SIZE;
+  const paged = units.slice(from, from + PAGE_SIZE);
+
+  const buildHref = (p: number, size: number = PAGE_SIZE) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (size !== DEFAULT_PAGE_SIZE) sp.set("size", String(size));
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -58,44 +54,21 @@ export default async function SettingsUnitsPage({
         <UnitsFilter />
       </Suspense>
 
-      <div className="border table-outer rounded-lg overflow-x-auto">
-        <Table className="w-auto min-w-full table-fixed">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[240px]">Code</TableHead>
-              <TableHead className="w-[160px]">Type</TableHead>
-              <TableHead className="w-[160px]">Conversion</TableHead>
-              <TableHead className="w-0 p-0" />
-              <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {units.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-10 text-sm">
-                  {q.trim() ? "No units match your search." : "No units found."}
-                </TableCell>
-              </TableRow>
-            ) : (
-              units.map((u) => (
-                <TableRow key={u.code}>
-                  <TableCell className="font-medium">{u.code}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {u.is_system ? "System" : "Custom"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {CONVERSION_LABEL[u.code] ?? "—"}
-                  </TableCell>
-                  <TableCell />
-                  <TableCell className={STICKY_ACTION_CELL}>
-                    {isAdmin && !u.is_system && <UnitRowActions code={u.code} />}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      {units.length === 0 ? (
+        <div className="border rounded-lg p-10 text-center text-sm text-muted-foreground">
+          {q.trim() ? "No units match your search." : "No units found."}
+        </div>
+      ) : (
+        <UnitsTable units={paged} isAdmin={isAdmin} />
+      )}
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        pageSize={PAGE_SIZE}
+        buildHref={buildHref}
+        buildSizeHref={(s) => buildHref(1, s)}
+      />
     </div>
   );
 }

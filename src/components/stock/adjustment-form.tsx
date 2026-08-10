@@ -187,7 +187,9 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
   return (
     <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
       {/* Header fields */}
-      <div className="max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Details</h2>
+        <div className="max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="adj-date">Date</Label>
           <Input
@@ -236,11 +238,12 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
             </p>
           )}
         </div>
-      </div>
+        </div>
+      </section>
 
       {/* Items table */}
-      <div className="space-y-3">
-        <Label>Items</Label>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Items</h2>
         <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="w-auto min-w-full table-fixed">
             <TableHeader>
@@ -282,13 +285,13 @@ export function AdjustmentForm({ items }: { items: Item[] }) {
             </TableBody>
           </Table>
         </div>
-      </div>
+      </section>
 
       {/* Actions */}
-      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
         <Button type="submit" disabled={pending}>
-          {pending ? "Saving..." : "Save adjustment"}
+          {pending ? "Saving..." : "Save"}
         </Button>
       </div>
     </form>

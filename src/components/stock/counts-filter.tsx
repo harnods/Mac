@@ -12,10 +12,14 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { COUNT_COLUMNS } from "@/components/stock/counts-table";
 
 const ALL = "__all__";
 
 export function CountsFilter() {
+  const { isVisible, toggle } = useColumnVisibility("counts", COUNT_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -63,12 +67,15 @@ export function CountsFilter() {
           </Button>
         )}
       </div>
-      <Input
-        placeholder="Search by note..."
-        defaultValue={q}
-        onChange={(e) => push({ q: e.target.value })}
-        className="w-full sm:w-64"
-      />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <ColumnsMenu columns={COUNT_COLUMNS} isVisible={isVisible} toggle={toggle} />
+        <Input
+          placeholder="Search by note..."
+          defaultValue={q}
+          onChange={(e) => push({ q: e.target.value })}
+          className="w-full sm:w-64"
+        />
+      </div>
     </div>
   );
 }

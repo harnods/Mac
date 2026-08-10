@@ -7,7 +7,6 @@ import { Trash2, Check, ChevronsUpDown, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DecimalInput } from "@/components/ui/decimal-input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Command,
@@ -160,8 +159,8 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
 
   return (
     <form onSubmit={(e) => submit(e, draftMode)} className="flex flex-col flex-1 gap-6">
-      <div className="space-y-3">
-        <Label>Items to purchase</Label>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Items to purchase</h2>
         <div className="space-y-6">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={rows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
@@ -190,10 +189,10 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
             </SortableContext>
           </DndContext>
         </div>
-      </div>
+      </section>
 
-      <div className="space-y-2">
-        <Label htmlFor="note">Note</Label>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Note</h2>
         <Textarea
           id="note"
           value={note}
@@ -201,9 +200,9 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
           rows={3}
           maxLength={500}
         />
-      </div>
+      </section>
 
-      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => router.back()}>
           Cancel
         </Button>

@@ -5,8 +5,12 @@ import { useTransition, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
+import { ColumnsMenu } from "@/components/ui/columns-menu";
+import { useColumnVisibility } from "@/hooks/use-column-visibility";
+import { SALES_COLUMNS } from "@/components/sales/sales-table";
 
 export function SalesFilter() {
+  const { isVisible, toggle } = useColumnVisibility("sales", SALES_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -42,12 +46,15 @@ export function SalesFilter() {
           </Button>
         )}
       </div>
-      <Input
-        placeholder="Search by notes..."
-        defaultValue={q}
-        onChange={(e) => push({ q: e.target.value })}
-        className="w-full sm:w-64"
-      />
+      <div className="flex items-center gap-2 w-full sm:w-auto">
+        <ColumnsMenu columns={SALES_COLUMNS} isVisible={isVisible} toggle={toggle} />
+        <Input
+          placeholder="Search by notes..."
+          defaultValue={q}
+          onChange={(e) => push({ q: e.target.value })}
+          className="w-full sm:w-64"
+        />
+      </div>
     </div>
   );
 }

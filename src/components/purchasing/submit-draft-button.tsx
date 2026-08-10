@@ -17,7 +17,7 @@ export function SubmitDraftButton({ id }: { id: string }) {
   }
 
   return (
-    <Button size="sm" disabled={pending} onClick={handleSubmit}>
+    <Button disabled={pending} onClick={handleSubmit}>
       {pending ? "Submitting..." : "Submit request"}
     </Button>
   );

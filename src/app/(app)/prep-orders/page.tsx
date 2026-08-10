@@ -4,42 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Plus } from "lucide-react";
-import { formatId, formatDate, updaterName } from "@/lib/format";
-import { formatNum } from "@/lib/units";
-import { Qty } from "@/components/ui/qty";
 import { PrepOrdersFilter } from "@/components/prep-orders/prep-orders-filter";
-import type { Updater } from "@/lib/supabase/types";
+import { PrepOrdersTable, type PrepOrderListItem } from "@/components/prep-orders/prep-orders-table";
 import { PaginationBar, parsePageSize, DEFAULT_PAGE_SIZE } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
-
-
-type PrepOrderRecord = {
-  id: string;
-  status: string;
-  target_qty: number;
-  qty_to_prep: number | null;
-  unit: string | null;
-  planned_date: string;
-  product: { id: string; name: string } | null;
-  creator: Updater | null;
-};
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  pending:   { label: "Pending",   className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" },
-  completed: { label: "Completed", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
-  cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
-};
 
 export default async function PrepOrdersPage({
   searchParams,
@@ -70,7 +40,7 @@ export default async function PrepOrdersPage({
   if (q.trim()) query = query.ilike("items.name", `%${q.trim()}%`);
 
   const { data, count } = await query;
-  const list = (data ?? []) as unknown as PrepOrderRecord[];
+  const list = (data ?? []) as unknown as PrepOrderListItem[];
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   const buildHref = (p: number, size: number = PAGE_SIZE) => {
@@ -106,58 +76,7 @@ export default async function PrepOrdersPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-auto min-w-full table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[160px]">No</TableHead>
-                <TableHead className="w-[240px]">Product</TableHead>
-                <TableHead className="w-[160px]">Status</TableHead>
-                <TableHead className="w-[160px]">Qty</TableHead>
-                <TableHead className="w-[160px]">Date</TableHead>
-                <TableHead className="w-[160px]">Created by</TableHead>
-                <TableHead className="w-0 p-0" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((order) => (
-                <ClickableTableRow key={order.id} href={`/prep-orders/${order.id}`}>
-                  <TableCell className="font-medium tabular-nums">
-                    <Link href={`/prep-orders/${order.id}`} className="hover:underline">
-                      {formatId(order.id)}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm truncate">
-                    {order.product?.name ?? "—"}
-                  </TableCell>
-                  <TableCell>
-                    {(() => {
-                      const cfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
-                      return (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
-                          {cfg.label}
-                        </span>
-                      );
-                    })()}
-                  </TableCell>
-                  <TableCell className="tabular-nums text-sm">
-                    {order.qty_to_prep != null
-                      ? <Qty value={order.qty_to_prep} unit={order.unit ?? "pcs"} />
-                      : <span className="text-muted-foreground">— {formatNum(order.target_qty)} target</span>
-                    }
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {formatDate(order.planned_date)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {updaterName(order.creator)}
-                  </TableCell>
-                  <TableCell />
-                </ClickableTableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <PrepOrdersTable list={list} />
       )}
       <PaginationBar page={page} totalPages={totalPages} pageSize={PAGE_SIZE} buildHref={buildHref} buildSizeHref={(s) => buildHref(1, s)} />
     </div>

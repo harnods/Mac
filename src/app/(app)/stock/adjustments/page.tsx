@@ -4,42 +4,23 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
-import { formatDate, formatId, updaterName } from "@/lib/format";
-import { formatNum } from "@/lib/units";
-import { Qty } from "@/components/ui/qty";
 import { AdjustmentsFilter } from "@/components/stock/adjustments-filter";
-import type { Updater } from "@/lib/supabase/types";
+import { AdjustmentsTable } from "@/components/stock/adjustments-table";
+import type { AdjustmentRecord } from "@/components/stock/adjustments-table-row";
+import { PaginationBar, parsePageSize, DEFAULT_PAGE_SIZE } from "@/components/ui/pagination-bar";
 
 export const dynamic = "force-dynamic";
-
-type AdjustmentRecord = {
-  id: string;
-  direction: "in" | "out";
-  qty: number;
-  unit: string;
-  reason: string | null;
-  adjustment_date: string;
-  created_at: string;
-  item: { name: string } | null;
-  creator: Updater | null;
-};
 
 export default async function StockAdjustmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; direction?: string }>;
+  searchParams: Promise<{ q?: string; direction?: string; page?: string; size?: string }>;
 }) {
-  const { q = "", direction } = await searchParams;
+  const { q = "", direction, page: rawPageStr, size: rawSizeStr } = await searchParams;
+  const rawPage = Number(rawPageStr ?? 1);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const PAGE_SIZE = parsePageSize(rawSizeStr);
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.STOCK_WRITE);
   const supabase = await createClient();
@@ -63,6 +44,19 @@ export default async function StockAdjustmentsPage({
           (a.reason ?? "").toLowerCase().includes(q.trim().toLowerCase()),
       )
     : list;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const from = (page - 1) * PAGE_SIZE;
+  const paged = filtered.slice(from, from + PAGE_SIZE);
+
+  const buildHref = (p: number, size: number = PAGE_SIZE) => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (direction) sp.set("direction", direction);
+    if (size !== DEFAULT_PAGE_SIZE) sp.set("size", String(size));
+    if (p > 1) sp.set("page", String(p));
+    return `?${sp.toString()}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -89,46 +83,16 @@ export default async function StockAdjustmentsPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-auto min-w-full table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[160px]">Date</TableHead>
-                <TableHead className="w-[160px]">Number</TableHead>
-                <TableHead className="w-[240px]">Item</TableHead>
-                <TableHead className="w-[160px]">Direction</TableHead>
-                <TableHead className="w-[160px] text-right">Qty</TableHead>
-                <TableHead className="w-[160px]">Reason</TableHead>
-                <TableHead className="w-[160px]">Recorded by</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((adj) => (
-                <TableRow key={adj.id}>
-                  <TableCell>{formatDate(adj.adjustment_date)}</TableCell>
-                  <TableCell className="font-medium tabular-nums">#{formatId(adj.id)}</TableCell>
-                  <TableCell className="font-medium truncate">{adj.item?.name ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={adj.direction === "in" ? "success" : "destructive"}>
-                      {adj.direction === "in" ? "In" : "Out"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    <Qty value={adj.qty} unit={adj.unit} />
-                  </TableCell>
-                  <TableCell className="truncate text-sm">
-                    {adj.reason ?? <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <div>{updaterName(adj.creator)}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(adj.created_at)}</div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <AdjustmentsTable list={paged} />
       )}
+
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        pageSize={PAGE_SIZE}
+        buildHref={buildHref}
+        buildSizeHref={(s) => buildHref(1, s)}
+      />
     </div>
   );
 }

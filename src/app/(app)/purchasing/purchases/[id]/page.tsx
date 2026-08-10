@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatDate, formatDateTime, updaterName, formatId } from "@/lib/format";
 import { PurchaseItemsList } from "@/components/purchasing/purchase-items-list";
+import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -54,10 +55,10 @@ export default async function PurchaseDetailPage({
   const purchase = data as unknown as PurchaseDetail;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild className="-ml-2">
             <Link href="/purchasing/purchases"><ArrowLeft className="size-4" /></Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -66,23 +67,22 @@ export default async function PurchaseDetailPage({
         </div>
       </div>
 
-      <div className="max-w-2xl space-y-4">
-        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
-          <span className="text-muted-foreground">Transaction date</span>
-          <span>{formatDate(purchase.transaction_date)}</span>
-
-          <span className="text-muted-foreground">Recorded</span>
-          <span>{formatDateTime(purchase.created_at)}</span>
-
-          <span className="text-muted-foreground">Recorded by</span>
-          <span>{updaterName(purchase.updater) ?? "—"}</span>
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
+          <DetailSection title="Details">
+            <DetailRow label="Transaction date" value={formatDate(purchase.transaction_date)} />
+            <DetailRow label="Recorded" value={formatDateTime(purchase.created_at)} />
+            <DetailRow label="Recorded by" value={updaterName(purchase.updater)} />
+          </DetailSection>
         </div>
+      </div>
 
-        {purchase.purchase_purchase_requests.length > 0 && (
+      {purchase.purchase_purchase_requests.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">
+            Linked purchase request{purchase.purchase_purchase_requests.length > 1 ? "s" : ""}
+          </h2>
           <div className="border rounded-lg px-4 py-3 space-y-2">
-            <div className="text-xs uppercase text-muted-foreground tracking-wide">
-              Linked purchase request{purchase.purchase_purchase_requests.length > 1 ? "s" : ""}
-            </div>
             {purchase.purchase_purchase_requests.map(({ purchase_request_id }) => (
               <div key={purchase_request_id} className="flex items-center gap-3 text-sm">
                 <Link
@@ -94,24 +94,24 @@ export default async function PurchaseDetailPage({
               </div>
             ))}
           </div>
-        )}
+        </section>
+      )}
 
-        {purchase.note && (
-          <div className="space-y-1">
-            <h2 className="text-sm font-medium">Notes</h2>
-            <p className="text-sm whitespace-pre-wrap">{purchase.note}</p>
-          </div>
-        )}
-      </div>
+      {purchase.note && (
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold">Notes</h2>
+          <p className="text-sm whitespace-pre-wrap">{purchase.note}</p>
+        </section>
+      )}
 
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium">Purchased items</h2>
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Purchased items</h2>
         {purchase.purchase_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No items.</p>
         ) : (
           <PurchaseItemsList items={purchase.purchase_items} />
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -81,33 +81,36 @@ export function SalesForm({ products }: { products: Product[] }) {
   return (
     <div className="flex flex-col flex-1 gap-6">
       {/* Header fields */}
-      <div className="max-w-lg space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Details</h2>
+        <div className="max-w-lg space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="entry-date">Date</Label>
+              <Input
+                id="entry-date"
+                type="date"
+                value={entryDate}
+                onChange={(e) => setEntryDate(e.target.value)}
+              />
+            </div>
+          </div>
           <div className="space-y-1.5">
-            <Label htmlFor="entry-date">Date</Label>
-            <Input
-              id="entry-date"
-              type="date"
-              value={entryDate}
-              onChange={(e) => setEntryDate(e.target.value)}
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              maxLength={500}
             />
           </div>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="notes">Notes</Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            maxLength={500}
-          />
-        </div>
-      </div>
+      </section>
 
       {/* Products sold */}
-      <div className="space-y-3">
-        <Label>Products sold</Label>
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Products sold</h2>
         <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="w-auto min-w-full table-fixed">
             <TableHeader>
@@ -144,7 +147,7 @@ export function SalesForm({ products }: { products: Product[] }) {
         <Button type="button" variant="outline" size="sm" onClick={addRow}>
           <Plus className="size-4" /> Add product
         </Button>
-      </div>
+      </section>
 
       {/* Summary */}
       {totalItems > 0 && (
@@ -154,7 +157,7 @@ export function SalesForm({ products }: { products: Product[] }) {
       )}
 
       {/* Actions */}
-      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={() => router.push("/sales")} disabled={pending}>
           Cancel
         </Button>

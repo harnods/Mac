@@ -34,7 +34,7 @@ export function CancelPrepButton({ id }: { id: string }) {
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button variant="outline" onClick={() => setOpen(true)}>
         Cancel order
       </Button>
 

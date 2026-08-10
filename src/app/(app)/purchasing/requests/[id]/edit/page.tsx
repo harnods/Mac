@@ -47,21 +47,19 @@ export default async function EditPurchaseRequestPage({
   }));
 
   return (
-    <div className="flex flex-col flex-1 gap-4">
+    <div className="flex flex-col flex-1 gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
+        <Button variant="ghost" size="icon" asChild className="-ml-2">
           <Link href={`/purchasing/requests/${id}`}><ArrowLeft className="size-4" /></Link>
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">Edit draft request</h1>
       </div>
-      <div className="flex flex-col flex-1 max-w-2xl">
-        <PurchaseRequestForm
-          items={itemsData ?? []}
-          requestId={id}
-          initialNote={req.note ?? ""}
-          initialRows={initialRows}
-        />
-      </div>
+      <PurchaseRequestForm
+        items={itemsData ?? []}
+        requestId={id}
+        initialNote={req.note ?? ""}
+        initialRows={initialRows}
+      />
     </div>
   );
 }

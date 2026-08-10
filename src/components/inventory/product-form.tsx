@@ -175,113 +175,79 @@ export function ProductForm({
   const availableProducts = products.filter((p) => !setProducts.find((s) => s.id === p.id));
 
   return (
-    <form className="flex flex-col flex-1 gap-4">
-      {/* Kind toggle */}
-      <div className="space-y-2">
-        <Label>Type</Label>
-        <div className="flex gap-4">
-          {(["ala_carte", "set"] as const).map((k) => (
-            <label key={k} className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="radio"
-                name="product_kind"
-                value={k}
-                checked={productKind === k}
-                onChange={() => handleKindChange(k)}
-                className="accent-primary"
-                disabled={isEdit && unitLocked}
-              />
-              <span className="text-sm font-medium">
-                {k === "ala_carte" ? "Ala carte" : "Set"}
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
+    <form className="flex flex-col flex-1 gap-6">
+      <div className="flex flex-col gap-8 md:flex-row md:gap-10">
+        {/* Left: the 6-column form */}
+        <div className="order-2 flex min-w-0 flex-1 flex-col gap-8 md:order-1">
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Product info</h2>
+            <div className="grid grid-cols-6 gap-4">
+              {/* Kind toggle */}
+              <div className="col-span-6 space-y-2">
+                <Label>Type</Label>
+                <div className="flex h-10 items-center gap-4">
+                  {(["ala_carte", "set"] as const).map((k) => (
+                    <label key={k} className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        name="product_kind"
+                        value={k}
+                        checked={productKind === k}
+                        onChange={() => handleKindChange(k)}
+                        className="accent-primary"
+                        disabled={isEdit && unitLocked}
+                      />
+                      <span className="text-sm font-medium">
+                        {k === "ala_carte" ? "Ala carte" : "Set"}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-      {/* Name */}
-      <div className="space-y-2">
-        <Label htmlFor="product-name">Name</Label>
-        <Input
-          id="product-name"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
+              {/* Name */}
+              <div className="col-span-6 space-y-2">
+                <Label htmlFor="product-name">Name <span className="text-destructive">*</span></Label>
+                <Input
+                  id="product-name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
 
-      {/* Description */}
-      <div className="space-y-2">
-        <Label htmlFor="product-description">Description</Label>
-        <Textarea
-          id="product-description"
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Short description of the product"
-        />
-      </div>
+              {/* Description */}
+              <div className="col-span-6 space-y-2">
+                <Label htmlFor="product-description">Description</Label>
+                <Textarea
+                  id="product-description"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Short description of the product"
+                />
+              </div>
 
-      {/* Photo */}
-      <div className="space-y-2">
-        <Label>Photo</Label>
-        <div className="flex items-center gap-3">
-          <div className="size-20 rounded-lg border bg-muted overflow-hidden shrink-0 flex items-center justify-center">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt={name || "Product"} className="size-full object-cover" />
-            ) : (
-              <ImagePlus className="size-6 text-muted-foreground" />
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="product-image" className="cursor-pointer">
-              <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
-                {uploadingImage ? "Uploading..." : imageUrl ? "Change photo" : "Upload photo"}
-              </span>
-              <input
-                id="product-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                disabled={uploadingImage}
-                onChange={handleImageChange}
-              />
-            </Label>
-            {imageUrl && (
-              <button
-                type="button"
-                onClick={() => setImageUrl(null)}
-                className="text-xs text-muted-foreground hover:text-foreground text-left"
-              >
-                Remove photo
-              </button>
-            )}
-          </div>
-        </div>
-        <p className="text-xs text-muted-foreground">Shown on the customer order menu. PNG, JPEG, or WebP, up to 5MB.</p>
-      </div>
+              {/* Category */}
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Category</Label>
+                <CategoryCombobox
+                  categories={categories}
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  catType="product"
+                />
+              </div>
 
-      {/* Category */}
-      <div className="space-y-2">
-        <Label>Category</Label>
-        <CategoryCombobox
-          categories={categories}
-          value={categoryId}
-          onChange={setCategoryId}
-          catType="product"
-        />
-      </div>
-
-      {/* Unit */}
-      <div className="space-y-2">
-        <Label>Unit</Label>
-        {productKind === "set" ? (
-          <div className="border rounded-md px-3 py-2 text-sm bg-muted text-muted-foreground">
-            set
-          </div>
-        ) : (
-          <Popover open={unitOpen} onOpenChange={setUnitOpen}>
+              {/* Unit */}
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Unit</Label>
+                {productKind === "set" ? (
+                  <div className="border rounded-md px-3 py-2 text-sm bg-muted text-muted-foreground">
+                    set
+                  </div>
+                ) : (
+                  <Popover open={unitOpen} onOpenChange={setUnitOpen}>
             <PopoverTrigger asChild>
               <Button
                 type="button"
@@ -342,121 +308,171 @@ export function ProductForm({
                   </CommandGroup>
                 </CommandList>
               </Command>
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
+            </div>
+          </section>
 
-      {/* Sell to customers (shows on the customer order menu) */}
-      <div className="space-y-3 rounded-lg border p-3">
-        <div className="flex items-center gap-2">
-          <Switch id="sellable" checked={isSellable} onCheckedChange={setIsSellable} />
-          <Label htmlFor="sellable" className="cursor-pointer">
-            Sell to customers (shown on the order menu)
-          </Label>
-        </div>
-        {isSellable && (
-          <div className="space-y-2">
-            <Label htmlFor="sell-price">Selling price</Label>
-            <DecimalInput
-              id="sell-price"
-              min="0"
-              step="100"
-              value={sellPrice}
-              onValueChange={setSellPrice}
-              className="w-40"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Add-on */}
-      <div className="flex items-center gap-2 rounded-lg border p-3">
-        <Switch id="addon" checked={isAddon} onCheckedChange={setIsAddon} />
-        <Label htmlFor="addon" className="cursor-pointer">
-          Sell as add-on (extra topping/side offered on other products)
-        </Label>
-      </div>
-
-      {/* Set items */}
-      {productKind === "set" && (
-        <div className="space-y-2">
-          <Label>Included products</Label>
-
-          {selectedSetProducts.length > 0 && (
-            <ul className="space-y-1">
-              {selectedSetProducts.map((p) => {
-                const entry = setProducts.find((s) => s.id === p.id)!;
-                return (
-                  <li key={p.id} className="flex items-center gap-2 border rounded-md px-3 py-2">
-                    <span className="flex-1 text-sm flex items-center gap-2">
-                      {p.name}
-                      {p.itemType === "prep_item" && (
-                        <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">prep</span>
-                      )}
-                    </span>
+          {/* Sales */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Sales</h2>
+            <div className="grid grid-cols-6 gap-4">
+              {/* Sell to customers (shows on the customer order menu) */}
+              <div className="col-span-6 space-y-3 rounded-lg border p-3">
+                <div className="flex items-center gap-2">
+                  <Switch id="sellable" checked={isSellable} onCheckedChange={setIsSellable} />
+                  <Label htmlFor="sellable" className="cursor-pointer">
+                    Sell to customers (shown on the order menu)
+                  </Label>
+                </div>
+                {isSellable && (
+                  <div className="space-y-2">
+                    <Label htmlFor="sell-price">Selling price</Label>
                     <DecimalInput
-                      integer
-                      min="1"
-                      step="1"
-                      value={String(entry.qty)}
-                      onValueChange={(v) => updateSetProductQty(p.id, parseDecimal(v) || 1)}
-                      className="w-16 h-7 text-sm text-center"
+                      id="sell-price"
+                      min="0"
+                      step="100"
+                      value={sellPrice}
+                      onValueChange={setSellPrice}
+                      className="w-40"
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeSetProduct(p.id)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                  </div>
+                )}
+              </div>
 
-          <Popover open={productOpen} onOpenChange={setProductOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="gap-1.5">
-                <Plus className="size-3.5" /> Add product
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Search products..." />
-                <CommandList>
-                  <CommandEmpty>No products available.</CommandEmpty>
-                  <CommandGroup>
-                    {availableProducts.map((p) => (
-                      <CommandItem key={p.id} value={p.name} onSelect={() => addSetProduct(p.id)}>
-                        <span className="flex items-center gap-2 flex-1">
-                          <span>{p.name}</span>
-                          {p.itemType === "prep_item" && (
-                            <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">prep</span>
-                          )}
-                        </span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+              {/* Add-on */}
+              <div className="col-span-6 flex items-center gap-2 rounded-lg border p-3">
+                <Switch id="addon" checked={isAddon} onCheckedChange={setIsAddon} />
+                <Label htmlFor="addon" className="cursor-pointer">
+                  Sell as add-on (extra topping/side offered on other products)
+                </Label>
+              </div>
+
+              {/* Set items */}
+              {productKind === "set" && (
+                <div className="col-span-6 space-y-2">
+                  <Label>Included products</Label>
+
+                  {selectedSetProducts.length > 0 && (
+                    <ul className="space-y-1">
+                      {selectedSetProducts.map((p) => {
+                        const entry = setProducts.find((s) => s.id === p.id)!;
+                        return (
+                          <li key={p.id} className="flex items-center gap-2 border rounded-md px-3 py-2">
+                            <span className="flex-1 text-sm flex items-center gap-2">
+                              {p.name}
+                              {p.itemType === "prep_item" && (
+                                <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">prep</span>
+                              )}
+                            </span>
+                            <DecimalInput
+                              integer
+                              min="1"
+                              step="1"
+                              value={String(entry.qty)}
+                              onValueChange={(v) => updateSetProductQty(p.id, parseDecimal(v) || 1)}
+                              className="w-16 h-7 text-sm text-center"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeSetProduct(p.id)}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+
+                  <Popover open={productOpen} onOpenChange={setProductOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="gap-1.5">
+                        <Plus className="size-3.5" /> Add product
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search products..." />
+                        <CommandList>
+                          <CommandEmpty>No products available.</CommandEmpty>
+                          <CommandGroup>
+                            {availableProducts.map((p) => (
+                              <CommandItem key={p.id} value={p.name} onSelect={() => addSetProduct(p.id)}>
+                                <span className="flex items-center gap-2 flex-1">
+                                  <span>{p.name}</span>
+                                  {p.itemType === "prep_item" && (
+                                    <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">prep</span>
+                                  )}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Actions — directly below the form */}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="button" variant="outline" onClick={() => handleSubmit("draft")} disabled={pending}>
+              {pending ? "Saving..." : "Save as draft"}
+            </Button>
+            <Button type="button" onClick={() => handleSubmit("active")} disabled={pending}>
+              {pending ? "Saving..." : isEdit ? "Save changes" : "Create product"}
+            </Button>
+          </div>
         </div>
-      )}
 
-      {/* Actions */}
-      <div className="sticky bottom-0 z-10 mt-auto -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()} disabled={pending}>
-          Cancel
-        </Button>
-        <Button type="button" variant="outline" onClick={() => handleSubmit("draft")} disabled={pending}>
-          {pending ? "Saving..." : "Save as draft"}
-        </Button>
-        <Button type="button" onClick={() => handleSubmit("active")} disabled={pending}>
-          {pending ? "Saving..." : isEdit ? "Save changes" : "Create product"}
-        </Button>
+        {/* Photo — outside the 6-column grid */}
+        <div className="order-1 space-y-2 md:order-2 md:w-48 md:shrink-0">
+          <Label>Photo</Label>
+          <div className="flex flex-col items-start gap-3">
+            <div className="size-32 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt={name || "Product"} className="size-full object-cover" />
+              ) : (
+                <ImagePlus className="size-7 text-muted-foreground" />
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="product-image" className="cursor-pointer">
+                <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+                  {uploadingImage ? "Uploading..." : imageUrl ? "Change photo" : "Upload photo"}
+                </span>
+                <input
+                  id="product-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={handleImageChange}
+                />
+              </Label>
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setImageUrl(null)}
+                  className="text-left text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Shown on the customer order menu. PNG, JPEG, or WebP, up to 5MB.</p>
+          </div>
+        </div>
       </div>
     </form>
   );

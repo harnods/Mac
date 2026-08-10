@@ -25,9 +25,25 @@ type Props = {
   creator: Updater | null;
   createdAt: string;
   canDelete: boolean;
+  showDate?: boolean;
+  showProducts?: boolean;
+  showNotes?: boolean;
+  showRecordedBy?: boolean;
 };
 
-export function SalesEntryRow({ id, entryDate, itemCount, notes, creator, createdAt, canDelete }: Props) {
+export function SalesEntryRow({
+  id,
+  entryDate,
+  itemCount,
+  notes,
+  creator,
+  createdAt,
+  canDelete,
+  showDate = true,
+  showProducts = true,
+  showNotes = true,
+  showRecordedBy = true,
+}: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
@@ -38,15 +54,19 @@ export function SalesEntryRow({ id, entryDate, itemCount, notes, creator, create
             {formatId(id)}
           </Link>
         </TableCell>
-        <TableCell className="text-sm">{formatDate(entryDate)}</TableCell>
-        <TableCell className="tabular-nums text-sm">{itemCount}</TableCell>
-        <TableCell className="text-sm truncate">
-          {notes ?? <span className="text-muted-foreground">—</span>}
-        </TableCell>
-        <TableCell className="text-sm">
-          <div>{updaterName(creator)}</div>
-          <div className="text-xs text-muted-foreground">{formatDate(createdAt)}</div>
-        </TableCell>
+        {showDate && <TableCell className="text-sm">{formatDate(entryDate)}</TableCell>}
+        {showProducts && <TableCell className="tabular-nums text-sm">{itemCount}</TableCell>}
+        {showNotes && (
+          <TableCell className="text-sm truncate">
+            {notes ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showRecordedBy && (
+          <TableCell className="text-sm">
+            <div>{updaterName(creator)}</div>
+            <div className="text-xs text-muted-foreground">{formatDate(createdAt)}</div>
+          </TableCell>
+        )}
         <TableCell />
         <TableCell className={STICKY_ACTION_CELL}>
           <DropdownMenu>

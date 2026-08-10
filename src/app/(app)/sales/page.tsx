@@ -4,18 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  STICKY_ACTION_HEAD,
-} from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { SalesFilter } from "@/components/sales/sales-filter";
-import { SalesEntryRow } from "@/components/sales/sales-entry-row";
+import { SalesTable } from "@/components/sales/sales-table";
 import type { Updater } from "@/lib/supabase/types";
 import { PaginationBar, parsePageSize, DEFAULT_PAGE_SIZE } from "@/components/ui/pagination-bar";
 
@@ -93,35 +84,7 @@ export default async function SalesPage({
           )}
         </div>
       ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-auto min-w-full table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[160px]">No</TableHead>
-                <TableHead className="w-[160px]">Date</TableHead>
-                <TableHead className="w-[160px]"># Products</TableHead>
-                <TableHead className="w-[240px]">Notes</TableHead>
-                <TableHead className="w-[160px]">Recorded by</TableHead>
-                <TableHead className="w-0 p-0" />
-                <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {list.map((entry) => (
-                <SalesEntryRow
-                  key={entry.id}
-                  id={entry.id}
-                  entryDate={entry.entry_date}
-                  itemCount={entry.sales_entry_items.length}
-                  notes={entry.notes}
-                  creator={entry.creator}
-                  createdAt={entry.created_at}
-                  canDelete={isAdmin}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <SalesTable list={list} canDelete={isAdmin} />
       )}
       <PaginationBar page={page} totalPages={totalPages} pageSize={PAGE_SIZE} buildHref={buildHref} buildSizeHref={(s) => buildHref(1, s)} />
     </div>

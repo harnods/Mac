@@ -26,7 +26,7 @@ export function ProductStatusButton({ id, status }: { id: string; status: "activ
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={handleToggle} disabled={pending}>
+    <Button variant="outline" onClick={handleToggle} disabled={pending}>
       {pending ? "Saving..." : isDraft ? "Publish" : "Set as draft"}
     </Button>
   );

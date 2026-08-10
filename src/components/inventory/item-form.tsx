@@ -23,6 +23,10 @@ import type { UnitCode } from "@/lib/supabase/types";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+function Required() {
+  return <span className="text-destructive">*</span>;
+}
+
 type Props = {
   categories: Pick<Category, "id" | "name">[];
   units: string[];
@@ -133,181 +137,196 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col flex-1 gap-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input
-          id="name"
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
-
-      {showPhoto && (
-        <div className="space-y-2">
-          <Label>Photo</Label>
-          <div className="flex items-center gap-3">
-            <div className="size-20 rounded-lg border bg-muted overflow-hidden shrink-0 flex items-center justify-center">
-              {imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt={name || "Supply"} className="size-full object-cover" />
-              ) : (
-                <ImagePlus className="size-6 text-muted-foreground" />
-              )}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="item-image" className="cursor-pointer">
-                <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
-                  {uploadingImage ? "Uploading..." : imageUrl ? "Change photo" : "Upload photo"}
-                </span>
-                <input
-                  id="item-image"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  disabled={uploadingImage}
-                  onChange={handleImageChange}
-                />
-              </Label>
-              {imageUrl && (
-                <button
-                  type="button"
-                  onClick={() => setImageUrl(null)}
-                  className="text-xs text-muted-foreground hover:text-foreground text-left"
-                >
-                  Remove photo
-                </button>
-              )}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">PNG, JPEG, or WebP, up to 5MB.</p>
-        </div>
-      )}
-
-      {hasCategories && (
-        <div className="space-y-2">
-          <Label>Category</Label>
-          <CategoryCombobox
-            categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
-            catType={config.dbType}
-          />
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label>Unit</Label>
-        {fullyLocked ? (
-          <div className="flex items-center gap-2">
-            <div className="border rounded-md px-3 py-2 text-sm bg-muted text-muted-foreground w-full">
-              {unit}
-            </div>
-            <span className="text-xs text-muted-foreground shrink-0">Locked — no compatible units</span>
-          </div>
-        ) : (
-          <>
-            <UnitCombobox
-              units={visibleUnits}
-              onUnitsChange={setUnits}
-              value={unit}
-              onChange={setUnit}
-              placeholder="Select unit"
-              allowCreate={!unitLocked}
-            />
-            {unitLocked && (
-              <p className="text-xs text-muted-foreground">
-                Only compatible units shown — has existing transactions.
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
-      {showDefaultCost && (
-      <div className="space-y-3 rounded-lg border p-3">
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={usePurchaseUnit}
-            onChange={(event) => handleUsePurchaseUnitChange(event.target.checked)}
-            className="size-4 rounded border-input accent-primary"
-          />
-          Use purchase unit
-        </label>
-        {usePurchaseUnit && (
-          <div className="space-y-2">
-            <Label>Purchase unit</Label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <UnitCombobox
-                  units={units.filter((u) => u !== unit)}
-                  onUnitsChange={setUnits}
-                  value={purchaseUnit}
-                  onChange={setPurchaseUnit}
-                  placeholder="Select unit"
+    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
+      <div className="flex flex-col gap-8 md:flex-row md:gap-10">
+        {/* Left: the 6-column form */}
+        <div className="order-2 flex min-w-0 flex-1 flex-col gap-8 md:order-1">
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">{config.singular} info</h2>
+            <div className="grid grid-cols-6 gap-4">
+              <div className="col-span-6 space-y-2">
+                <Label htmlFor="name">Name <Required /></Label>
+                <Input
+                  id="name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                 />
               </div>
-              <span className="text-sm text-muted-foreground shrink-0">=</span>
-              <InputGroup className="h-10 w-32 shrink-0">
-                <DecimalInput
-                  value={purchaseUnitQty}
-                  onValueChange={setPurchaseUnitQty}
-                  className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
-                />
-                <InputGroupAddon align="inline-end"><InputGroupText>{unit || "unit"}</InputGroupText></InputGroupAddon>
-              </InputGroup>
+
+              {hasCategories && (
+                <div className="col-span-6 space-y-2 sm:col-span-3">
+                  <Label>Category</Label>
+                  <CategoryCombobox
+                    categories={categories}
+                    value={categoryId}
+                    onChange={setCategoryId}
+                    catType={config.dbType}
+                  />
+                </div>
+              )}
+
+              <div className="col-span-6 space-y-2 sm:col-span-3">
+                <Label>Unit</Label>
+                {fullyLocked ? (
+                  <div className="flex items-center gap-2">
+                    <div className="border rounded-md px-3 py-2 text-sm bg-muted text-muted-foreground w-full">
+                      {unit}
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">Locked — no compatible units</span>
+                  </div>
+                ) : (
+                  <>
+                    <UnitCombobox
+                      units={visibleUnits}
+                      onUnitsChange={setUnits}
+                      value={unit}
+                      onChange={setUnit}
+                      placeholder="Select unit"
+                      allowCreate={!unitLocked}
+                    />
+                    {unitLocked && (
+                      <p className="text-xs text-muted-foreground">
+                        Only compatible units shown — has existing transactions.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {showDefaultCost && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-semibold">Purchasing</h2>
+              <div className="grid grid-cols-6 gap-4">
+                <div className="col-span-6 space-y-3 rounded-lg border p-3">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={usePurchaseUnit}
+                      onChange={(event) => handleUsePurchaseUnitChange(event.target.checked)}
+                      className="size-4 rounded border-input accent-primary"
+                    />
+                    Use purchase unit
+                  </label>
+                  {usePurchaseUnit && (
+                    <div className="space-y-2">
+                      <Label>Purchase unit</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <UnitCombobox
+                            units={units.filter((u) => u !== unit)}
+                            onUnitsChange={setUnits}
+                            value={purchaseUnit}
+                            onChange={setPurchaseUnit}
+                            placeholder="Select unit"
+                          />
+                        </div>
+                        <span className="text-sm text-muted-foreground shrink-0">=</span>
+                        <InputGroup className="h-10 w-32 shrink-0">
+                          <DecimalInput
+                            value={purchaseUnitQty}
+                            onValueChange={setPurchaseUnitQty}
+                            className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                          />
+                          <InputGroupAddon align="inline-end"><InputGroupText>{unit || "unit"}</InputGroupText></InputGroupAddon>
+                        </InputGroup>
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground">
+                    For packaging bought as a different unit than it&apos;s tracked in, e.g. 1 bungkus = 5000 g.
+                  </div>
+                </div>
+
+                <div className="col-span-6 space-y-2">
+                  <Label htmlFor="default-purchase-cost">Default purchase cost</Label>
+                  <div className="flex items-center gap-2">
+                    <DecimalInput
+                      id="default-purchase-cost"
+                      min="0"
+                      step="1"
+                      value={defaultCost}
+                      onValueChange={setDefaultCost}
+                      className="flex-1"
+                    />
+                    {costUnitOptions.length > 1 ? (
+                      <Select value={selectedDefaultCostUnit} onValueChange={setDefaultCostUnit}>
+                        <SelectTrigger id="default-purchase-cost-unit" className="w-24 shrink-0">
+                          <span className="text-muted-foreground text-sm mr-0.5">/</span>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {costUnitOptions.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-sm text-muted-foreground shrink-0">/ {unit || "unit"}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Estimated cost per {selectedDefaultCostUnit || unit || "unit"}, used before any purchase is recorded.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Actions — directly below the form */}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Saving..." : isEdit ? "Save changes" : "Save"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Photo — supplies only; outside the 6-column grid */}
+        {showPhoto && (
+          <div className="order-1 space-y-2 md:order-2 md:w-48 md:shrink-0">
+            <Label>Photo</Label>
+            <div className="flex flex-col items-start gap-3">
+              <div className="size-32 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt={name || "Supply"} className="size-full object-cover" />
+                ) : (
+                  <ImagePlus className="size-7 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="item-image" className="cursor-pointer">
+                  <span className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer")}>
+                    {uploadingImage ? "Uploading..." : imageUrl ? "Change photo" : "Upload photo"}
+                  </span>
+                  <input
+                    id="item-image"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={uploadingImage}
+                    onChange={handleImageChange}
+                  />
+                </Label>
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl(null)}
+                    className="text-left text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Remove photo
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">PNG, JPEG, or WebP, up to 5MB.</p>
             </div>
           </div>
         )}
-        <div className="text-xs text-muted-foreground">
-          For packaging bought as a different unit than it&apos;s tracked in, e.g. 1 bungkus = 5000 g.
-        </div>
-      </div>
-      )}
-
-      {showDefaultCost && (
-        <div className="space-y-2">
-          <Label htmlFor="default-purchase-cost">Default purchase cost</Label>
-          <div className="flex items-center gap-2">
-            <DecimalInput
-              id="default-purchase-cost"
-              min="0"
-              step="1"
-              value={defaultCost}
-              onValueChange={setDefaultCost}
-              className="flex-1"
-            />
-            {costUnitOptions.length > 1 ? (
-              <Select value={selectedDefaultCostUnit} onValueChange={setDefaultCostUnit}>
-                <SelectTrigger id="default-purchase-cost-unit" className="w-24 shrink-0">
-                  <span className="text-muted-foreground text-sm mr-0.5">/</span>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {costUnitOptions.map((u) => (
-                    <SelectItem key={u} value={u}>{u}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className="text-sm text-muted-foreground shrink-0">/ {unit || "unit"}</span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Estimated cost per {selectedDefaultCostUnit || unit || "unit"}, used before any purchase is recorded.
-          </p>
-        </div>
-      )}
-
-      <div className="sticky bottom-0 z-10 mt-auto -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <Button type="button" variant="ghost" onClick={() => onCancel ? onCancel() : router.back()}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving..." : isEdit ? "Save changes" : `Create ${config.singular.toLowerCase()}`}
-        </Button>
       </div>
     </form>
   );

@@ -248,8 +248,10 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
   }
 
   return (
-    <div className="flex flex-col flex-1 gap-6">
-      <div className="max-w-lg space-y-4">
+    <div className="flex flex-col gap-8">
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold">Prep details</h2>
+        <div className="max-w-lg space-y-4">
         {/* Date + Recipe */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
@@ -487,12 +489,13 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
           <Label htmlFor="notes">Notes</Label>
           <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} maxLength={500} />
         </div>
-      </div>
+        </div>
+      </section>
 
       {/* Ingredients table — shown as soon as recipe is selected */}
       {selectedRecipe && computedRows.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-sm font-medium">Ingredients</h2>
+        <section className="space-y-4">
+          <h2 className="text-sm font-semibold">Ingredients</h2>
           <div className="border table-outer rounded-lg overflow-x-auto">
             <Table className="w-auto min-w-full table-fixed">
               <TableHeader>
@@ -555,11 +558,11 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
                 : <span className="text-destructive">{insufficientCount} ingredient{insufficientCount > 1 ? "s" : ""} insufficient</span>}
             </p>
           )}
-        </div>
+        </section>
       )}
 
       {/* Actions */}
-      <div className="sticky bottom-0 z-10 mt-auto -mx-1 flex items-center justify-end gap-2 border-t bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={() => router.push("/prep-orders")} disabled={pending}>
           Cancel
         </Button>
@@ -567,7 +570,7 @@ export function PrepOrderForm({ recipes }: { recipes: RecipeForPrep[] }) {
           onClick={handleSubmit}
           disabled={pending || !selectedRecipe || !validBatches}
         >
-          {pending ? "Creating..." : "Create prep order"}
+          {pending ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>

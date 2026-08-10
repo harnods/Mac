@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,11 +19,9 @@ import { Qty } from "@/components/ui/qty";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatDate, updaterName } from "@/lib/format";
 import { ItemDeleteDialog } from "@/components/inventory/item-delete-dialog";
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { QuickAdjustDialog } from "@/components/inventory/quick-adjust-dialog";
 import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import type { ItemWithCategory, UnitCode } from "@/lib/supabase/types";
-import type { ItemTypeSlug } from "@/lib/item-types";
 
 export function ItemTableRow({
   item,
@@ -67,7 +66,6 @@ export function ItemTableRow({
 }) {
   const [viewUnit, setViewUnit] = useState<UnitCode>(item.unit);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
 
   const units = compatibleUnits(item.unit);
@@ -102,9 +100,7 @@ export function ItemTableRow({
               {item.name}
             </Link>
             {(item as ItemWithCategory & { status?: string }).status === "draft" && (
-              <span className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                Draft
-              </span>
+              <Badge variant="secondary">Draft</Badge>
             )}
           </span>
         </TableCell>
@@ -148,7 +144,7 @@ export function ItemTableRow({
         {showSellable && (
           <TableCell>
             {item.is_sellable
-              ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
+              ? <Badge variant="success">Yes</Badge>
               : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
@@ -162,14 +158,14 @@ export function ItemTableRow({
         {showAddOn && (
           <TableCell>
             {item.is_addon
-              ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
+              ? <Badge variant="success">Yes</Badge>
               : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
         {hasRecipe !== undefined && showRecipe && (
           <TableCell>
             {hasRecipe
-              ? <span className="text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">Yes</span>
+              ? <Badge variant="success">Yes</Badge>
               : <span className="text-xs text-muted-foreground">—</span>}
           </TableCell>
         )}
@@ -193,7 +189,9 @@ export function ItemTableRow({
                 <Link href={`/inventory/${itemTypeSlug}/${item.id}`}>View details</Link>
               </DropdownMenuItem>
               {isAdmin && (
-                <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/inventory/${itemTypeSlug}/${item.id}/edit`}>Edit</Link>
+                </DropdownMenuItem>
               )}
               {(otherUnits.length > 0 || viewUnit !== item.unit) && (
                 <>
@@ -225,12 +223,6 @@ export function ItemTableRow({
 
       {isAdmin && (
         <>
-          <ItemFormDialog
-            itemTypeSlug={itemTypeSlug as ItemTypeSlug}
-            itemId={item.id}
-            open={editOpen}
-            onOpenChange={setEditOpen}
-          />
           <ItemDeleteDialog
             id={item.id}
             name={item.name}

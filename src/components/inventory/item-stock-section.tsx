@@ -2,6 +2,7 @@
 
 import { formatNum, formatQty } from "@/lib/units";
 import { Qty } from "@/components/ui/qty";
+import { DetailRow } from "@/components/ui/detail-list";
 import { formatDate, formatRp } from "@/lib/format";
 import { defaultCostBreakdown } from "@/lib/cogs";
 import type { StockMode } from "@/lib/item-types";
@@ -78,51 +79,41 @@ export function ItemStockSection({
         </div>
       )}
 
-      <div className="space-y-3">
-        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
-          {hasCategories && categoryName && (
-            <><span className="text-muted-foreground">Category</span><span>{categoryName}</span></>
-          )}
-          <span className="text-muted-foreground">Default base unit</span><span>{baseUnit}</span>
-        </div>
-
-        <div className="border-t" />
-
-        <div className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm text-foreground">
-          {showSellPrice && (
-            <>
-              <span className="text-muted-foreground">Selling price</span>
-              <span className="tabular-nums">
-                {sellPrice != null ? formatRp(sellPrice) : <span className="text-muted-foreground">—</span>}
-              </span>
-            </>
-          )}
-          {purchaseUnit && purchaseUnitQty != null && (
-            <><span className="text-muted-foreground">Purchase unit</span><span>1 {purchaseUnit} = {formatNum(purchaseUnitQty)} {baseUnit}</span></>
-          )}
-          {defaultPurchaseCost != null && (
-            <>
-              <span className="text-muted-foreground">Default purchase cost</span>
+      <dl>
+        {hasCategories && categoryName && <DetailRow label="Category" value={categoryName} />}
+        <DetailRow label="Default base unit" value={baseUnit} />
+        {showSellPrice && (
+          <DetailRow
+            label="Selling price"
+            value={sellPrice != null ? <span className="tabular-nums">{formatRp(sellPrice)}</span> : undefined}
+          />
+        )}
+        {purchaseUnit && purchaseUnitQty != null && (
+          <DetailRow label="Purchase unit" value={`1 ${purchaseUnit} = ${formatNum(purchaseUnitQty)} ${baseUnit}`} />
+        )}
+        {defaultPurchaseCost != null && (
+          <DetailRow
+            label="Default purchase cost"
+            value={
               <span className="tabular-nums">
                 {formatRp(defaultPurchaseCost)} / {defaultPurchaseCostUnit ?? baseUnit}
                 {breakdown != null && (
                   <span className="block text-xs text-muted-foreground">{formatRp(breakdown)} / {baseUnit}</span>
                 )}
               </span>
-            </>
-          )}
-          {lastPurchaseCost != null && (
-            <><span className="text-muted-foreground">Last purchase cost</span><span className="tabular-nums">{formatRp(lastPurchaseCost)} / {baseUnit}</span></>
-          )}
-          {avgPurchaseCost != null && (
-            <><span className="text-muted-foreground">Avg. purchase cost</span><span className="tabular-nums">{formatRp(avgPurchaseCost)} / {baseUnit}</span></>
-          )}
-          {updaterLabel && (
-            <><span className="text-muted-foreground">Last updated</span>
-            <span>{formatDate(updatedAt)} by {updaterLabel}</span></>
-          )}
-        </div>
-      </div>
+            }
+          />
+        )}
+        {lastPurchaseCost != null && (
+          <DetailRow label="Last purchase cost" value={<span className="tabular-nums">{formatRp(lastPurchaseCost)} / {baseUnit}</span>} />
+        )}
+        {avgPurchaseCost != null && (
+          <DetailRow label="Avg. purchase cost" value={<span className="tabular-nums">{formatRp(avgPurchaseCost)} / {baseUnit}</span>} />
+        )}
+        {updaterLabel && (
+          <DetailRow label="Last updated" value={`${formatDate(updatedAt)} by ${updaterLabel}`} />
+        )}
+      </dl>
     </div>
   );
 }

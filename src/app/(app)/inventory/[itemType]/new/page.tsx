@@ -6,6 +6,8 @@ import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ItemForm } from "@/components/inventory/item-form";
+import { ProductForm } from "@/components/inventory/product-form";
+import { getProductFormData } from "@/app/actions/inventory";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import type { Category } from "@/lib/supabase/types";
 
@@ -24,32 +26,43 @@ export default async function NewItemPage({
   if (!profile) redirect("/login");
   if (!can(profile, P.INVENTORY_WRITE)) redirect(`/inventory/${itemType}`);
 
+  const isProduct = config.dbType === "product";
+  const productFormData = isProduct ? await getProductFormData() : null;
+  if (isProduct && !productFormData) redirect(`/inventory/${itemType}`);
+
   const supabase = await createClient();
-  const [{ data: categories }, { data: units }] = await Promise.all([
-    config.hasCategories
-      ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
-      : Promise.resolve({ data: [] }),
-    supabase.from("units").select("code").order("is_system", { ascending: false }).order("code"),
-  ]);
+  const [{ data: categories }, { data: units }] = isProduct
+    ? [{ data: [] }, { data: [] }]
+    : await Promise.all([
+        config.hasCategories
+          ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
+          : Promise.resolve({ data: [] }),
+        supabase.from("units").select("code").order("is_system", { ascending: false }).order("code"),
+      ]);
 
   return (
-    <div className="flex flex-col flex-1 gap-4 max-w-xl mx-auto">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2 mt-0.5">
-            <Link href={`/inventory/${itemType}`}><ArrowLeft className="size-4" /></Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Add {config.singular.toLowerCase()}</h1>
-          </div>
-        </div>
+    <div className="flex flex-col flex-1 gap-6 max-w-4xl">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" asChild className="-ml-2">
+          <Link href={`/inventory/${itemType}`}><ArrowLeft className="size-4" /></Link>
+        </Button>
+        <h1 className="text-2xl font-semibold tracking-tight">Add {config.singular.toLowerCase()}</h1>
       </div>
-      <ItemForm
-        categories={(categories ?? []) as Category[]}
-        units={(units ?? []).map((u: { code: string }) => u.code)}
-        itemTypeSlug={itemType as ItemTypeSlug}
-        hasCategories={config.hasCategories}
-      />
+
+      {isProduct && productFormData ? (
+        <ProductForm
+          categories={productFormData.categories}
+          units={productFormData.units}
+          products={productFormData.products}
+        />
+      ) : (
+        <ItemForm
+          categories={(categories ?? []) as Category[]}
+          units={(units ?? []).map((u: { code: string }) => u.code)}
+          itemTypeSlug={itemType as ItemTypeSlug}
+          hasCategories={config.hasCategories}
+        />
+      )}
     </div>
   );
 }

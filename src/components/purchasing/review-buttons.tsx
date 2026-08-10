@@ -18,10 +18,10 @@ export function ReviewButtons({ id }: { id: string }) {
 
   return (
     <div className="flex gap-2">
-      <Button size="sm" disabled={pending} onClick={() => review("approved")}>
+      <Button disabled={pending} onClick={() => review("approved")}>
         Approve
       </Button>
-      <Button size="sm" variant="outline" disabled={pending} onClick={() => review("rejected")}>
+      <Button variant="outline" disabled={pending} onClick={() => review("rejected")}>
         Reject
       </Button>
     </div>

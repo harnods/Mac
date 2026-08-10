@@ -9,7 +9,7 @@ export function DeleteSalesEntryButtonClient({ id }: { id: string }) {
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+      <Button variant="outline" onClick={() => setOpen(true)}>
         Delete
       </Button>
       <SalesEntryDeleteDialog

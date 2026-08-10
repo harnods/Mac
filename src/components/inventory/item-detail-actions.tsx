@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DetailActionsMenu } from "@/components/ui/detail-actions-menu";
-import { ItemFormDialog } from "@/components/inventory/item-form-dialog";
 import { ItemDeleteDialog } from "@/components/inventory/item-delete-dialog";
 import type { ItemTypeSlug } from "@/lib/item-types";
 
@@ -18,13 +18,14 @@ export function ItemDetailActions({
   name: string;
   backUrl: string;
 }) {
-  const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <>
       <DetailActionsMenu>
-        <DropdownMenuItem onSelect={() => setEditOpen(true)}>Edit</DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/inventory/${itemTypeSlug}/${itemId}/edit`}>Edit</Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-destructive focus:text-destructive"
@@ -34,7 +35,6 @@ export function ItemDetailActions({
         </DropdownMenuItem>
       </DetailActionsMenu>
 
-      <ItemFormDialog itemTypeSlug={itemTypeSlug} itemId={itemId} open={editOpen} onOpenChange={setEditOpen} />
       <ItemDeleteDialog id={itemId} name={name} open={deleteOpen} onOpenChange={setDeleteOpen} redirectAfter={backUrl} />
     </>
   );

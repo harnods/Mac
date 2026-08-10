@@ -11,7 +11,8 @@ import { updaterName } from "@/lib/format";
 import { ItemDetailActions } from "@/components/inventory/item-detail-actions";
 import { ProductStatusButton } from "@/components/inventory/product-status-button";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
-import { PageBreadcrumb } from "@/components/ui/page-breadcrumb";
+import { DetailBackButton } from "@/components/employees/detail-back-button";
+import { Badge } from "@/components/ui/badge";
 import { ItemUsageTabs, type LedgerRow, type UsedInRecipeRow } from "@/components/inventory/item-usage-tabs";
 import type { UnitConversionRow } from "@/components/inventory/unit-conversions-panel";
 import type { ItemWithCategory } from "@/lib/supabase/types";
@@ -118,28 +119,18 @@ export default async function ItemDetailPage({
   const serverMs = Math.round(performance.now() - started);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="fixed bottom-1 left-2 z-[60] select-none pointer-events-none font-mono text-[10px] leading-tight text-muted-foreground/70">
         server <span className={serverMs < 150 ? "text-emerald-600" : serverMs < 500 ? "text-amber-600" : "text-red-600"}>{serverMs}ms</span>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
+          <DetailBackButton href={`/inventory/${itemType}`} />
           {config.showPhoto && (
             <ItemPhotoThumbnail imageUrl={item.image_url} name={item.name} className="size-16" />
           )}
-          <div>
-            <PageBreadcrumb
-              items={[{ label: config.label, href: `/inventory/${itemType}` }]}
-            />
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
-              {item.status === "draft" && (
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  Draft
-                </span>
-              )}
-            </div>
-          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+          {item.status === "draft" && <Badge variant="secondary">Draft</Badge>}
         </div>
         {isAdmin && (
           <div className="flex gap-2">
@@ -165,7 +156,8 @@ export default async function ItemDetailPage({
         </p>
       )}
 
-      <div className="max-w-2xl">
+      <div className="grid grid-cols-12 gap-8">
+        <div className="col-span-12 space-y-8 lg:col-span-6">
         <ItemStockSection
           baseUnit={item.unit}
           onHand={onHand}
@@ -184,6 +176,7 @@ export default async function ItemDetailPage({
           updatedAt={item.updated_at}
           updaterLabel={item.updater ? updaterName(item.updater) : null}
         />
+        </div>
       </div>
 
       {/* Recipe — product only */}

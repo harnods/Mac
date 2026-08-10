@@ -29,7 +29,8 @@ export function LoyaltySettingsForm({ rpPerPoint }: { rpPerPoint: number }) {
   }
 
   return (
-    <div className="rounded-lg border p-5 space-y-5">
+    <section className="space-y-4">
+      <h2 className="text-sm font-semibold">Points conversion</h2>
       <div className="space-y-2">
         <Label htmlFor="rpp">Rupiah per 1 Point</Label>
         <InputGroup className="h-10 max-w-[160px]">
@@ -55,9 +56,11 @@ export function LoyaltySettingsForm({ rpPerPoint }: { rpPerPoint: number }) {
         </div>
       )}
 
-      <Button onClick={save} disabled={saving || !valid}>
-        {saving ? "Menyimpan..." : "Simpan"}
-      </Button>
-    </div>
+      <div className="flex justify-end gap-2">
+        <Button onClick={save} disabled={saving || !valid}>
+          {saving ? "Menyimpan..." : "Simpan"}
+        </Button>
+      </div>
+    </section>
   );
 }
