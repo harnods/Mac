@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ReportYearFilter } from "@/components/employees/report-year-filter";
+import { TurnoverTrendChart } from "@/components/employees/turnover-trend-chart";
 import { turnoverForYear, leaversInYear, formatPercent, type TurnoverEmployee } from "@/lib/turnover";
 import { formatDate, durationSince } from "@/lib/format";
 
@@ -84,8 +85,11 @@ export default async function TurnoverReportPage({
       </div>
 
       {/* Monthly breakdown */}
-      <div>
-        <h2 className="mb-2 text-base font-semibold">Monthly breakdown</h2>
+      <div className="space-y-4">
+        <h2 className="text-base font-semibold">Monthly breakdown</h2>
+        {summary.months.length > 0 && (
+          <TurnoverTrendChart data={summary.months.map((m) => ({ label: m.label, end: m.end }))} />
+        )}
         <div className="border table-outer rounded-lg overflow-x-auto">
           <Table className="w-auto min-w-full table-fixed">
             <TableHeader>

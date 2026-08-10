@@ -94,12 +94,17 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
     let late = 0;
     let earlyLeave = 0;
     let workedMinutes = 0;
+    let noClockIn = 0;
+    let noClockOut = 0;
     for (const r of recs) {
       const pseudo = { clock_in: r.clock_in, clock_out: r.clock_out, break_minutes: r.break_minutes, shifts: r.shifts } as unknown as AttendanceWithRelations;
       const st = attendanceStatuses(pseudo, graceCfg);
       if (st.includes("late")) late++;
       if (st.includes("early-leave")) earlyLeave++;
       workedMinutes += workDurationMinutes(pseudo) ?? 0;
+      const isDayOff = !!r.shifts && !r.shifts.start_time && !r.shifts.end_time;
+      if (!r.clock_in && !isDayOff) noClockIn++; // scheduled shift, never tapped in
+      if (r.clock_in && !r.clock_out) noClockOut++; // tapped in, never tapped out
     }
     const presentDays = present.size;
     // Prorate working days to the crew's tenure within the period.
@@ -118,6 +123,8 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
       present: presentDays,
       dayOff,
       absent: Math.max(0, workingDays - presentDays),
+      noClockIn,
+      noClockOut,
       late,
       earlyLeave,
       workedHours: Math.round((workedMinutes / 60) * 10) / 10,

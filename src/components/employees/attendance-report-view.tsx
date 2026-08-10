@@ -31,6 +31,8 @@ export type ReportRow = {
   present: number;
   dayOff: number;
   absent: number;
+  noClockIn: number;
+  noClockOut: number;
   late: number;
   earlyLeave: number;
   workedHours: number;
@@ -40,6 +42,27 @@ export type ReportRow = {
 };
 
 const ALL = "__all__";
+
+/** Column header with an optional info tooltip explaining what it counts. */
+function Th({ label, hint, className }: { label: string; hint?: string; className?: string }) {
+  return (
+    <TableHead className={className}>
+      {hint ? (
+        <span className="inline-flex items-center gap-1">
+          {label}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="size-3.5 cursor-help text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent>{hint}</TooltipContent>
+          </Tooltip>
+        </span>
+      ) : (
+        label
+      )}
+    </TableHead>
+  );
+}
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -99,7 +122,7 @@ export function AttendanceReportView({
   }
 
   function exportCsv() {
-    const header = ["Crew", "Department", "Working days", "Present", "Day off", "Absent", "Late", "Early leave", "Worked hours", "Overtime hours", "Attendance rate"];
+    const header = ["Crew", "Department", "Working days", "Present", "Day off", "Absent", "No clock-in", "No clock-out", "Late", "Early leave", "Worked hours", "Overtime hours", "Attendance rate"];
     const lines = shown.map((r) => [
       r.name,
       r.department ?? "",
@@ -107,6 +130,8 @@ export function AttendanceReportView({
       r.present,
       r.dayOff,
       r.absent,
+      r.noClockIn,
+      r.noClockOut,
       r.late,
       r.earlyLeave,
       r.workedHours,
@@ -157,7 +182,7 @@ export function AttendanceReportView({
         <StatCard
           label="Attendance rate"
           value={`${Math.round(totals.rate * 100)}%`}
-          hint="Working days actually clocked in ÷ total working days, across all crew"
+          hint="Days clocked in ÷ scheduled working days (all crew shown)"
         />
       </div>
 
@@ -165,22 +190,24 @@ export function AttendanceReportView({
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[200px]">Crew</TableHead>
-              <TableHead className="w-[150px]">Department</TableHead>
-              <TableHead className="w-[100px]">Present</TableHead>
-              <TableHead className="w-[90px]">Day off</TableHead>
-              <TableHead className="w-[90px]">Absent</TableHead>
-              <TableHead className="w-[80px]">Late</TableHead>
-              <TableHead className="w-[110px]">Early leave</TableHead>
-              <TableHead className="w-[110px]">Worked</TableHead>
-              <TableHead className="w-[110px]">Overtime</TableHead>
-              <TableHead className="w-[110px]">Rate</TableHead>
+              <Th label="Crew" className="w-[200px]" />
+              <Th label="Department" className="w-[150px]" />
+              <Th label="Present" className="w-[100px]" hint="Days clocked in ÷ scheduled working days." />
+              <Th label="Day off" className="w-[90px]" hint="Scheduled days off in this period." />
+              <Th label="Absent" className="w-[90px]" hint="Scheduled working days with no attendance at all." />
+              <Th label="No clock-in" className="w-[120px]" hint="Days with a shift but the crew never tapped clock-in." />
+              <Th label="No clock-out" className="w-[120px]" hint="Days the crew clocked in but never tapped clock-out." />
+              <Th label="Late" className="w-[80px]" hint="Days clocked in after the shift start (beyond grace)." />
+              <Th label="Early leave" className="w-[110px]" hint="Days clocked out before the shift end (beyond grace)." />
+              <Th label="Worked (h)" className="w-[100px]" hint="Total net worked hours (breaks excluded)." />
+              <Th label="Overtime (h)" className="w-[110px]" hint="Approved overtime hours in this period." />
+              <Th label="Rate" className="w-[90px]" hint="Present days ÷ scheduled working days." />
             </TableRow>
           </TableHeader>
           <TableBody>
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">No crew match.</TableCell>
+                <TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">No crew match.</TableCell>
               </TableRow>
             )}
             {shown.map((r) => (
@@ -201,6 +228,12 @@ export function AttendanceReportView({
                       </Tooltip>
                     )}
                   </span>
+                </TableCell>
+                <TableCell className="text-sm tabular-nums">
+                  {r.noClockIn ? <span className="text-amber-600 dark:text-amber-400">{r.noClockIn}</span> : "—"}
+                </TableCell>
+                <TableCell className="text-sm tabular-nums">
+                  {r.noClockOut ? <span className="text-amber-600 dark:text-amber-400">{r.noClockOut}</span> : "—"}
                 </TableCell>
                 <TableCell className="text-sm tabular-nums">{r.late || "—"}</TableCell>
                 <TableCell className="text-sm tabular-nums">{r.earlyLeave || "—"}</TableCell>
