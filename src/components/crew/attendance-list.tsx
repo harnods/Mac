@@ -52,7 +52,8 @@ export function AttendanceList({
             </div>
             {r.clock_in && (
               <div className="text-sm tabular-nums text-muted-foreground">
-                {formatTime(r.clock_in)} - {formatTime(r.clock_out) || "…"}
+                {formatTime(r.clock_in)}
+                {r.clock_out ? ` - ${formatTime(r.clock_out)}` : ""}
                 {dur != null ? ` (${formatMinutes(dur)})` : ""}
                 {statuses.length > 0 && (
                   <>
