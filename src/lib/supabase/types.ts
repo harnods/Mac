@@ -389,6 +389,9 @@ export type AttendanceSettings = {
 
 export type AttendanceSource = 'web' | 'mobile';
 
+/** One completed break within a work day (times are "HH:MM[:SS]"). */
+export type BreakInterval = { start: string; end: string };
+
 export type Attendance = {
   id: string;
   employee_id: string;
@@ -398,6 +401,7 @@ export type Attendance = {
   clock_out: string | null;
   break_minutes: number;
   break_start: string | null;
+  breaks: BreakInterval[];
   note: string | null;
   source: AttendanceSource;
   created_by: string | null;

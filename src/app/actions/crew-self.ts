@@ -132,7 +132,7 @@ async function openRecord(empId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("attendance")
-    .select("id,break_start,break_minutes,clock_out")
+    .select("id,break_start,break_minutes,clock_out,breaks")
     .eq("employee_id", empId)
     .eq("work_date", jakartaDate())
     .not("clock_in", "is", null)
@@ -154,11 +154,15 @@ export async function clockOut(): Promise<ActionResult> {
 
   const now = jakartaTime();
   let breakMin = open.break_minutes ?? 0;
-  if (open.break_start) breakMin += Math.max(0, toMin(now) - toMin(open.break_start)); // auto-end break
+  const breaks = (Array.isArray(open.breaks) ? open.breaks : []) as { start: string; end: string }[];
+  if (open.break_start) {
+    breakMin += Math.max(0, toMin(now) - toMin(open.break_start)); // auto-end an open break
+    breaks.push({ start: open.break_start, end: now });
+  }
 
   const { error } = await serviceClient()
     .from("attendance")
-    .update({ clock_out: now, break_minutes: breakMin, break_start: null, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .update({ clock_out: now, break_minutes: breakMin, break_start: null, breaks, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", open.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/me");
@@ -199,9 +203,11 @@ export async function breakEnd(): Promise<ActionResult> {
 
   const now = jakartaTime();
   const breakMin = (open.break_minutes ?? 0) + Math.max(0, toMin(now) - toMin(open.break_start));
+  const breaks = (Array.isArray(open.breaks) ? open.breaks : []) as { start: string; end: string }[];
+  breaks.push({ start: open.break_start, end: now });
   const { error } = await serviceClient()
     .from("attendance")
-    .update({ break_minutes: breakMin, break_start: null, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .update({ break_minutes: breakMin, break_start: null, breaks, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", open.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/me");
