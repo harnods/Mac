@@ -7,6 +7,7 @@ import { Lock } from "lucide-react";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { formatDate, formatDateTime, formatRp, updaterName, yearsSince, durationSince } from "@/lib/format";
 import { EmployeeDetailActions } from "@/components/employees/employee-detail-actions";
+import { CrewLoginButton } from "@/components/employees/crew-login-button";
 import { EmployeeDetailTabs } from "@/components/employees/employee-detail-tabs";
 import { getPayrollSettings } from "@/app/actions/payroll";
 import { getAttendanceSettings } from "@/app/actions/attendance";
@@ -176,6 +177,19 @@ export default async function EmployeeDetailPage({
           <DetailRow label="Job position" value={emp.job_positions?.name} />
           <DetailRow label="Job level" value={emp.job_levels?.name} />
           <DetailRow label="Employment status" value={emp.employment_statuses?.name} />
+        </dl>
+      </section>
+
+      {/* Crew login */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold">Crew login</h2>
+          {isAdmin && !emp.mac_user?.is_owner && (
+            <CrewLoginButton employeeId={id} currentEmail={emp.mac_user?.email ?? null} />
+          )}
+        </div>
+        <dl>
+          <DetailRow label="Login email" value={emp.mac_user?.email ?? null} />
         </dl>
       </section>
 

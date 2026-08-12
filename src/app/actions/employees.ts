@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createClient as createServiceClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { randomBytes } from "crypto";
@@ -31,6 +31,7 @@ function serviceClient() {
 const employeeSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   email: z.string().trim().email("Invalid email").max(120).optional().or(z.literal("")),
+  login_email: z.string().trim().email("Invalid login email").max(160).optional().or(z.literal("")),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   birthdate: z.string().trim().optional().or(z.literal("")),
   join_date: z.string().trim().optional().or(z.literal("")),
@@ -79,6 +80,80 @@ function toNull<T>(val: T | "" | undefined | null): T | null {
   return val ?? null;
 }
 
+// ─── Crew login provisioning ────────────────────────────────────────────────
+
+const DEFAULT_CREW_PASSWORD = "crew-2026";
+
+/**
+ * Create or change a crew's login. New account → created with the default
+ * password; existing account → email changed and password reset to default.
+ * Either way, must_change_password is set so they change it on first login.
+ */
+async function provisionCrewLogin(
+  supabase: SupabaseClient,
+  admin: SupabaseClient,
+  employee: { id: string; name: string; user_id: string | null },
+  email: string,
+  actorId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: existing } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+  if (existing && existing.id !== employee.user_id) {
+    return { ok: false, error: "That login email is already in use." };
+  }
+
+  if (employee.user_id) {
+    const { error } = await admin.auth.admin.updateUserById(employee.user_id, {
+      email,
+      password: DEFAULT_CREW_PASSWORD,
+      email_confirm: true,
+    });
+    if (error) return { ok: false, error: error.message };
+    await admin.from("profiles").update({ email, must_change_password: true }).eq("id", employee.user_id);
+    return { ok: true };
+  }
+
+  const { data: authUser, error } = await admin.auth.admin.createUser({
+    email,
+    password: DEFAULT_CREW_PASSWORD,
+    email_confirm: true,
+    user_metadata: { full_name: employee.name, role: "crew" },
+  });
+  if (error || !authUser.user) return { ok: false, error: error?.message ?? "Could not create the login." };
+
+  const uid = authUser.user.id;
+  await admin.from("profiles").upsert(
+    { id: uid, email, full_name: employee.name, role: "crew", must_change_password: true },
+    { onConflict: "id" },
+  );
+  await supabase.from("employees").update({ user_id: uid, updated_by: actorId }).eq("id", employee.id);
+  return { ok: true };
+}
+
+/** Set/change a crew member's login email (used from the crew detail page). */
+export async function setCrewLogin(employeeId: string, emailRaw: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_ACCESS)) return { ok: false, error: "No permission" };
+
+  const parsed = z.string().trim().email("Invalid login email").max(160).safeParse(emailRaw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const email = parsed.data.toLowerCase();
+
+  const supabase = await createClient();
+  const { data: emp } = await supabase
+    .from("employees")
+    .select("id,name,user_id")
+    .eq("id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!emp) return { ok: false, error: "Crew not found" };
+
+  const res = await provisionCrewLogin(supabase, serviceClient(), emp as { id: string; name: string; user_id: string | null }, email, profile.id);
+  if (!res.ok) return res;
+  revalidatePath("/hr", "layout");
+  return { ok: true };
+}
+
 // ─── Employee actions ─────────────────────────────────────────────────────────
 
 export async function createEmployee(input: unknown): Promise<ActionResult> {
@@ -90,7 +165,14 @@ export async function createEmployee(input: unknown): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const d = parsed.data;
+  const loginEmail = d.login_email ? d.login_email.trim().toLowerCase() : "";
   const supabase = await createClient();
+
+  if (loginEmail) {
+    const { data: existing } = await serviceClient().from("profiles").select("id").eq("email", loginEmail).maybeSingle();
+    if (existing) return { ok: false, error: "That login email is already in use." };
+  }
+
   const { data, error } = await supabase
     .from("employees")
     .insert({
@@ -121,6 +203,12 @@ export async function createEmployee(input: unknown): Promise<ActionResult> {
     .single();
 
   if (error) return { ok: false, error: error.message };
+
+  if (loginEmail) {
+    const res = await provisionCrewLogin(supabase, serviceClient(), { id: data.id, name: d.name, user_id: null }, loginEmail, profile.id);
+    if (!res.ok) return { ok: false, error: `Crew created, but login setup failed: ${res.error}` };
+  }
+
   revalidatePath("/hr", "layout");
   return { ok: true, id: data.id };
 }

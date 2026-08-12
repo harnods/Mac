@@ -46,10 +46,10 @@ export function ClockCard({ context }: { context: MyContext }) {
       {blocked && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-300">
           <div className="flex items-center gap-2">
-            <WifiOff className="size-4 shrink-0" /> You&rsquo;re not on the store wifi — clocking is disabled.
+            <WifiOff className="size-4 shrink-0" /> Kamu tidak terhubung ke wifi toko — clock in/out dinonaktifkan.
           </div>
           <div className="mt-1 pl-6 text-xs opacity-80">
-            Your IP: <span className="tabular-nums">{context.detectedIp ?? "not detected"}</span>
+            IP kamu: <span className="tabular-nums">{context.detectedIp ?? "tidak terdeteksi"}</span>
           </div>
         </div>
       )}

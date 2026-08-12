@@ -82,6 +82,7 @@ export function EmployeeForm({
   const [salaryUnit, setSalaryUnit] = useState<"day" | "month">(employee?.salary_unit ?? "month");
   const [dailyAllowance, setDailyAllowance] = useState(employee?.daily_allowance != null ? String(employee.daily_allowance) : "");
   const [allowanceRows, setAllowanceRows] = useState<EmployeeAllowance[]>(employee?.allowances ?? []);
+  const [loginEmail, setLoginEmail] = useState("");
 
   // Basic salary is per month; part-time crew can choose per day or per month.
   const statusName = employmentStatuses.find((s) => s.id === employmentStatusId)?.name.toLowerCase() ?? "";
@@ -153,6 +154,7 @@ export function EmployeeForm({
         allowances: allowanceRows
           .filter((r) => r.allowance_id)
           .map((r) => ({ allowance_id: r.allowance_id, amount: Number(r.amount) || 0 })),
+        login_email: isEdit ? "" : loginEmail.trim(),
       };
 
       const res = isEdit
@@ -302,6 +304,29 @@ export function EmployeeForm({
               </div>
             </div>
           </section>
+
+          {/* Crew login (create only — for existing crew, set it from the detail page) */}
+          {!isEdit && (
+            <section className="space-y-4">
+              <h2 className="text-sm font-semibold">Crew login</h2>
+              <div className="grid grid-cols-6 gap-4">
+                <div className="col-span-6 space-y-2 sm:col-span-3">
+                  <Label htmlFor="login-email">Login email</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="crew@email.com"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Opsional — email untuk login crew di me.machimoto.cafe. Password awal{" "}
+                    <span className="font-medium">crew-2026</span>, wajib diganti saat login pertama. Bisa diisi belakangan dari halaman detail crew.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Bank info */}
           <section className="space-y-4">

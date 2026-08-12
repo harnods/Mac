@@ -38,7 +38,7 @@ async function networkError(): Promise<string | null> {
   const supabase = await createClient();
   const { data: settings } = await supabase.from("attendance_settings").select("allowed_ips").limit(1).maybeSingle();
   const ip = clientIp(await headers());
-  return isIpAllowed(ip, settings?.allowed_ips) ? null : "You can only clock in/out while on the store wifi.";
+  return isIpAllowed(ip, settings?.allowed_ips) ? null : "Clock in/out hanya bisa saat terhubung ke wifi toko.";
 }
 
 export type MyContext = {
