@@ -8,6 +8,7 @@ import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { formatDate, formatDateTime, formatRp, updaterName, yearsSince, durationSince } from "@/lib/format";
 import { EmployeeDetailActions } from "@/components/employees/employee-detail-actions";
 import { CrewLoginButton } from "@/components/employees/crew-login-button";
+import { CompensationSection } from "@/components/employees/compensation-section";
 import { EmployeeDetailTabs } from "@/components/employees/employee-detail-tabs";
 import { getPayrollSettings } from "@/app/actions/payroll";
 import { getAttendanceSettings } from "@/app/actions/attendance";
@@ -203,42 +204,28 @@ export default async function EmployeeDetailPage({
         </dl>
       </section>
 
-      {/* Compensation — sensitive; masked unless the viewer may see it */}
-      <section className="space-y-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">Compensation</h2>
-          {!canViewCompensation && (
+      {/* Compensation — sensitive; masked behind an eye toggle, and only for authorized viewers */}
+      {canViewCompensation ? (
+        <CompensationSection
+          basicSalary={emp.basic_salary != null ? `${formatRp(emp.basic_salary)} ${salaryUnit}` : null}
+          dailyAllowance={emp.daily_allowance != null ? `${formatRp(emp.daily_allowance)} per day` : null}
+          allowances={(emp.allowances ?? []).map((a) => ({ name: allowanceName(a.allowance_id), amount: formatRp(a.amount) }))}
+        />
+      ) : (
+        <section className="space-y-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold">Compensation</h2>
             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
               <Lock className="size-3" /> Restricted
             </span>
-          )}
-        </div>
-        {canViewCompensation ? (
-          <dl>
-            <DetailRow label="Basic salary" value={emp.basic_salary != null ? `${formatRp(emp.basic_salary)} ${salaryUnit}` : null} />
-            <DetailRow label="Daily allowance" value={emp.daily_allowance != null ? `${formatRp(emp.daily_allowance)} per day` : null} />
-            <DetailRow
-              label="Allowances"
-              value={emp.allowances && emp.allowances.length > 0 ? (
-                <div className="space-y-1">
-                  {emp.allowances.map((a, i) => (
-                    <div key={i} className="flex justify-between gap-4">
-                      <span>{allowanceName(a.allowance_id)}</span>
-                      <span className="tabular-nums">{formatRp(a.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-            />
-          </dl>
-        ) : (
+          </div>
           <dl>
             <DetailRow label="Basic salary" value={COMP_DOTS} />
             <DetailRow label="Daily allowance" value={COMP_DOTS} />
             <DetailRow label="Allowances" value={COMP_DOTS} />
           </dl>
-        )}
-      </section>
+        </section>
+      )}
 
           <p className="text-xs text-muted-foreground">
             Last updated by {updaterName(emp.updater)} at {formatDateTime(emp.updated_at)}

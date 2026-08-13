@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Qty } from "@/components/ui/qty";
 import { finishStockCount, saveStockCountDraft, startStockCount } from "@/app/actions/stock";
+import { CompletedCountTable } from "@/components/stock/completed-count-table";
 
 type CountStatus = "draft" | "counting" | "completed";
 
@@ -44,11 +45,19 @@ type CountItem = {
   note: string | null;
   item: {
     name: string;
+    type: string;
     unit: string;
     purchase_unit: string | null;
     purchase_unit_qty: number | null;
     item_unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
   } | null;
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  ingredient: "Ingredient",
+  supply: "Supply",
+  product: "Product",
+  prep_item: "Prep item",
 };
 
 type CountWorkspaceProps = {
@@ -146,6 +155,15 @@ function updateSplitRow(row: RowState, patch: Partial<RowState>) {
     ...next,
     qty_counted_text: cleanQty(fromBaseQty(next, baseTotal, next.unit)),
   };
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
+    </div>
+  );
 }
 
 export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
@@ -252,41 +270,33 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
 
   return (
     <div className="space-y-4">
-      <div className="no-print flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <div>
-            <span className="text-muted-foreground">Progress </span>
-            <span className="font-medium">{countedRows}/{rows.length}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Positive variance </span>
-            <span className="font-medium">{totals.positive}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Negative variance </span>
-            <span className="font-medium">{totals.negative}</span>
-          </div>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2">
+      <div className="no-print flex flex-wrap justify-end gap-2">
+        {!isCompleted && (
           <Button type="button" variant="outline" onClick={() => window.print()}>
             <Printer className="size-4" /> Print stock cards
           </Button>
-          {canEdit && count.status === "draft" && (
-            <Button type="button" onClick={handleStart} disabled={pending}>
-              <Play className="size-4" /> {pending ? "Starting..." : "Start counting"}
+        )}
+        {canEdit && count.status === "draft" && (
+          <Button type="button" onClick={handleStart} disabled={pending}>
+            <Play className="size-4" /> {pending ? "Starting..." : "Start counting"}
+          </Button>
+        )}
+        {canInput && (
+          <>
+            <Button type="button" variant="outline" onClick={handleSave} disabled={pending}>
+              <Save className="size-4" /> {pending ? "Saving..." : "Save draft"}
             </Button>
-          )}
-          {canInput && (
-            <>
-              <Button type="button" variant="outline" onClick={handleSave} disabled={pending}>
-                <Save className="size-4" /> {pending ? "Saving..." : "Save draft"}
-              </Button>
-              <Button type="button" onClick={handleFinish} disabled={pending}>
-                <Check className="size-4" /> {pending ? "Finishing..." : "Finish counting"}
-              </Button>
-            </>
-          )}
-        </div>
+            <Button type="button" onClick={handleFinish} disabled={pending}>
+              <Check className="size-4" /> {pending ? "Finishing..." : "Finish counting"}
+            </Button>
+          </>
+        )}
+      </div>
+
+      <div className="no-print grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatCard label="Progress" value={`${countedRows}/${rows.length} items`} />
+        <StatCard label="Positive variance" value={`${totals.positive} items`} />
+        <StatCard label="Negative variance" value={`${totals.negative} items`} />
       </div>
 
       {!isCompleted && !isCounting && (
@@ -295,29 +305,36 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
         </div>
       )}
 
-      <div className="no-print space-y-2">
-        <label htmlFor="global-note" className="text-sm font-medium">
-          Global note
-        </label>
-        <Textarea
-          id="global-note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          disabled={!canInput}
-          maxLength={500}
-          rows={2}
-        />
-      </div>
+      {(canInput || note.trim() !== "") && (
+        <div className="no-print space-y-2">
+          <label htmlFor="global-note" className="text-sm font-medium">
+            Global note
+          </label>
+          <Textarea
+            id="global-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            disabled={!canInput}
+            maxLength={500}
+            rows={2}
+          />
+        </div>
+      )}
 
-      <div className="no-print flex justify-end">
-        <Input
-          placeholder="Search items..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-full sm:w-56"
-        />
-      </div>
+      {!isCompleted && (
+        <div className="no-print flex justify-end">
+          <Input
+            placeholder="Search items..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            className="w-full sm:w-56"
+          />
+        </div>
+      )}
 
+      {isCompleted ? (
+        <CompletedCountTable items={items} canEdit={canEdit} />
+      ) : (
       <div className="no-print table-outer overflow-x-auto rounded-lg border">
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
@@ -461,6 +478,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
           </TableBody>
         </Table>
       </div>
+      )}
 
       <div className="hidden print:block">
         <div className="mb-6">

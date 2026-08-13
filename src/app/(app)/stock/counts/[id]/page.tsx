@@ -6,7 +6,7 @@ import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
-import { formatId, formatDate, formatDateTime, updaterName } from "@/lib/format";
+import { formatId, formatDateTime, updaterName } from "@/lib/format";
 import type { Updater } from "@/lib/supabase/types";
 import { CountWorkspace } from "@/components/stock/count-workspace";
 import { DetailSection, DetailRow } from "@/components/ui/detail-list";
@@ -26,6 +26,7 @@ type CountItemRecord = {
   note: string | null;
   item: {
     name: string;
+    type: string;
     unit: string;
     purchase_unit: string | null;
     purchase_unit_qty: number | null;
@@ -72,7 +73,7 @@ export default async function StockCountDetailPage({
       completer:profiles!completed_by(full_name, email),
       stock_count_items(
         id, item_id, qty_system, qty_counted, unit, unopened_qty, unopened_unit, in_use_qty, in_use_unit, note,
-        item:items(name, unit, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit))
+        item:items(name, type, unit, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit))
       )
     `)
     .eq("id", id)
@@ -105,24 +106,35 @@ export default async function StockCountDetailPage({
         <div className="col-span-12 space-y-8 lg:col-span-6">
           <DetailSection title="Details">
             <DetailRow
-              label="Count date"
-              value={count.count_date ? formatDate(count.count_date) : (
-                <span className="text-muted-foreground">Not started</span>
-              )}
+              label="Created"
+              value={
+                <div>
+                  <div>{formatDateTime(count.created_at)}</div>
+                  <div className="text-muted-foreground">{updaterName(count.creator)}</div>
+                </div>
+              }
             />
-            <DetailRow label="Created by" value={updaterName(count.creator)} />
-            <DetailRow label="Created at" value={formatDateTime(count.created_at)} />
             {count.started_at && (
-              <>
-                <DetailRow label="Started by" value={updaterName(count.starter)} />
-                <DetailRow label="Started at" value={formatDateTime(count.started_at)} />
-              </>
+              <DetailRow
+                label="Started"
+                value={
+                  <div>
+                    <div>{formatDateTime(count.started_at)}</div>
+                    <div className="text-muted-foreground">{updaterName(count.starter)}</div>
+                  </div>
+                }
+              />
             )}
             {count.completed_at && (
-              <>
-                <DetailRow label="Finished by" value={updaterName(count.completer)} />
-                <DetailRow label="Finished at" value={formatDateTime(count.completed_at)} />
-              </>
+              <DetailRow
+                label="Finished"
+                value={
+                  <div>
+                    <div>{formatDateTime(count.completed_at)}</div>
+                    <div className="text-muted-foreground">{updaterName(count.completer)}</div>
+                  </div>
+                }
+              />
             )}
             {count.note && <DetailRow label="Global note" value={count.note} />}
           </DetailSection>

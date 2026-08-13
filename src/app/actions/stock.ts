@@ -472,3 +472,42 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
 
   return finishStockCount({ id, items: countItems ?? [] });
 }
+
+/**
+ * Delete a stock count — only allowed while it's Draft or Counting (it hasn't
+ * adjusted stock yet, so nothing to reverse). Completed counts are historical
+ * stock reconciliations and can't be deleted. Items cascade with the count.
+ */
+export async function deleteStockCount(id: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: count } = await supabase.from("stock_counts").select("id, status").eq("id", id).maybeSingle();
+  if (!count) return { ok: false, error: "Count not found" };
+  if (count.status === "completed") {
+    return { ok: false, error: "Completed counts can't be deleted (they've already adjusted stock)." };
+  }
+
+  const { error } = await supabase.from("stock_counts").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/stock/counts");
+  return { ok: true };
+}
+
+/** Edit a single count item's note (allowed even after the count is completed). */
+export async function updateCountItemNote(itemId: string, note: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: it } = await supabase.from("stock_count_items").select("id, count_id").eq("id", itemId).maybeSingle();
+  if (!it) return { ok: false, error: "Item not found" };
+
+  const { error } = await supabase.from("stock_count_items").update({ note: note.trim() || null }).eq("id", itemId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/stock/counts/${it.count_id}`);
+  return { ok: true };
+}

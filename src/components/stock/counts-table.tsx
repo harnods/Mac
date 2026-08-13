@@ -1,8 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { deleteStockCount } from "@/app/actions/stock";
 import {
   Table,
   TableBody,
@@ -43,6 +63,79 @@ function statusBadge(status: CountRecord["status"]) {
   return <Badge variant="outline">Draft</Badge>;
 }
 
+function RowActions({ count }: { count: CountRecord }) {
+  const router = useRouter();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const canDelete = count.status !== "completed"; // completed counts already adjusted stock
+
+  async function onDelete() {
+    setPending(true);
+    const res = await deleteStockCount(count.id);
+    setPending(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("Stock count deleted");
+    setConfirmOpen(false);
+    router.refresh();
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8">
+            <MoreHorizontal className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/stock/counts/${count.id}`}>View details</Link>
+          </DropdownMenuItem>
+          {count.status !== "completed" && (
+            <DropdownMenuItem asChild>
+              <Link href={`/stock/counts/${count.id}`}>Continue</Link>
+            </DropdownMenuItem>
+          )}
+          {canDelete && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={(e) => {
+                e.preventDefault();
+                setConfirmOpen(true);
+              }}
+            >
+              Delete
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this stock count?</DialogTitle>
+            <DialogDescription>
+              This count is still {count.status === "draft" ? "a draft" : "in progress"} and hasn&rsquo;t adjusted
+              stock, so it&rsquo;s safe to delete. This can&rsquo;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button onClick={onDelete} disabled={pending}>
+              {pending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export function CountsTable({ list }: { list: CountRecord[] }) {
   const { isVisible } = useColumnVisibility("counts", COUNT_COLUMNS);
 
@@ -57,7 +150,7 @@ export function CountsTable({ list }: { list: CountRecord[] }) {
             {isVisible("note") && <TableHead className="w-[240px]">Note</TableHead>}
             {isVisible("created") && <TableHead className="w-[160px]">Created</TableHead>}
             {isVisible("timing") && <TableHead className="w-[160px]">Timing</TableHead>}
-            <TableHead className="w-0 p-0" />
+            <TableHead className="p-0" />
             <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
           </TableRow>
         </TableHeader>
@@ -81,11 +174,11 @@ export function CountsTable({ list }: { list: CountRecord[] }) {
               {isVisible("created") && (
                 <TableCell className="text-sm">
                   <div>{updaterName(count.creator)}</div>
-                  <div className="text-xs text-muted-foreground">{formatDate(count.created_at)}</div>
+                  <div className="text-muted-foreground">{formatDate(count.created_at)}</div>
                 </TableCell>
               )}
               {isVisible("timing") && (
-                <TableCell className="text-xs text-muted-foreground">
+                <TableCell className="text-sm">
                   {count.completed_at ? (
                     <>Finished {formatDate(count.completed_at)}</>
                   ) : count.started_at ? (
@@ -95,13 +188,9 @@ export function CountsTable({ list }: { list: CountRecord[] }) {
                   )}
                 </TableCell>
               )}
-              <TableCell />
-              <TableCell className={STICKY_ACTION_CELL}>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/stock/counts/${count.id}`}>
-                    {count.status === "completed" ? "View" : "Continue"}
-                  </Link>
-                </Button>
+              <TableCell className="p-0" />
+              <TableCell className={`w-12 ${STICKY_ACTION_CELL}`}>
+                <RowActions count={count} />
               </TableCell>
             </TableRow>
           ))}
