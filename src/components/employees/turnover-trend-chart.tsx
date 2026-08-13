@@ -26,7 +26,13 @@ export function TurnoverTrendChart({ data }: { data: TurnoverPoint[] }) {
     <div className="rounded-lg border p-4">
       <div className="text-sm font-semibold">Headcount trend</div>
       <div className="mb-3 text-xs text-muted-foreground">Active crew at the end of each month</div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full text-primary" role="img" aria-label="Monthly headcount trend">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid meet"
+        className="h-auto w-full max-w-2xl text-primary"
+        role="img"
+        aria-label="Monthly headcount trend"
+      >
         <defs>
           <linearGradient id="turnoverTrendGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#9ca3af" stopOpacity={0.3} />

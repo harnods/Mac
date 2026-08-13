@@ -38,8 +38,17 @@ function LoginForm() {
       const uid = signIn.user?.id;
       if (uid) {
         const { data: prof } = await supabase.from("profiles").select("role, must_change_password").eq("id", uid).maybeSingle();
-        if (prof?.must_change_password) dest = "/me/change-password";
-        else if (prof?.role === "crew") dest = "/me";
+        if (prof?.role === "crew") {
+          // Crew belong on me.machimoto.cafe only — never the back-office.
+          const host = window.location.hostname.toLowerCase();
+          if (["admin.machimoto.cafe", "machimoto.cafe", "www.machimoto.cafe"].includes(host)) {
+            window.location.href = "https://me.machimoto.cafe";
+            return;
+          }
+          dest = prof.must_change_password ? "/me/change-password" : "/me";
+        } else if (prof?.must_change_password) {
+          dest = "/me/change-password";
+        }
       }
     } catch {
       toast.error("Could not reach Supabase. Check that local Supabase is running.");

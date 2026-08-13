@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { canAccessHr } from "@/lib/permissions";
@@ -6,9 +7,19 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { MainNavMobile } from "@/components/main-nav-mobile";
 import { PerfBadge } from "@/components/perf-badge";
 
+// Admin-side hosts where crew must be bounced to the crew app.
+const ADMIN_HOSTS = ["admin.machimoto.cafe", "machimoto.cafe", "www.machimoto.cafe"];
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
+
+  // Crew can only use the crew app (me.machimoto.cafe) — never the back-office.
+  if (profile.role === "crew") {
+    const host = ((await headers()).get("host") ?? "").toLowerCase();
+    redirect(ADMIN_HOSTS.includes(host) ? "https://me.machimoto.cafe" : "/me");
+  }
+
   const canHr = canAccessHr(profile);
 
   return (
