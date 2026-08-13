@@ -120,12 +120,12 @@ export function ItemTableRow({
             {isAdmin ? (
               <OnHandButton value={onHand} unit={viewUnit} onClick={() => setAdjustOpen(true)} />
             ) : (
-              <Qty value={onHand} unit={viewUnit} />
+              <Qty value={onHand} unit={viewUnit} auto={false} />
             )}
           </TableCell>
         )}
-        {showReserved && <TableCell className="tabular-nums text-sm"><Qty value={reserved} unit={viewUnit} /></TableCell>}
-        {showAvailable && <TableCell className="tabular-nums text-sm"><Qty value={available} unit={viewUnit} /></TableCell>}
+        {showReserved && <TableCell className="tabular-nums text-sm"><Qty value={reserved} unit={viewUnit} auto={false} /></TableCell>}
+        {showAvailable && <TableCell className="tabular-nums text-sm"><Qty value={available} unit={viewUnit} auto={false} /></TableCell>}
         {showLastCost && (
           <TableCell className="tabular-nums text-right text-sm">
             {item.last_purchase_cost != null

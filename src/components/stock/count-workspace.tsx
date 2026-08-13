@@ -374,7 +374,7 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
                     {row.item?.name ?? "Deleted item"}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    <Qty value={systemQty} unit={row.unit} />
+                    <Qty value={systemQty} unit={row.unit} auto={false} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
