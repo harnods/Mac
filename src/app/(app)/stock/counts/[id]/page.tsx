@@ -56,10 +56,14 @@ function statusBadge(status: CountRecord["status"]) {
 
 export default async function StockCountDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string }>;
 }) {
   const { id } = await params;
+  const { view } = await searchParams;
+  const viewOnly = view === "1";
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.STOCK_WRITE);
   const supabase = await createClient();
@@ -149,7 +153,7 @@ export default async function StockCountDetailPage({
             No items in this count.
           </div>
         ) : (
-          <CountWorkspace count={count} items={items} canEdit={isAdmin} />
+          <CountWorkspace count={count} items={items} canEdit={isAdmin} viewOnly={viewOnly} />
         )}
       </section>
     </div>

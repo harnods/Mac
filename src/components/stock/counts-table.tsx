@@ -92,7 +92,7 @@ function RowActions({ count }: { count: CountRecord }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <Link href={`/stock/counts/${count.id}`}>View details</Link>
+            <Link href={`/stock/counts/${count.id}?view=1`}>View details</Link>
           </DropdownMenuItem>
           {count.status !== "completed" && (
             <DropdownMenuItem asChild>

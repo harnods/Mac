@@ -64,7 +64,13 @@ export function ItemTableRow({
   onToggleSelect?: () => void;
   hasRecipe?: boolean;
 }) {
-  const [viewUnit, setViewUnit] = useState<UnitCode>(item.unit);
+  // Auto-show large stock in the bigger unit (1000+ g → kg, 1000+ ml → l).
+  const [viewUnit, setViewUnit] = useState<UnitCode>(() => {
+    const oh = Number(item.on_hand);
+    if (item.unit === "g" && oh >= 1000) return "kg";
+    if (item.unit === "ml" && oh >= 1000) return "l";
+    return item.unit;
+  });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
 

@@ -70,6 +70,8 @@ type CountWorkspaceProps = {
   };
   items: CountItem[];
   canEdit: boolean;
+  /** Read-only "view details" mode — shows values only, no editing/actions. */
+  viewOnly?: boolean;
 };
 
 type RowState = CountItem & {
@@ -166,7 +168,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
+export function CountWorkspace({ count, items, canEdit, viewOnly = false }: CountWorkspaceProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(count.note ?? "");
@@ -196,7 +198,8 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
 
   const isCompleted = count.status === "completed";
   const isCounting = count.status === "counting";
-  const canInput = canEdit && isCounting && !isCompleted;
+  const readOnly = isCompleted || viewOnly; // completed, or an explicit "view details"
+  const canInput = canEdit && isCounting && !isCompleted && !viewOnly;
   const missingCount = rows.some((row) => row.qty_counted_text.trim() === "");
   const countedRows = rows.filter((row) => row.qty_counted_text.trim() !== "").length;
   const visibleRows = rows.filter((row) => (row.item?.name ?? "").toLowerCase().includes(q.toLowerCase()));
@@ -271,7 +274,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
   return (
     <div className="space-y-4">
       <div className="no-print flex flex-wrap justify-end gap-2">
-        {!isCompleted && (
+        {!readOnly && (
           <Button type="button" variant="outline" onClick={() => window.print()}>
             <Printer className="size-4" /> Print stock cards
           </Button>
@@ -299,7 +302,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
         <StatCard label="Negative variance" value={`${totals.negative} items`} />
       </div>
 
-      {!isCompleted && !isCounting && (
+      {!readOnly && !isCounting && (
         <div className="no-print rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
           Print the stock cards first, then start counting to unlock quantity inputs and capture the start timestamp.
         </div>
@@ -321,7 +324,7 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
         </div>
       )}
 
-      {!isCompleted && (
+      {!readOnly && (
         <div className="no-print flex justify-end">
           <Input
             placeholder="Search items..."
@@ -332,8 +335,8 @@ export function CountWorkspace({ count, items, canEdit }: CountWorkspaceProps) {
         </div>
       )}
 
-      {isCompleted ? (
-        <CompletedCountTable items={items} canEdit={canEdit} />
+      {readOnly ? (
+        <CompletedCountTable items={items} canEdit={isCompleted && canEdit} />
       ) : (
       <div className="no-print table-outer overflow-x-auto rounded-lg border">
         <Table className="w-auto min-w-full table-fixed">
