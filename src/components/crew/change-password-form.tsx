@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { changeMyPassword } from "@/app/actions/crew-self";
 
@@ -36,11 +36,11 @@ export function ChangePasswordForm({ forced }: { forced: boolean }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="pw">New password</Label>
-          <Input id="pw" type="password" className="h-12" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
+          <PasswordInput id="pw" className="h-12" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm">Confirm password</Label>
-          <Input id="confirm" type="password" className="h-12" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <PasswordInput id="confirm" className="h-12" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </div>
         <Button type="submit" className="h-12 w-full text-base" disabled={pending}>
           {pending ? "Saving..." : "Save password"}

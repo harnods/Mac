@@ -2,12 +2,13 @@ export type TurnoverPoint = { label: string; end: number };
 
 /** Lightweight inline-SVG line chart of month-end headcount (no chart lib). */
 export function TurnoverTrendChart({ data }: { data: TurnoverPoint[] }) {
-  const W = 720;
-  const H = 200;
-  const padL = 30;
-  const padR = 14;
-  const padT = 16;
-  const padB = 26;
+  // Wide viewBox so the chart fills the card width without ballooning in height.
+  const W = 1400;
+  const H = 220;
+  const padL = 44;
+  const padR = 24;
+  const padT = 24;
+  const padB = 40;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
   const n = data.length;
@@ -29,7 +30,7 @@ export function TurnoverTrendChart({ data }: { data: TurnoverPoint[] }) {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="xMidYMid meet"
-        className="h-auto w-full max-w-2xl text-primary"
+        className="h-auto w-full text-primary"
         role="img"
         aria-label="Monthly headcount trend"
       >
@@ -51,9 +52,9 @@ export function TurnoverTrendChart({ data }: { data: TurnoverPoint[] }) {
                 y2={gy}
                 className="stroke-border"
                 strokeWidth={1}
-                strokeDasharray={g === 0 ? undefined : "3 3"}
+                strokeDasharray={g === 0 ? undefined : "4 4"}
               />
-              <text x={padL - 6} y={gy + 3} textAnchor="end" className="fill-muted-foreground text-[10px] tabular-nums">
+              <text x={padL - 8} y={gy + 4} textAnchor="end" className="fill-muted-foreground text-[12px] tabular-nums">
                 {v}
               </text>
             </g>
@@ -62,16 +63,16 @@ export function TurnoverTrendChart({ data }: { data: TurnoverPoint[] }) {
 
         {n > 1 && <path d={area} fill="url(#turnoverTrendGrad)" stroke="none" />}
         {n > 1 && (
-          <path d={line} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
+          <path d={line} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         )}
 
         {pts.map((p, i) => (
           <g key={i}>
-            <circle cx={p.cx} cy={p.cy} r={3.5} fill="currentColor" />
-            <text x={p.cx} y={p.cy - 8} textAnchor="middle" className="fill-foreground text-[10px] tabular-nums">
+            <circle cx={p.cx} cy={p.cy} r={4.5} fill="currentColor" />
+            <text x={p.cx} y={p.cy - 12} textAnchor="middle" className="fill-foreground text-[13px] tabular-nums">
               {p.end}
             </text>
-            <text x={p.cx} y={H - 8} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+            <text x={p.cx} y={H - 10} textAnchor="middle" className="fill-muted-foreground text-[13px]">
               {p.label}
             </text>
           </g>
