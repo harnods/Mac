@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatNum, parseDecimal, unitOptionsForItem, convertToItemUnit } from "@/lib/units";
+import { parseDecimal, unitOptionsForItem, convertToItemUnit } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 import { createStockAdjustment } from "@/app/actions/stock";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -130,7 +131,7 @@ export function QuickAdjustDialog({
           <div className="rounded-md bg-muted px-3 py-2.5 space-y-0.5">
             <p className="text-sm font-medium">{itemName}</p>
             <p className="text-sm text-muted-foreground">
-              Current on hand: <span className="tabular-nums font-medium text-foreground">{formatNum(onHand)} {itemUnit}</span>
+              Current on hand: <span className="tabular-nums font-medium text-foreground"><Qty value={onHand} unit={itemUnit} /></span>
             </p>
           </div>
 
@@ -190,7 +191,7 @@ export function QuickAdjustDialog({
 
           {qtyNum > 0 && (
             <p className="text-sm text-muted-foreground">
-              New on hand: <span className="tabular-nums font-medium text-foreground">{formatNum(newOnHand)} {itemUnit}</span>
+              New on hand: <span className="tabular-nums font-medium text-foreground"><Qty value={newOnHand} unit={itemUnit} /></span>
             </p>
           )}
 

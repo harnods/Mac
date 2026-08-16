@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetBody } from "@/components/ui/sheet";
-import { formatNum } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 import { formatRp } from "@/lib/format";
 import { getRecipeDrawerData } from "@/app/actions/recipes";
 import type { RecipeDrawerData } from "@/app/actions/recipes";
@@ -31,7 +31,8 @@ export function RecipeDrawerTrigger({ recipeId, recipeName, trigger }: Props) {
 
   function handleOpen() {
     setOpen(true);
-    if (data) return;
+    // Always refetch so cost/COGS visibility reflects the current (or previewed
+    // via "View as") role — never a stale cached payload.
     setLoading(true);
     getRecipeDrawerData(recipeId).then((d) => {
       setData(d);
@@ -75,7 +76,7 @@ export function RecipeDrawerTrigger({ recipeId, recipeName, trigger }: Props) {
                   )}
                   <span className="text-muted-foreground">Yield</span>
                   <span className="tabular-nums">
-                    {formatNum(data.yieldQty)} {data.yieldUnit} per batch
+                    <Qty value={data.yieldQty} unit={data.yieldUnit ?? "pcs"} /> per batch
                   </span>
                 </div>
 
@@ -94,7 +95,7 @@ export function RecipeDrawerTrigger({ recipeId, recipeName, trigger }: Props) {
                         <div key={`${ing.id}-${idx}`} className={`grid ${data.showCost ? "grid-cols-3" : "grid-cols-2"} gap-x-4 items-center py-1.5 border-b last:border-0 text-sm`}>
                           <span className="truncate">{ing.name}</span>
                           <span className="tabular-nums text-muted-foreground text-right whitespace-nowrap">
-                            {formatNum(ing.quantity)} {ing.unit}
+                            <Qty value={ing.quantity} unit={ing.unit} />
                           </span>
                           {data.showCost && (
                             <span className="tabular-nums text-right">

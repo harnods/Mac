@@ -70,27 +70,6 @@ export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: bool
             <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
           </DropdownMenuItem>
         )}
-        {has(P.CATEGORIES_READ) && (<>
-          <DropdownMenuItem asChild>
-            <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Asset categories</Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
-          </DropdownMenuItem>
-        </>)}
-        {has(P.UNITS_READ) && (
-          <DropdownMenuItem asChild>
-            <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
-          </DropdownMenuItem>
-        )}
-        {has(P.LOCATIONS_READ) && (
-          <DropdownMenuItem asChild>
-            <Link prefetch={false} href="/settings/locations" className="cursor-pointer">Locations</Link>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Recipes</DropdownMenuLabel>
         <DropdownMenuItem asChild>
@@ -114,6 +93,27 @@ export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: bool
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
         </DropdownMenuItem>
+        {has(P.CATEGORIES_READ) && (<>
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Asset categories</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+          </DropdownMenuItem>
+        </>)}
+        {has(P.UNITS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.LOCATIONS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/locations" className="cursor-pointer">Locations</Link>
+          </DropdownMenuItem>
+        )}
         {canHr && (<>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>HR</DropdownMenuLabel>

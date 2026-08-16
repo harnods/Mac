@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetBody } from "@/components/ui/sheet";
 import { formatNum } from "@/lib/units";
 import { formatRp } from "@/lib/format";
+import { Qty } from "@/components/ui/qty";
 import { defaultCostBreakdown } from "@/lib/cogs";
 import { getIngredientDrawerData } from "@/app/actions/inventory";
 import type { IngredientDrawerData } from "@/app/actions/inventory";
@@ -20,14 +21,16 @@ export function IngredientDrawerTrigger({ itemId, itemName }: Props) {
   const [data, setData] = useState<IngredientDrawerData | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Refetch every time it opens so cost visibility always reflects the current
+  // (possibly previewed via "View as") role — never a stale cached payload.
   useEffect(() => {
-    if (!open || data) return;
+    if (!open) return;
     setLoading(true);
     getIngredientDrawerData(itemId).then((d) => {
       setData(d);
       setLoading(false);
     });
-  }, [open, itemId, data]);
+  }, [open, itemId]);
 
   const breakdown = data ? defaultCostBreakdown(data) : null;
 
@@ -64,17 +67,17 @@ export function IngredientDrawerTrigger({ itemId, itemName }: Props) {
                         <>
                           <div className="space-y-0.5">
                             <p className="text-xs text-muted-foreground">On hand</p>
-                            <p className="text-sm font-medium tabular-nums">{data.on_hand} {data.unit}</p>
+                            <p className="text-sm font-medium tabular-nums"><Qty value={data.on_hand} unit={data.unit} /></p>
                           </div>
                           <div className="space-y-0.5">
                             <p className="text-xs text-muted-foreground">Reserved</p>
-                            <p className="text-sm font-medium tabular-nums">{data.reserved} {data.unit}</p>
+                            <p className="text-sm font-medium tabular-nums"><Qty value={data.reserved} unit={data.unit} /></p>
                           </div>
                         </>
                       )}
                       <div className="space-y-0.5">
                         <p className="text-xs text-muted-foreground">Available</p>
-                        <p className="text-sm font-medium tabular-nums">{data.available} {data.unit}</p>
+                        <p className="text-sm font-medium tabular-nums"><Qty value={data.available} unit={data.unit} /></p>
                       </div>
                     </div>
                   </div>
@@ -132,7 +135,7 @@ export function IngredientDrawerTrigger({ itemId, itemName }: Props) {
                           <>
                             <span className="text-muted-foreground">Yield</span>
                             <span className="tabular-nums">
-                              {formatNum(data.computedCost.yieldQty)} {data.computedCost.yieldUnit} per batch
+                              <Qty value={data.computedCost.yieldQty} unit={data.computedCost.yieldUnit} /> per batch
                             </span>
                             <span className="text-muted-foreground">Recipe COGS</span>
                             <span className="tabular-nums">
@@ -166,7 +169,7 @@ export function IngredientDrawerTrigger({ itemId, itemName }: Props) {
                             {r.name}
                           </Link>
                           <span className="tabular-nums text-muted-foreground shrink-0">
-                            {formatNum(r.quantity)} {r.unit}
+                            <Qty value={r.quantity} unit={r.unit} />
                           </span>
                         </div>
                       ))}
@@ -175,6 +178,16 @@ export function IngredientDrawerTrigger({ itemId, itemName }: Props) {
                 )}
 
                 <div className="pt-2 flex flex-col gap-2">
+                  {data.canEdit && (
+                    <Link
+                      href={data.editUrl}
+                      className="flex items-center gap-1.5 text-sm hover:underline"
+                      onClick={() => setOpen(false)}
+                    >
+                      <Pencil className="size-3.5" />
+                      Edit {data.type.toLowerCase()}
+                    </Link>
+                  )}
                   <Link
                     href={data.itemPageUrl}
                     className="flex items-center gap-1.5 text-sm hover:underline"

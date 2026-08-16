@@ -577,6 +577,8 @@ export type IngredientDrawerData = {
   available: number;
   stockMode: "full" | "available" | "none";
   itemPageUrl: string;
+  editUrl: string;
+  canEdit: boolean;
   last_purchase_cost: number | null;
   avg_purchase_cost: number | null;
   default_purchase_cost: number | null;
@@ -624,7 +626,9 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
 
   // Cost is confidential — only the Super admin role sees it. Compute/return
   // cost only for permitted viewers so values never reach the client otherwise.
-  const viewCost = canViewCost(await getCurrentProfile());
+  const profile = await getCurrentProfile();
+  const viewCost = canViewCost(profile);
+  const canEdit = can(profile, itemWritePermission(item.type));
 
   const hasDirectCost = item.avg_purchase_cost != null || item.last_purchase_cost != null || item.default_purchase_cost != null;
   const computedCost = viewCost && item.type === "prep_item" && !hasDirectCost
@@ -660,6 +664,8 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
     available: onHand - reserved,
     stockMode: stockMode[item.type] ?? "none",
     itemPageUrl: `/inventory/${slug}/${item.id}`,
+    editUrl: `/inventory/${slug}/${item.id}/edit`,
+    canEdit,
     last_purchase_cost: viewCost ? item.last_purchase_cost : null,
     avg_purchase_cost: viewCost ? item.avg_purchase_cost : null,
     default_purchase_cost: viewCost ? item.default_purchase_cost : null,

@@ -14,7 +14,6 @@ import { TableCell, STICKY_ACTION_CELL } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { Qty } from "@/components/ui/qty";
 import { formatId, formatDate, updaterName } from "@/lib/format";
-import { formatNum } from "@/lib/units";
 import type { PrepOrderListItem } from "@/components/prep-orders/prep-orders-table";
 
 const STATUS_BADGE: Record<string, { label: string; variant: "secondary" | "success" | "outline" }> = {
@@ -66,7 +65,7 @@ export function PrepOrderTableRow({
           {order.qty_to_prep != null ? (
             <Qty value={order.qty_to_prep} unit={order.unit ?? "pcs"} />
           ) : (
-            <span className="text-muted-foreground">— {formatNum(order.target_qty)} target</span>
+            <span className="text-muted-foreground">— <Qty value={order.target_qty} unit={order.unit ?? "pcs"} /> target</span>
           )}
         </TableCell>
       )}

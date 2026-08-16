@@ -156,3 +156,18 @@ export function formatNum(value: number): string {
 export function formatQty(value: number, unit: UnitCode): string {
   return `${formatNum(value)} ${unit}`;
 }
+
+/**
+ * Read-only quantity string with automatic up-conversion (g→kg, ml→l at ≥1000),
+ * mirroring the <Qty> component. Use in plain-text / tooltip contexts where the
+ * <Qty> component (which renders its own tooltip) can't be nested.
+ */
+export function formatQtyAuto(value: number, unit: string): string {
+  if (unit === "g" && Math.abs(value) >= 1000) {
+    return `${formatNum(convert(value, "g", "kg") ?? value / 1000)} kg`;
+  }
+  if (unit === "ml" && Math.abs(value) >= 1000) {
+    return `${formatNum(convert(value, "ml", "l") ?? value / 1000)} l`;
+  }
+  return `${formatNum(value)} ${unit}`;
+}

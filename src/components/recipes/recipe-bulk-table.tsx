@@ -22,7 +22,7 @@ import type { Updater } from "@/lib/supabase/types";
 export const RECIPE_COLUMNS: ColumnDef[] = [
   { key: "type", label: "Type" },
   { key: "category", label: "Category" },
-  { key: "output", label: "Output" },
+  { key: "output", label: "Output", defaultHidden: true },
   { key: "ingredients", label: "Ingredients" },
   { key: "lastUpdated", label: "Last updated", defaultHidden: true },
 ];

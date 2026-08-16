@@ -7,7 +7,7 @@ import { can, canViewCost, itemWritePermission, itemReadPermission, allowedRecip
 import { AccessDenied } from "@/components/access-denied";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { formatQty } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 import { ItemsFilter } from "@/components/inventory/items-filter";
 import { ItemBulkTable } from "@/components/inventory/item-bulk-table";
 import { ImportItemsButton } from "@/components/inventory/import-items-button";
@@ -198,7 +198,7 @@ export default async function ItemTypePage({
                 </div>
                 {config.stockMode !== 'none' && (
                   <div className="text-sm tabular-nums whitespace-nowrap">
-                    {formatQty(Number(it.on_hand) - Number(it.reserved), it.unit)}
+                    <Qty value={Number(it.on_hand) - Number(it.reserved)} unit={it.unit} />
                   </div>
                 )}
               </Link>

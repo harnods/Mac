@@ -15,7 +15,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { formatNum, parseDecimal } from "@/lib/units";
+import { parseDecimal } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 import { completePrepOrder } from "@/app/actions/prep-orders";
 
 type Props = {
@@ -71,7 +72,7 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
 
           <div className="space-y-4 py-2">
             <div className="text-sm text-muted-foreground">
-              Target: <span className="font-medium text-foreground">{formatNum(targetQty)} {unit}</span>
+              Target: <span className="font-medium text-foreground"><Qty value={targetQty} unit={unit} /></span>
             </div>
 
             <div className="space-y-1.5">
@@ -108,14 +109,14 @@ export function CompletePrepButton({ id, targetQty, unit }: Props) {
                   <>
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <span>
-                      Waste: <strong>{formatNum(Math.abs(variance))} {unit}</strong> below target
+                      Waste: <strong><Qty value={Math.abs(variance)} unit={unit} /></strong> below target
                     </span>
                   </>
                 ) : (
                   <>
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <span>
-                      Non-standard: <strong>{formatNum(variance)} {unit}</strong> above target
+                      Non-standard: <strong><Qty value={variance} unit={unit} /></strong> above target
                     </span>
                   </>
                 )}

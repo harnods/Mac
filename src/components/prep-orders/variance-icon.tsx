@@ -7,7 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatNum } from "@/lib/units";
+import { formatNum, formatQtyAuto } from "@/lib/units";
 
 type Props = {
   targetQty: number;
@@ -36,9 +36,9 @@ export function VarianceIcon({ targetQty, actualQty, unit, reason }: Props) {
           <p className="font-medium">
             {isWaste ? "Waste" : "Non-standard"}
             {" · "}
-            target {formatNum(targetQty)} {unit}
+            target {formatQtyAuto(targetQty, unit)}
             {" → "}
-            actual {formatNum(actualQty)} {unit}
+            actual {formatQtyAuto(actualQty, unit)}
             {" ("}
             {variance > 0 ? "+" : ""}
             {formatNum(variance)}

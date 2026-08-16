@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatNum } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 
 type SalesEntryItem = {
   id: string;
@@ -55,7 +55,7 @@ export function SalesEntryItemsTable({ items }: { items: SalesEntryItem[] }) {
                     {item.product?.name ?? "—"}
                   </TableCell>
                   <TableCell className="tabular-nums text-sm">
-                    {formatNum(item.qty)} {item.unit}
+                    <Qty value={item.qty} unit={item.unit} />
                   </TableCell>
                 </TableRow>
               ))}

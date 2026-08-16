@@ -15,7 +15,7 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { getItemColumns } from "@/lib/item-columns";
 import { ITEM_TYPE_CONFIG } from "@/lib/item-types";
-import { formatNum } from "@/lib/units";
+import { Qty } from "@/components/ui/qty";
 import { formatDate, updaterName } from "@/lib/format";
 import type { Updater } from "@/lib/supabase/types";
 
@@ -70,8 +70,7 @@ export function PrepItemsTable({ list }: { list: PrepItemRow[] }) {
                 </TableCell>
                 {isVisible("available") && (
                   <TableCell className="text-sm tabular-nums">
-                    {formatNum(available)}{" "}
-                    <span className="text-muted-foreground">{item.unit}</span>
+                    <Qty value={available} unit={item.unit} />
                   </TableCell>
                 )}
                 {isVisible("lastUpdated") && (

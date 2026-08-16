@@ -17,14 +17,16 @@ export function ProductDrawerTrigger({ productId, productName }: Props) {
   const [data, setData] = useState<ProductDrawerData | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Refetch on each open so role-gated fields reflect the current (or previewed
+  // via "View as") role — never a stale cached payload.
   useEffect(() => {
-    if (!open || data) return;
+    if (!open) return;
     setLoading(true);
     getProductDrawerData(productId).then((d) => {
       setData(d);
       setLoading(false);
     });
-  }, [open, productId, data]);
+  }, [open, productId]);
 
   return (
     <>

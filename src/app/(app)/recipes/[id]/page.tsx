@@ -5,14 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P, canAccessRecipeStation, canViewCost } from "@/lib/permissions";
 import { convertToPieces, formatNum } from "@/lib/units";
-import { formatRp } from "@/lib/format";
+import { formatRp, formatDate, updaterName } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Qty } from "@/components/ui/qty";
 import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import { RecipeDetailActions } from "@/components/recipes/recipe-detail-actions";
-import { ProductDrawerTrigger } from "@/components/inventory/product-drawer";
-import { IngredientDrawerTrigger } from "@/components/inventory/ingredient-drawer";
 import { RecipeIngredientsList } from "@/components/recipes/recipe-ingredients-list";
 import type { CostableItem } from "@/lib/cogs";
 import { calculateRecipeCostRecursive } from "@/lib/cogs-server";
@@ -76,7 +73,6 @@ export default async function RecipeDetailPage({
             <Link href="/recipes"><ArrowLeft className="size-4" /></Link>
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
-          <Badge variant="secondary">{isWip ? "For prep item" : "Product"}</Badge>
         </div>
         {isAdmin && <RecipeDetailActions id={id} name={recipe.name} />}
       </div>
@@ -85,14 +81,8 @@ export default async function RecipeDetailPage({
         <div className="grid grid-cols-12 gap-8">
           <div className="col-span-12 space-y-8 lg:col-span-6">
             <DetailSection title="Details">
-              <DetailRow
-                label="Output"
-                value={isWip ? (
-                  <IngredientDrawerTrigger itemId={recipe.product.id} itemName={recipe.product.name} />
-                ) : (
-                  <ProductDrawerTrigger productId={recipe.product.id} productName={recipe.product.name} />
-                )}
-              />
+              <DetailRow label="Recipe type" value={isWip ? "For prep item" : "Product"} />
+              <DetailRow label="Output" value={recipe.product.name} />
               <DetailRow
                 label="Category"
                 value={recipe.station ? (recipe.station === "bar" ? "Bar" : "Kitchen") : null}
@@ -121,6 +111,10 @@ export default async function RecipeDetailPage({
                   }
                 />
               )}
+              <DetailRow
+                label="Last updated"
+                value={`${formatDate(recipe.updated_at)} by ${updaterName(recipe.updater)}`}
+              />
             </DetailSection>
           </div>
         </div>

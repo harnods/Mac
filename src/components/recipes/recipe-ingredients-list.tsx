@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Qty } from "@/components/ui/qty";
 import { formatRp } from "@/lib/format";
 import { IngredientDrawerTrigger } from "@/components/inventory/ingredient-drawer";
@@ -30,26 +28,17 @@ export function RecipeIngredientsList({
   /** Cost column is Super-admin only. When false the whole column is dropped. */
   showCost?: boolean;
 }) {
-  const [q, setQ] = useState("");
-  const filtered = rows.filter(({ ri }) => (ri.item?.name ?? "").toLowerCase().includes(q.toLowerCase()));
-  const gridCols = showCost ? "grid-cols-[0.5fr_4fr_1.5fr_1.5fr]" : "grid-cols-[0.5fr_4fr_1.5fr]";
+  const filtered = rows;
+  const gridCols = showCost ? "grid-cols-[40px_4fr_1.5fr_1.5fr]" : "grid-cols-[40px_4fr_1.5fr]";
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Input
-          placeholder="Search ingredients..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="w-full sm:w-56"
-        />
-      </div>
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-2">No matching ingredients.</p>
+        <p className="text-sm text-muted-foreground py-2">No ingredients.</p>
       ) : (
         <div>
           <div className={`grid ${gridCols} gap-x-6 py-2 border-b text-xs text-muted-foreground`}>
-            <span />
+            <span className="text-right">No.</span>
             <span className="pl-3">Ingredient</span>
             <span>Qty</span>
             {showCost && <span className="text-right">Cost</span>}

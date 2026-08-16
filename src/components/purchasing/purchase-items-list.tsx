@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Qty } from "@/components/ui/qty";
-import { formatNum } from "@/lib/units";
+import { formatNum, formatQtyAuto } from "@/lib/units";
 import { DeletedItemBadge } from "@/components/ui/deleted-item-badge";
 
 type PurchaseItem = {
@@ -54,7 +54,7 @@ export function PurchaseItemsList({ items, showCost = true }: { items: PurchaseI
               ? pi.cost_total / pi.qty_purchased
               : null;
             const costDisplay = pi.cost_total != null
-              ? `Rp${formatNum(pi.cost_total)} / ${formatNum(pi.qty_purchased)} ${pi.unit}`
+              ? `Rp${formatNum(pi.cost_total)} / ${formatQtyAuto(pi.qty_purchased, pi.unit)}`
               : pi.cost_per_unit != null
               ? `Rp${formatNum(pi.cost_per_unit)}/${pi.unit}`
               : null;
