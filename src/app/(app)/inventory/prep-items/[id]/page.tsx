@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, canAccessRecipeStation } from "@/lib/permissions";
 import { ItemDetailActions } from "@/components/inventory/item-detail-actions";
 import { SellableToggleButton } from "@/components/inventory/sellable-toggle-button";
 import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
@@ -51,12 +51,14 @@ export default async function PrepItemDetailPage({
         .order("planned_date", { ascending: false }),
       supabase
         .from("recipes")
-        .select("id, name")
+        .select("id, name, station")
         .eq("product_id", id)
         .maybeSingle(),
     ]);
 
   if (error || !itemData) notFound();
+  // Station scope: hide a prep item whose producing recipe is outside this role's station.
+  if (!canAccessRecipeStation(profile, (recipeData as { station?: string | null } | null)?.station ?? null)) notFound();
 
   const item = itemData as unknown as { id: string; name: string; unit: string; on_hand: number; reserved: number; is_sellable: boolean; updated_at: string; updater: Updater | null };
   const orders = (ordersData ?? []) as PrepOrder[];

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, allowedRecipeStations, canAccessRecipeStation } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { PrepOrdersFilter } from "@/components/prep-orders/prep-orders-filter";
@@ -38,6 +38,16 @@ export default async function PrepOrdersPage({
     .range(from, to);
 
   if (q.trim()) query = query.ilike("items.name", `%${q.trim()}%`);
+
+  // Station scope: hide prep orders whose recipe is outside this role's station.
+  const allowedStations = allowedRecipeStations(profile);
+  if (allowedStations) {
+    const { data: recs } = await supabase.from("recipes").select("id, station").not("station", "is", null);
+    const hidden = (recs ?? [])
+      .filter((r: { id: string; station: string | null }) => !canAccessRecipeStation(profile, r.station))
+      .map((r: { id: string }) => r.id);
+    if (hidden.length) query = query.not("recipe_id", "in", `(${hidden.join(",")})`);
+  }
 
   const { data, count } = await query;
   const list = (data ?? []) as unknown as PrepOrderListItem[];

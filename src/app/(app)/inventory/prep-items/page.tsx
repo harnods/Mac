@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, allowedRecipeStations, canAccessRecipeStation } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { Button } from "@/components/ui/button";
 import { ImportItemsButton } from "@/components/inventory/import-items-button";
@@ -52,6 +52,21 @@ export default async function PrepItemsPage({
 
   if (q.trim()) {
     itemsQuery = itemsQuery.ilike("name", `%${q.trim()}%`);
+  }
+
+  // Station scope: a prep item's station is its producing recipe's station. Hide
+  // prep items whose station this role can't access (null-station = visible).
+  const allowedStations = allowedRecipeStations(profile);
+  if (allowedStations) {
+    const { data: recs } = await supabase
+      .from("recipes")
+      .select("product_id, station")
+      .not("product_id", "is", null)
+      .not("station", "is", null);
+    const hidden = (recs ?? [])
+      .filter((r: { product_id: string; station: string | null }) => !canAccessRecipeStation(profile, r.station))
+      .map((r: { product_id: string }) => r.product_id);
+    if (hidden.length) itemsQuery = itemsQuery.not("id", "in", `(${hidden.join(",")})`);
   }
 
   const { data: items, count } = await itemsQuery;

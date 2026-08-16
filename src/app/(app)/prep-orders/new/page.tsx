@@ -28,6 +28,7 @@ export type RecipeForPrep = {
   id: string;
   name: string;
   product_id: string;
+  station: string | null;
   yield_qty: number;
   unit: string | null;
   product: { id: string; name: string; unit: string; type: string } | null;
@@ -44,18 +45,20 @@ export default async function NewPrepOrderPage() {
   const { data } = await supabase
     .from("recipes")
     .select(
-      `id, name, product_id, yield_qty, unit,
+      `id, name, product_id, station, yield_qty, unit,
        product:items!product_id(id,name,unit,type),
        recipe_items(id, item_id, quantity, unit, item:items(id,name,unit,on_hand,reserved,deleted_at))`
     )
     .not("product_id", "is", null)
     .order("name");
 
-  // Filter: output must be a prep_item, and must have at least one non-deleted recipe item
+  // Filter: output must be a prep_item, must have at least one non-deleted recipe
+  // item, AND must be in a station this role may access.
   const recipes = ((data ?? []) as unknown as RecipeForPrep[]).filter(
     (r) =>
       r.product?.type === "prep_item" &&
-      r.recipe_items.some((ri) => ri.item !== null && ri.item.deleted_at === null)
+      r.recipe_items.some((ri) => ri.item !== null && ri.item.deleted_at === null) &&
+      canAccessRecipeStation(profile, r.station)
   );
 
   return (
