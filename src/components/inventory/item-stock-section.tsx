@@ -1,7 +1,7 @@
 "use client";
 
 import { formatNum, formatQty } from "@/lib/units";
-import { Qty } from "@/components/ui/qty";
+import { ItemQty } from "@/components/ui/item-qty";
 import { DetailRow } from "@/components/ui/detail-list";
 import { formatDate, formatRp } from "@/lib/format";
 import { defaultCostBreakdown } from "@/lib/cogs";
@@ -22,6 +22,7 @@ type Props = {
   defaultPurchaseCostUnit: UnitCode | null;
   purchaseUnit: UnitCode | null;
   purchaseUnitQty: number | null;
+  conversions?: { from_unit: string; factor: number; to_unit: string }[];
   showSellPrice?: boolean;
   sellPrice?: number | null;
   updatedAt: string;
@@ -42,6 +43,7 @@ export function ItemStockSection({
   defaultPurchaseCostUnit,
   purchaseUnit,
   purchaseUnitQty,
+  conversions = [],
   showSellPrice = false,
   sellPrice = null,
   updatedAt,
@@ -66,17 +68,17 @@ export function ItemStockSection({
             <>
               <div>
                 <div className="text-xs uppercase text-muted-foreground tracking-wide">On hand</div>
-                <div className="text-2xl font-semibold tabular-nums mt-1"><Qty value={onHand} unit={baseUnit} /></div>
+                <div className="text-2xl font-semibold tabular-nums mt-1"><ItemQty baseValue={onHand} unit={baseUnit} conversions={conversions} /></div>
               </div>
               <div>
                 <div className="text-xs uppercase text-muted-foreground tracking-wide">Reserved</div>
-                <div className="text-2xl font-semibold tabular-nums mt-1"><Qty value={reserved} unit={baseUnit} /></div>
+                <div className="text-2xl font-semibold tabular-nums mt-1"><ItemQty baseValue={reserved} unit={baseUnit} conversions={conversions} /></div>
               </div>
             </>
           )}
           <div>
             <div className="text-xs uppercase text-muted-foreground tracking-wide">Available</div>
-            <div className="text-2xl font-semibold tabular-nums mt-1"><Qty value={available} unit={baseUnit} /></div>
+            <div className="text-2xl font-semibold tabular-nums mt-1"><ItemQty baseValue={available} unit={baseUnit} conversions={conversions} /></div>
           </div>
         </div>
       )}
