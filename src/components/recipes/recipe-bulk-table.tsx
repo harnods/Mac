@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Trash2, X } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { RecipeTableRowClient } from "./recipe-table-row";
 import { useColumnVisibility, type ColumnDef } from "@/hooks/use-column-visibility";
-import { bulkDeleteRecipes } from "@/app/actions/recipes";
+import { bulkDeleteRecipes, bulkUpdateRecipeStation } from "@/app/actions/recipes";
 import type { Updater } from "@/lib/supabase/types";
 
 export const RECIPE_COLUMNS: ColumnDef[] = [
@@ -74,6 +77,17 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
     });
   }
 
+  function handleBulkSetCategory(station: "bar" | "kitchen") {
+    const count = selected.size;
+    startTransition(async () => {
+      const res = await bulkUpdateRecipeStation([...selected], station);
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success(`${count} recipe${count !== 1 ? "s" : ""} moved to ${station === "bar" ? "Bar" : "Kitchen"}`);
+      setSelected(new Set());
+      router.refresh();
+    });
+  }
+
   return (
     <>
       {someSelected && isAdmin && (
@@ -82,7 +96,18 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
           <button onClick={() => setSelected(new Set())} className="text-muted-foreground hover:text-foreground">
             <X className="size-3.5" />
           </button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={pending}>
+                  <Tag className="size-3.5" /> Set category
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => handleBulkSetCategory("bar")}>Bar</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleBulkSetCategory("kitchen")}>Kitchen</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" variant="outline" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="size-3.5" /> Delete
             </Button>

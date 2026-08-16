@@ -138,7 +138,7 @@ export function AccessSection({ employeeId, employeeEmail, userId, userEmail, us
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="crew">Crew</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="admin">Super admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

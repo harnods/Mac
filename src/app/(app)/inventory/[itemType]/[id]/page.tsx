@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission } from "@/lib/permissions";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
 import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import { LinkedRecipeIngredientsTable } from "@/components/inventory/linked-recipe-ingredients-table";
@@ -86,7 +86,10 @@ export default async function ItemDetailPage({
 
   if (error || !data) notFound();
   const item = data as ItemWithCategory & { product_kind?: string; status?: string };
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  const isAdmin = can(profile, itemWritePermission(config.dbType));
+  // Cost is restricted to the Super admin role — withhold the values entirely
+  // from anyone else so they never reach the client.
+  const viewCost = canViewCost(profile);
   const ledger = (ledgerData ?? []) as LedgerRow[];
   const unitConversions = (conversionData ?? []) as UnitConversionRow[];
   const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
@@ -165,10 +168,10 @@ export default async function ItemDetailPage({
           stockMode={config.stockMode}
           hasCategories={config.hasCategories}
           categoryName={item.categories?.name ?? null}
-          lastPurchaseCost={item.last_purchase_cost}
-          avgPurchaseCost={item.avg_purchase_cost}
-          defaultPurchaseCost={item.default_purchase_cost}
-          defaultPurchaseCostUnit={item.default_purchase_cost_unit}
+          lastPurchaseCost={viewCost ? item.last_purchase_cost : null}
+          avgPurchaseCost={viewCost ? item.avg_purchase_cost : null}
+          defaultPurchaseCost={viewCost ? item.default_purchase_cost : null}
+          defaultPurchaseCostUnit={viewCost ? item.default_purchase_cost_unit : null}
           purchaseUnit={item.purchase_unit}
           purchaseUnitQty={item.purchase_unit_qty}
           showSellPrice={config.showSellable}

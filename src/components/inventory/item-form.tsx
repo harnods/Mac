@@ -34,6 +34,8 @@ type Props = {
   itemTypeSlug: ItemTypeSlug;
   hasCategories: boolean;
   unitLocked?: boolean;
+  /** Whether the current user (Super admin) may see/edit cost. Defaults false. */
+  canViewCost?: boolean;
   onSuccess?: () => void;
   onCancel?: () => void;
 };
@@ -42,7 +44,7 @@ function defaultUnitFor(): string {
   return "pcs";
 }
 
-export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, hasCategories, unitLocked = false, onSuccess, onCancel }: Props) {
+export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, hasCategories, unitLocked = false, canViewCost = false, onSuccess, onCancel }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState(item?.name ?? "");
@@ -65,7 +67,8 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
 
   const isEdit = !!item;
   const config = ITEM_TYPE_CONFIG[itemTypeSlug];
-  const showDefaultCost = itemTypeSlug === "ingredients";
+  // Cost is confidential — only Super admins can see or set it.
+  const showDefaultCost = itemTypeSlug === "ingredients" && canViewCost;
   const showPhoto = itemTypeSlug === "supplies";
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {

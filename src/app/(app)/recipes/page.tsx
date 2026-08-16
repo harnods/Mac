@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, allowedRecipeStations } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { RecipeBulkTable } from "@/components/recipes/recipe-bulk-table";
@@ -56,6 +56,12 @@ export default async function RecipesPage({
   if (filterByType) query = query.eq("items.type", itemType);
   if (category === "bar" || category === "kitchen") query = query.eq("station", category);
 
+  // Restrict to the stations this role may access (uncategorized always visible).
+  const allowedStations = allowedRecipeStations(profile);
+  if (allowedStations) {
+    query = query.or(`station.is.null,station.in.(${allowedStations.join(",")})`);
+  }
+
   const { data, count } = await query;
   const list = (data ?? []) as unknown as RecipeRow[];
   const isFiltered = !!q.trim() || !!type || !!category;
@@ -85,7 +91,7 @@ export default async function RecipesPage({
       </div>
 
       <Suspense fallback={null}>
-        <RecipesFilter />
+        <RecipesFilter categories={allowedStations ?? ["bar", "kitchen"]} />
       </Suspense>
 
       {list.length === 0 ? (

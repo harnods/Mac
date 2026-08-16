@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Trash2, Plus, ShieldCheck, Crown } from "lucide-react";
+import { Trash2, Plus, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { RoleWithPermissions } from "@/app/actions/permissions";
 import type { PERMISSION_MODULES, PERMISSION_LABELS, PermissionKey } from "@/lib/permissions";
+import { isSuperRole, roleLabel } from "@/lib/permissions";
 import {
   setRolePermissions,
   createRole,
   deleteRole,
-  setUserRole,
 } from "@/app/actions/permissions";
 
 type PermissionModules = typeof PERMISSION_MODULES;
@@ -33,7 +33,7 @@ type Props = {
 
 export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers, permissionModules, permissionLabels }: Props) {
   const [roles, setRoles] = useState<RoleWithPermissions[]>(initialRoles);
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const users = initialUsers;
   const [selectedRoleId, setSelectedRoleId] = useState<string>(initialRoles[0]?.id ?? "");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +48,10 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
     return users.filter((u) => u.role === role.name).length;
   };
 
+  const selectedRoleLocked = isSuperRole(selectedRole?.name);
+
   function handlePermissionToggle(key: PermissionKey) {
-    if (!selectedRole) return;
+    if (!selectedRole || selectedRoleLocked) return;
     const current = selectedRole.permission_keys;
     const next = current.includes(key)
       ? current.filter((k) => k !== key)
@@ -98,17 +100,6 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
       setRoles((prev) => prev.filter((r) => r.id !== id));
       if (selectedRoleId === id) {
         setSelectedRoleId(roles.find((r) => r.id !== id)?.id ?? "");
-      }
-    });
-  }
-
-  function handleUserRoleChange(userId: string, newRole: string) {
-    // Optimistic update
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, role: newRole } : u));
-    startTransition(async () => {
-      const result = await setUserRole(userId, newRole);
-      if (!result.ok) {
-        setError(result.error);
       }
     });
   }
@@ -166,7 +157,7 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
                   )}
                 >
                   <div className="min-w-0">
-                    <div className="font-medium truncate">{role.name}</div>
+                    <div className="font-medium truncate">{roleLabel(role.name)}</div>
                     <div className="text-xs text-muted-foreground">
                       {usersWithRole(role.id)} user{usersWithRole(role.id) !== 1 ? "s" : ""}
                     </div>
@@ -190,7 +181,7 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
             {selectedRole ? (
               <>
                 <div className="flex items-center gap-2">
-                  <h2 className="font-semibold">{selectedRole.name}</h2>
+                  <h2 className="font-semibold">{roleLabel(selectedRole.name)}</h2>
                   {selectedRole.is_system && (
                     <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full flex items-center gap-1">
                       <ShieldCheck className="size-3" />
@@ -201,6 +192,12 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
                     <span className="text-sm text-muted-foreground">— {selectedRole.description}</span>
                   )}
                 </div>
+
+                {selectedRoleLocked && (
+                  <div className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                    The admin role always has full access. Its permissions can&apos;t be changed.
+                  </div>
+                )}
 
                 {permissionModules.map((mod) => (
                   <div key={mod.module} className="space-y-1">
@@ -213,13 +210,16 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
                         return (
                           <label
                             key={key}
-                            className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent/50 cursor-pointer"
+                            className={cn(
+                              "flex items-center gap-3 rounded-md px-3 py-2",
+                              selectedRoleLocked ? "cursor-default" : "hover:bg-accent/50 cursor-pointer",
+                            )}
                           >
                             <input
                               type="checkbox"
-                              checked={checked}
+                              checked={selectedRoleLocked ? true : checked}
                               onChange={() => handlePermissionToggle(key as PermissionKey)}
-                              disabled={isPending}
+                              disabled={isPending || selectedRoleLocked}
                               className="rounded"
                             />
                             <span className="text-sm">{permissionLabels[key as PermissionKey]}</span>
@@ -235,63 +235,6 @@ export function RolePermissionsEditor({ roles: initialRoles, users: initialUsers
               <div className="text-sm text-muted-foreground">Select a role to edit permissions.</div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Users table */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">Users</h2>
-        <div className="border rounded-lg overflow-x-auto">
-          <table className="w-auto min-w-full text-sm table-fixed">
-            <thead className="bg-muted/50 border-b">
-              <tr>
-                <th className="text-left px-4 py-2 font-medium w-[240px]">Name</th>
-                <th className="text-left px-4 py-2 font-medium w-[160px]">Email</th>
-                <th className="text-left px-4 py-2 font-medium w-[160px]">Role</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <span>{user.full_name ?? "—"}</span>
-                      {user.is_owner && (
-                        <span className="inline-flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                          <Crown className="size-3" />
-                          Account owner
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{user.email}</td>
-                  <td className="px-4 py-2">
-                    {user.is_owner ? (
-                      <span className="text-sm text-muted-foreground px-2 py-1 inline-block">{user.role}</span>
-                    ) : (
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleUserRoleChange(user.id, e.target.value)}
-                        disabled={isPending}
-                        className="border rounded px-2 py-1 text-sm bg-background w-full"
-                      >
-                        {roles.map((r) => (
-                          <option key={r.id} value={r.name}>{r.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {users.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-muted-foreground">
-                    No users found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

@@ -24,11 +24,15 @@ type RecipeIngredient = {
 
 export function RecipeIngredientsList({
   rows,
+  showCost = true,
 }: {
   rows: { ri: RecipeIngredient; line: RecipeCostLine }[];
+  /** Cost column is Super-admin only. When false the whole column is dropped. */
+  showCost?: boolean;
 }) {
   const [q, setQ] = useState("");
   const filtered = rows.filter(({ ri }) => (ri.item?.name ?? "").toLowerCase().includes(q.toLowerCase()));
+  const gridCols = showCost ? "grid-cols-[0.5fr_4fr_1.5fr_1.5fr]" : "grid-cols-[0.5fr_4fr_1.5fr]";
 
   return (
     <div className="space-y-4">
@@ -44,14 +48,14 @@ export function RecipeIngredientsList({
         <p className="text-sm text-muted-foreground py-2">No matching ingredients.</p>
       ) : (
         <div>
-          <div className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr] gap-x-6 py-2 border-b text-xs text-muted-foreground">
+          <div className={`grid ${gridCols} gap-x-6 py-2 border-b text-xs text-muted-foreground`}>
             <span />
             <span className="pl-3">Ingredient</span>
             <span>Qty</span>
-            <span className="text-right">Cost</span>
+            {showCost && <span className="text-right">Cost</span>}
           </div>
           {filtered.map(({ ri, line }, idx) => (
-            <div key={ri.id} className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr] gap-x-6 items-center py-2 border-b last:border-0">
+            <div key={ri.id} className={`grid ${gridCols} gap-x-6 items-center py-2 border-b last:border-0`}>
               <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
               <span className="font-medium text-sm pl-3 flex items-center gap-1.5">
                 {ri.item && !ri.item.deleted_at
@@ -62,18 +66,20 @@ export function RecipeIngredientsList({
               <span className="tabular-nums text-sm">
                 <Qty value={ri.quantity} unit={ri.unit} />
               </span>
-              <span className="tabular-nums text-sm text-right">
-                {line.cost != null ? (
-                  <>
-                    {formatRp(line.cost)}
-                    {line.source && line.source !== "avg" && (
-                      <span className="text-muted-foreground text-xs"> ({SOURCE_LABEL[line.source]})</span>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
-              </span>
+              {showCost && (
+                <span className="tabular-nums text-sm text-right">
+                  {line.cost != null ? (
+                    <>
+                      {formatRp(line.cost)}
+                      {line.source && line.source !== "avg" && (
+                        <span className="text-muted-foreground text-xs"> ({SOURCE_LABEL[line.source]})</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
+              )}
             </div>
           ))}
         </div>

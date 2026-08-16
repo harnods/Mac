@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { formatQty } from "@/lib/units";
@@ -37,7 +37,12 @@ export default async function ItemTypePage({
 
   const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  const isAdmin = can(profile, itemWritePermission(config.dbType));
+  // Cost is confidential — only the Super admin role may see it. Non-super-admins
+  // get the cost columns hidden AND the values stripped from the payload below.
+  const viewCost = canViewCost(profile);
+  const showCost = config.showCost && viewCost;
+  const showDefaultCost = config.showDefaultCost && viewCost;
   const isFiltered = !!q.trim() || !!cat;
 
   let query = supabase
@@ -61,7 +66,17 @@ export default async function ItemTypePage({
       : Promise.resolve({ data: [] }),
   ]);
 
-  const list = (items ?? []) as ItemWithCategory[];
+  const rawList = (items ?? []) as ItemWithCategory[];
+  // Never send cost fields to a client that isn't allowed to view them.
+  const list: ItemWithCategory[] = viewCost
+    ? rawList
+    : rawList.map((it) => ({
+        ...it,
+        last_purchase_cost: null,
+        avg_purchase_cost: null,
+        default_purchase_cost: null,
+        default_purchase_cost_unit: null,
+      }));
   const cats = (categories ?? []) as Category[];
   const linkedRecipeProductIds = new Set((recipeLinks ?? []).map((r: { product_id: string }) => r.product_id));
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
@@ -101,9 +116,9 @@ export default async function ItemTypePage({
           columnFlags={{
             showCategory: config.hasCategories,
             stockMode: config.stockMode,
-            showCost: config.showCost,
+            showCost,
             showSellable: config.showSellable,
-            showDefaultCost: config.showDefaultCost,
+            showDefaultCost,
             hasRecipeColumn: config.dbType === "product",
           }}
         />
@@ -132,9 +147,9 @@ export default async function ItemTypePage({
             showPhoto={config.showPhoto}
             showCategory={config.hasCategories}
             stockMode={config.stockMode}
-            showCost={config.showCost}
+            showCost={showCost}
             showSellable={config.showSellable}
-            showDefaultCost={config.showDefaultCost}
+            showDefaultCost={showDefaultCost}
             linkedRecipeProductIds={config.dbType === "product" ? linkedRecipeProductIds : undefined}
           />
 

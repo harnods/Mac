@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, allowedRecipeStations, canAccessRecipeStation } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { RecipeForm } from "@/components/recipes/recipe-form";
@@ -35,6 +35,8 @@ export default async function EditRecipePage({
   ]);
 
   if (error || !recipe) notFound();
+  if (!canAccessRecipeStation(profile, (recipe as Recipe).station)) notFound();
+  const allowedStations = allowedRecipeStations(profile);
 
   // Each item can only be the output of one recipe — hide items already
   // claimed by another recipe (this recipe's own output stays selectable).
@@ -55,6 +57,7 @@ export default async function EditRecipePage({
         recipe={recipe as Recipe}
         recipeItems={recipe.recipe_items as RecipeItemWithItem[]}
         units={(unitsData ?? []).map((u: { code: string }) => u.code)}
+        stationOptions={allowedStations ?? ["bar", "kitchen"]}
       />
     </div>
   );

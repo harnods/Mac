@@ -108,7 +108,7 @@ async function provisionCrewLogin(
       email_confirm: true,
     });
     if (error) return { ok: false, error: error.message };
-    await admin.from("profiles").update({ email, must_change_password: true }).eq("id", employee.user_id);
+    await admin.from("profiles").update({ email, must_change_password: true, access_crew: true, access_backoffice: false }).eq("id", employee.user_id);
     return { ok: true };
   }
 
@@ -122,7 +122,7 @@ async function provisionCrewLogin(
 
   const uid = authUser.user.id;
   await admin.from("profiles").upsert(
-    { id: uid, email, full_name: employee.name, role: "crew", must_change_password: true },
+    { id: uid, email, full_name: employee.name, role: "crew", must_change_password: true, access_crew: true, access_backoffice: false },
     { onConflict: "id" },
   );
   await supabase.from("employees").update({ user_id: uid, updated_by: actorId }).eq("id", employee.id);
@@ -780,10 +780,15 @@ export async function grantEmployeeAccess(
 
   const userId = authUser.user.id;
 
-  // Upsert profile (trigger may have already created it)
+  // Upsert profile (trigger may have already created it). App access follows the
+  // granted role: crew -> crew app, any other role -> back office.
+  const isCrew = role === "crew";
   await supabase
     .from("profiles")
-    .upsert({ id: userId, email: email.trim(), role }, { onConflict: "id" });
+    .upsert(
+      { id: userId, email: email.trim(), role, access_crew: isCrew, access_backoffice: !isCrew },
+      { onConflict: "id" },
+    );
 
   // Link to employee
   const { error: linkErr } = await supabase

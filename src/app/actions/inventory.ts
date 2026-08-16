@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, canViewCost, canWriteItemType, itemWritePermission } from "@/lib/permissions";
 import { ITEM_TYPE_CONFIG, type ItemTypeSlug } from "@/lib/item-types";
 import { convert, compatibleUnits } from "@/lib/units";
 import { resolveComputedRecipeCost, type ComputedRecipeCost } from "@/lib/cogs-server";
@@ -130,13 +130,16 @@ export async function createItem(input: unknown): Promise<ActionResult> {
   const parsed = itemSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
+  // Only Super admins may set cost — ignore any cost the client submits otherwise.
+  const mayWriteCost = canViewCost(profile);
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("items")
     .insert({
       ...parsed.data,
-      default_purchase_cost: parsed.data.default_purchase_cost ?? null,
-      default_purchase_cost_unit: parsed.data.default_purchase_cost != null
+      default_purchase_cost: mayWriteCost ? (parsed.data.default_purchase_cost ?? null) : null,
+      default_purchase_cost_unit: mayWriteCost && parsed.data.default_purchase_cost != null
         ? (parsed.data.default_purchase_cost_unit ?? parsed.data.unit)
         : null,
       updated_by: profile.id,
@@ -159,18 +162,27 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
 
   const supabase = await createClient();
 
+  // Only Super admins may edit cost — otherwise preserve the stored values.
+  const mayWriteCost = canViewCost(profile);
+
   // If unit is changing, fetch current values and convert qty + costs
   const patch: Record<string, unknown> = {
     ...parsed.data,
-    default_purchase_cost: parsed.data.default_purchase_cost ?? null,
+    updated_by: profile.id,
+  };
+  if (mayWriteCost) {
+    patch.default_purchase_cost = parsed.data.default_purchase_cost ?? null;
     // Default cost carries its own unit (may differ from the item's unit, e.g.
     // cost entered "per kg" for a gram-based item) — it's independent of the
     // item's own unit and doesn't need converting when that unit changes.
-    default_purchase_cost_unit: parsed.data.default_purchase_cost != null
+    patch.default_purchase_cost_unit = parsed.data.default_purchase_cost != null
       ? (parsed.data.default_purchase_cost_unit ?? parsed.data.unit)
-      : null,
-    updated_by: profile.id,
-  };
+      : null;
+  } else {
+    // The client can't see cost, so never trust its cost fields — keep as-is.
+    delete patch.default_purchase_cost;
+    delete patch.default_purchase_cost_unit;
+  }
 
   const { data: current } = await supabase
     .from("items")
@@ -209,9 +221,13 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
 export async function deleteItem(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+  // Products are governed by the Products permission; everything else by Inventory.
+  const { data: existing } = await supabase.from("items").select("type").eq("id", id).maybeSingle();
+  if (!existing) return { ok: false, error: "Item not found" };
+  if (!canWriteItemType(profile, existing.type)) return { ok: false, error: "No permission" };
+
   // Soft-delete: preserve references in purchases, recipes, purchase requests
   const { error } = await supabase
     .from("items")
@@ -231,10 +247,10 @@ export type ItemFormData = {
 
 export async function getItemFormData(itemTypeSlug: string, itemId?: string): Promise<ItemFormData | null> {
   const profile = await getCurrentProfile();
-  if (!can(profile, P.INVENTORY_WRITE)) return null;
 
   const config = ITEM_TYPE_CONFIG[itemTypeSlug as ItemTypeSlug];
   if (!config) return null;
+  if (!can(profile, itemWritePermission(config.dbType))) return null;
 
   const supabase = await createClient();
 
@@ -271,10 +287,11 @@ const categorySchema = z.object({
 export async function createCategory(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  // Product categories are governed by Products; other categories by Inventory.
+  if (!can(profile, itemWritePermission(parsed.data.type))) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -290,12 +307,15 @@ export async function createCategory(input: unknown): Promise<ActionResult> {
 export async function updateCategory(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const supabase = await createClient();
+  const { data: existing } = await supabase.from("categories").select("type").eq("id", id).maybeSingle();
+  if (!existing) return { ok: false, error: "Category not found" };
+  if (!can(profile, itemWritePermission(existing.type))) return { ok: false, error: "No permission" };
+
   const { error } = await supabase
     .from("categories")
     .update({ name: parsed.data.name, updated_by: profile.id })
@@ -308,17 +328,18 @@ export async function updateCategory(id: string, input: unknown): Promise<Action
 export async function deleteCategory(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 
   const { data: cat } = await supabase
     .from("categories")
-    .select("is_default")
+    .select("is_default, type")
     .eq("id", id)
     .maybeSingle();
 
-  if (cat?.is_default) return { ok: false, error: "Cannot delete the default category." };
+  if (!cat) return { ok: false, error: "Category not found" };
+  if (!can(profile, itemWritePermission(cat.type))) return { ok: false, error: "No permission" };
+  if (cat.is_default) return { ok: false, error: "Cannot delete the default category." };
 
   const { error } = await supabase.from("categories").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
@@ -358,7 +379,7 @@ export type ProductFormData = {
 
 export async function getProductFormData(itemId?: string): Promise<ProductFormData | null> {
   const profile = await getCurrentProfile();
-  if (!can(profile, P.INVENTORY_WRITE)) return null;
+  if (!can(profile, P.PRODUCTS_WRITE)) return null;
 
   const supabase = await createClient();
 
@@ -399,7 +420,7 @@ export async function getProductFormData(itemId?: string): Promise<ProductFormDa
 export async function createProductItem(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.PRODUCTS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -429,7 +450,7 @@ export async function createProductItem(input: unknown): Promise<ActionResult> {
 export async function updateProductItem(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.PRODUCTS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -460,7 +481,7 @@ export async function updateProductItem(id: string, input: unknown): Promise<Act
 export async function setProductStatus(id: string, status: "active" | "draft"): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.PRODUCTS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -600,8 +621,12 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);
 
+  // Cost is confidential — only the Super admin role sees it. Compute/return
+  // cost only for permitted viewers so values never reach the client otherwise.
+  const viewCost = canViewCost(await getCurrentProfile());
+
   const hasDirectCost = item.avg_purchase_cost != null || item.last_purchase_cost != null || item.default_purchase_cost != null;
-  const computedCost = item.type === "prep_item" && !hasDirectCost
+  const computedCost = viewCost && item.type === "prep_item" && !hasDirectCost
     ? await resolveComputedRecipeCost(supabase, item.id, item.unit)
     : null;
 
@@ -634,10 +659,10 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
     available: onHand - reserved,
     stockMode: stockMode[item.type] ?? "none",
     itemPageUrl: `/inventory/${slug}/${item.id}`,
-    last_purchase_cost: item.last_purchase_cost,
-    avg_purchase_cost: item.avg_purchase_cost,
-    default_purchase_cost: item.default_purchase_cost,
-    default_purchase_cost_unit: item.default_purchase_cost_unit,
+    last_purchase_cost: viewCost ? item.last_purchase_cost : null,
+    avg_purchase_cost: viewCost ? item.avg_purchase_cost : null,
+    default_purchase_cost: viewCost ? item.default_purchase_cost : null,
+    default_purchase_cost_unit: viewCost ? item.default_purchase_cost_unit : null,
     purchase_unit: item.purchase_unit,
     purchase_unit_qty: item.purchase_unit_qty,
     computedCost,
@@ -648,13 +673,25 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
 
 // ─── Bulk select actions ──────────────────────────────────────────────────────
 
+/** Require the caller to hold the write permission for every item type in `ids`
+ * (Products vs Inventory). Used by the bulk actions which span a type's list. */
+async function canWriteAllItemTypes(
+  profile: Awaited<ReturnType<typeof getCurrentProfile>>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: string[],
+): Promise<boolean> {
+  const { data } = await supabase.from("items").select("type").in("id", ids);
+  const types = new Set((data ?? []).map((r: { type: string }) => r.type));
+  return [...types].every((t) => canWriteItemType(profile, t));
+}
+
 export async function bulkDeleteItems(ids: string[]): Promise<ActionResult> {
   if (!ids.length) return { ok: false, error: "No items selected" };
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+  if (!(await canWriteAllItemTypes(profile, supabase, ids))) return { ok: false, error: "No permission" };
   const { error } = await supabase
     .from("items")
     .update({ deleted_at: new Date().toISOString(), updated_by: profile.id })
@@ -675,9 +712,9 @@ export async function bulkUpdateItems(ids: string[], patch: BulkItemPatch): Prom
   if (!Object.keys(patch).length) return { ok: false, error: "No fields to update" };
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+  if (!(await canWriteAllItemTypes(profile, supabase, ids))) return { ok: false, error: "No permission" };
   const { error } = await supabase
     .from("items")
     .update({ ...patch, updated_by: profile.id })
@@ -726,10 +763,10 @@ export async function importItems(
 ): Promise<ImportItemsResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
 
   const config = ITEM_TYPE_CONFIG[itemTypeSlug as ItemTypeSlug];
   if (!config) return { ok: false, error: "Invalid item type" };
+  if (!can(profile, itemWritePermission(config.dbType))) return { ok: false, error: "No permission" };
 
   if (rows.length === 0) return { ok: false, error: "No rows to import" };
   if (rows.length > 500) return { ok: false, error: "Maximum 500 rows per import" };

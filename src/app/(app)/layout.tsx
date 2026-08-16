@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { canAccessHr } from "@/lib/permissions";
+import { NoAccessScreen } from "@/components/no-access-screen";
 import { UserMenu } from "@/components/user-menu";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MainNavMobile } from "@/components/main-nav-mobile";
@@ -14,10 +15,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
-  // Crew can only use the crew app (me.machimoto.cafe) — never the back-office.
-  if (profile.role === "crew") {
-    const host = ((await headers()).get("host") ?? "").toLowerCase();
-    redirect(ADMIN_HOSTS.includes(host) ? "https://me.machimoto.cafe" : "/me");
+  // App access is per-account. Without back-office access, send them to the crew
+  // app if they have it, otherwise show the no-access screen.
+  if (!profile.access_backoffice) {
+    if (profile.access_crew) {
+      const host = ((await headers()).get("host") ?? "").toLowerCase();
+      redirect(ADMIN_HOSTS.includes(host) ? "https://me.machimoto.cafe" : "/me");
+    }
+    return <NoAccessScreen />;
   }
 
   const canHr = canAccessHr(profile);

@@ -85,48 +85,54 @@ export function RecipeDrawerTrigger({ recipeId, recipeName, trigger }: Props) {
                       Ingredients
                     </p>
                     <div>
-                      <div className="grid grid-cols-3 gap-x-4 pb-1 border-b text-xs text-muted-foreground">
+                      <div className={`grid ${data.showCost ? "grid-cols-3" : "grid-cols-2"} gap-x-4 pb-1 border-b text-xs text-muted-foreground`}>
                         <span>Ingredient</span>
                         <span className="text-right">Qty</span>
-                        <span className="text-right">Cost</span>
+                        {data.showCost && <span className="text-right">Cost</span>}
                       </div>
                       {data.ingredients.map((ing, idx) => (
-                        <div key={`${ing.id}-${idx}`} className="grid grid-cols-3 gap-x-4 items-center py-1.5 border-b last:border-0 text-sm">
+                        <div key={`${ing.id}-${idx}`} className={`grid ${data.showCost ? "grid-cols-3" : "grid-cols-2"} gap-x-4 items-center py-1.5 border-b last:border-0 text-sm`}>
                           <span className="truncate">{ing.name}</span>
                           <span className="tabular-nums text-muted-foreground text-right whitespace-nowrap">
                             {formatNum(ing.quantity)} {ing.unit}
                           </span>
-                          <span className="tabular-nums text-right">
-                            {ing.cost != null ? (
-                              <>
-                                {formatRp(ing.cost)}
-                                {ing.source && ing.source !== "avg" && (
-                                  <span className="block text-[10px] text-muted-foreground leading-tight">
-                                    {SOURCE_LABEL[ing.source]}
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </span>
+                          {data.showCost && (
+                            <span className="tabular-nums text-right">
+                              {ing.cost != null ? (
+                                <>
+                                  {formatRp(ing.cost)}
+                                  {ing.source && ing.source !== "avg" && (
+                                    <span className="block text-[10px] text-muted-foreground leading-tight">
+                                      {SOURCE_LABEL[ing.source]}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <div className="flex items-center justify-between text-sm pt-2 border-t">
-                      <span className="text-muted-foreground">Total COGS</span>
-                      <span className="tabular-nums font-medium">
-                        {formatRp(data.totalCost)}
-                        {data.hasIncompleteCost && (
-                          <span className="block text-xs text-muted-foreground font-normal text-right">incomplete</span>
+                    {data.showCost && (
+                      <>
+                        <div className="flex items-center justify-between text-sm pt-2 border-t">
+                          <span className="text-muted-foreground">Total COGS</span>
+                          <span className="tabular-nums font-medium">
+                            {formatRp(data.totalCost ?? 0)}
+                            {data.hasIncompleteCost && (
+                              <span className="block text-xs text-muted-foreground font-normal text-right">incomplete</span>
+                            )}
+                          </span>
+                        </div>
+                        {data.yieldQty !== 1 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">Cost per {data.yieldUnit}</span>
+                            <span className="tabular-nums">{formatRp(data.costPerYieldUnit ?? 0)}</span>
+                          </div>
                         )}
-                      </span>
-                    </div>
-                    {data.yieldQty !== 1 && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Cost per {data.yieldUnit}</span>
-                        <span className="tabular-nums">{formatRp(data.costPerYieldUnit)}</span>
-                      </div>
+                      </>
                     )}
                   </div>
                 )}

@@ -10,6 +10,8 @@ export type Profile = {
   role: UserRole;
   is_owner: boolean;
   must_change_password: boolean;
+  access_backoffice: boolean;
+  access_crew: boolean;
   created_at: string;
 };
 

@@ -1,12 +1,12 @@
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P, PERMISSION_MODULES, PERMISSION_LABELS } from "@/lib/permissions";
+import { can, P } from "@/lib/permissions";
 import { getRolesWithPermissions, getUsersWithRoles } from "@/app/actions/permissions";
-import { RolePermissionsEditor } from "@/components/settings/role-permissions-editor";
+import { UsersRoleTable } from "@/components/settings/users-role-table";
 import { SettingsRolesTabs } from "@/components/settings/settings-roles-tabs";
 
 export const dynamic = "force-dynamic";
 
-export default async function RolesPage() {
+export default async function UsersPage() {
   const profile = await getCurrentProfile();
 
   if (!can(profile, P.SETTINGS_ROLES)) {
@@ -30,16 +30,11 @@ export default async function RolesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Roles &amp; permissions</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Manage what each role can do. Changes take effect on the user&apos;s next action.
+          Assign a role to each user. Changes take effect on the user&apos;s next action.
         </p>
       </div>
       <SettingsRolesTabs />
-      <RolePermissionsEditor
-        roles={roles}
-        users={users}
-        permissionModules={PERMISSION_MODULES}
-        permissionLabels={PERMISSION_LABELS}
-      />
+      <UsersRoleTable roles={roles} users={users} currentUserId={profile!.id} />
     </div>
   );
 }

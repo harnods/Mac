@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, canAccessRecipeStation, canViewCost } from "@/lib/permissions";
 import { convertToPieces, formatNum } from "@/lib/units";
 import { formatRp } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,10 @@ export default async function RecipeDetailPage({
     : recipe.recipe_type === "wip"    ? "wip"
     : recipe.product?.type === "prep_item" ? "wip" : "product";
   const isWip = recipeType === "wip";
+  if (!canAccessRecipeStation(profile, recipe.station)) notFound();
   const isAdmin = can(profile, P.RECIPES_WRITE);
+  // COGS / margin is confidential — Super admin only.
+  const viewCost = canViewCost(profile);
 
   const cogs = await calculateRecipeCostRecursive(supabase, recipe.recipe_items, recipe.yield_qty);
   const sellPrice = recipe.product?.sell_price ?? null;
@@ -129,12 +132,17 @@ export default async function RecipeDetailPage({
           <p className="text-sm text-muted-foreground">No ingredients.</p>
         ) : (
           <RecipeIngredientsList
-            rows={recipe.recipe_items.map((ri, idx) => ({ ri, line: cogs.lines[idx] }))}
+            showCost={viewCost}
+            rows={recipe.recipe_items.map((ri, idx) => ({
+              ri,
+              // Withhold cost figures from non-super-admins entirely.
+              line: viewCost ? cogs.lines[idx] : { ...cogs.lines[idx], cost: null, source: null },
+            }))}
           />
         )}
       </section>
 
-      {recipe.recipe_items.length > 0 && (
+      {viewCost && recipe.recipe_items.length > 0 && (
         <div className="grid grid-cols-12 gap-8">
           <div className="col-span-12 space-y-8 lg:col-span-6">
             <DetailSection title="Cost">

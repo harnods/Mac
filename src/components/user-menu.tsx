@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ClearDataDialog } from "@/components/clear-data-dialog";
 import type { Profile } from "@/lib/supabase/types";
+import { isSuperRole, roleLabel } from "@/lib/permissions";
 
 export function UserMenu({ profile }: { profile: Profile }) {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function UserMenu({ profile }: { profile: Profile }) {
     router.refresh();
   }
 
-  const showClearData = profile.role === "admin" && process.env.NODE_ENV !== "production";
+  const showClearData = isSuperRole(profile.role) && process.env.NODE_ENV !== "production";
 
   const initials = (profile.full_name || profile.email)
     .split(/[\s@]/)
@@ -48,8 +49,8 @@ export function UserMenu({ profile }: { profile: Profile }) {
           <DropdownMenuLabel className="flex flex-col gap-1">
             <span className="truncate">{profile.full_name || profile.email}</span>
             <span className="text-xs text-muted-foreground truncate">{profile.email}</span>
-            <Badge variant={profile.role === "admin" ? "default" : "secondary"} className="w-fit mt-1">
-              {profile.role}
+            <Badge variant={isSuperRole(profile.role) ? "default" : "secondary"} className="w-fit mt-1">
+              {roleLabel(profile.role)}
             </Badge>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />

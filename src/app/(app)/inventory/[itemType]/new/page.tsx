@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ItemForm } from "@/components/inventory/item-form";
@@ -24,7 +24,7 @@ export default async function NewItemPage({
 
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (!can(profile, P.INVENTORY_WRITE)) redirect(`/inventory/${itemType}`);
+  if (!can(profile, itemWritePermission(config.dbType))) redirect(`/inventory/${itemType}`);
 
   const isProduct = config.dbType === "product";
   const productFormData = isProduct ? await getProductFormData() : null;
@@ -61,6 +61,7 @@ export default async function NewItemPage({
           units={(units ?? []).map((u: { code: string }) => u.code)}
           itemTypeSlug={itemType as ItemTypeSlug}
           hasCategories={config.hasCategories}
+          canViewCost={canViewCost(profile)}
         />
       )}
     </div>

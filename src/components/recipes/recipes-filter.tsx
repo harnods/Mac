@@ -18,7 +18,7 @@ import { RECIPE_COLUMNS } from "@/components/recipes/recipe-bulk-table";
 
 const ALL = "__all__";
 
-export function RecipesFilter() {
+export function RecipesFilter({ categories = ["bar", "kitchen"] }: { categories?: ("bar" | "kitchen")[] }) {
   const { isVisible, toggle } = useColumnVisibility("recipes", RECIPE_COLUMNS);
   const router = useRouter();
   const pathname = usePathname();
@@ -56,16 +56,18 @@ export function RecipesFilter() {
             <SelectItem value="product">Product</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={category} onValueChange={(v) => push({ category: v })}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="All categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All categories</SelectItem>
-            <SelectItem value="bar">Bar</SelectItem>
-            <SelectItem value="kitchen">Kitchen</SelectItem>
-          </SelectContent>
-        </Select>
+        {categories.length > 1 && (
+          <Select value={category} onValueChange={(v) => push({ category: v })}>
+            <SelectTrigger className="w-36">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All categories</SelectItem>
+              {categories.includes("bar") && <SelectItem value="bar">Bar</SelectItem>}
+              {categories.includes("kitchen") && <SelectItem value="kitchen">Kitchen</SelectItem>}
+            </SelectContent>
+          </Select>
+        )}
         {hasFilter && (
           <Button
             variant="ghost"

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
+import { canViewCost } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatDate, formatDateTime, updaterName, formatId } from "@/lib/format";
@@ -37,7 +38,9 @@ export default async function PurchaseDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await getCurrentProfile();
+  const profile = await getCurrentProfile();
+  // Recorded purchase cost is confidential after saving — Super admin only.
+  const viewCost = canViewCost(profile);
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -53,6 +56,10 @@ export default async function PurchaseDetailPage({
 
   if (error || !data) notFound();
   const purchase = data as unknown as PurchaseDetail;
+  // Never send recorded costs to a client that can't view them.
+  const purchaseItems = viewCost
+    ? purchase.purchase_items
+    : purchase.purchase_items.map((pi) => ({ ...pi, cost_per_unit: null, cost_total: null }));
 
   return (
     <div className="space-y-8">
@@ -109,7 +116,7 @@ export default async function PurchaseDetailPage({
         {purchase.purchase_items.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">No items.</p>
         ) : (
-          <PurchaseItemsList items={purchase.purchase_items} />
+          <PurchaseItemsList items={purchaseItems} showCost={viewCost} />
         )}
       </section>
     </div>

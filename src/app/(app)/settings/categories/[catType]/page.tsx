@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, itemWritePermission } from "@/lib/permissions";
 import { CategoryManager } from "@/components/inventory/category-manager";
 import { AddCategoryButton } from "@/components/inventory/add-category-button";
 import { CategoriesFilter } from "@/components/inventory/categories-filter";
@@ -43,7 +43,7 @@ export default async function SettingsCategoryTypePage({
       .eq("type", config.dbType)
       .is("deleted_at", null),
   ]);
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  const isAdmin = can(profile, itemWritePermission(config.dbType));
 
   const itemCounts: Record<string, number> = {};
   for (const row of itemCategoryRows ?? []) {

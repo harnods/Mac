@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, allowedRecipeStations } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { RecipeForm } from "@/components/recipes/recipe-form";
@@ -46,6 +46,7 @@ export default async function NewRecipePage({
         units={(unitsData ?? []).map((u: { code: string }) => u.code)}
         initialProductId={initialProductId}
         initialRecipeType={initialType === "product" ? "product" : initialType === "wip" ? "wip" : undefined}
+        stationOptions={allowedRecipeStations(profile) ?? ["bar", "kitchen"]}
       />
     </div>
   );

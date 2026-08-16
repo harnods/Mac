@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ItemForm } from "@/components/inventory/item-form";
@@ -24,7 +24,7 @@ export default async function EditItemPage({
 
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (!can(profile, P.INVENTORY_WRITE)) redirect(`/inventory/${itemType}/${id}`);
+  if (!can(profile, itemWritePermission(config.dbType))) redirect(`/inventory/${itemType}/${id}`);
 
   const isProduct = config.dbType === "product";
 
@@ -68,6 +68,11 @@ export default async function EditItemPage({
   if (!item) notFound();
 
   const unitLocked = txResults.some((r) => (r.count ?? 0) > 0);
+  const viewCost = canViewCost(profile);
+  // Don't ship the stored cost to a client that can't view it.
+  const itemForForm = viewCost
+    ? (item as Item)
+    : { ...(item as Item), default_purchase_cost: null, default_purchase_cost_unit: null };
 
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">
@@ -79,12 +84,13 @@ export default async function EditItemPage({
       </div>
 
       <ItemForm
-        item={item as Item}
+        item={itemForForm}
         categories={(categories ?? []) as Category[]}
         units={(units ?? []).map((u: { code: string }) => u.code)}
         itemTypeSlug={itemType as ItemTypeSlug}
         hasCategories={config.hasCategories}
         unitLocked={unitLocked}
+        canViewCost={viewCost}
       />
     </div>
   );

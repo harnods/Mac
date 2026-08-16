@@ -1,14 +1,29 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { getMyIdentity } from "@/app/actions/crew-self";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { CrewNav } from "@/components/crew/crew-nav";
+import { NoAccessScreen } from "@/components/no-access-screen";
 
 export const dynamic = "force-dynamic";
+
+// Crew-app hosts where a back-office-only user should be bounced to the office.
+const CREW_HOSTS = ["me.machimoto.cafe"];
 
 export default async function MeLayout({ children }: { children: React.ReactNode }) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/me/login");
+
+  // Gate the crew app by per-account access; bounce to the back office if that's
+  // all they have, otherwise show the no-access screen.
+  if (!profile.access_crew) {
+    if (profile.access_backoffice) {
+      const host = ((await headers()).get("host") ?? "").toLowerCase();
+      redirect(CREW_HOSTS.includes(host) ? "https://admin.machimoto.cafe" : "/");
+    }
+    return <NoAccessScreen />;
+  }
 
   // During the forced first-login password change, show a bare shell (no nav).
   if (profile.must_change_password) {

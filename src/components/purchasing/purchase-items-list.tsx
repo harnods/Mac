@@ -18,9 +18,13 @@ type PurchaseItem = {
   item: { id: string; name: string; unit: string; deleted_at: string | null } | null;
 };
 
-export function PurchaseItemsList({ items }: { items: PurchaseItem[] }) {
+export function PurchaseItemsList({ items, showCost = true }: { items: PurchaseItem[]; showCost?: boolean }) {
   const [q, setQ] = useState("");
   const filtered = items.filter((pi) => (pi.item?.name ?? "").toLowerCase().includes(q.toLowerCase()));
+  // Recorded purchase cost is Super-admin only. When hidden, drop the column.
+  const gridCols = showCost
+    ? "grid-cols-[0.5fr_4fr_1.5fr_1.5fr_1.5fr]"
+    : "grid-cols-[0.5fr_4fr_1.5fr_1.5fr]";
 
   return (
     <div className="space-y-4">
@@ -36,12 +40,12 @@ export function PurchaseItemsList({ items }: { items: PurchaseItem[] }) {
         <p className="text-sm text-muted-foreground py-2">No matching items.</p>
       ) : (
         <div>
-          <div className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr_1.5fr] gap-x-6 py-2 border-b text-xs text-muted-foreground">
+          <div className={`grid ${gridCols} gap-x-6 py-2 border-b text-xs text-muted-foreground`}>
             <span />
             <span>Item</span>
             <span className="text-right">Requested</span>
             <span className="text-right">Purchased</span>
-            <span className="text-right">Cost</span>
+            {showCost && <span className="text-right">Cost</span>}
           </div>
           {filtered.map((pi, idx) => {
             const perUnit = pi.cost_per_unit != null
@@ -56,7 +60,7 @@ export function PurchaseItemsList({ items }: { items: PurchaseItem[] }) {
               : null;
             return (
               <div key={pi.id} className="border-b last:border-0">
-                <div className="grid grid-cols-[0.5fr_4fr_1.5fr_1.5fr_1.5fr] gap-x-6 items-center py-2">
+                <div className={`grid ${gridCols} gap-x-6 items-center py-2`}>
                   <span className="text-sm text-muted-foreground text-right">{idx + 1}.</span>
                   <span className="font-medium text-sm flex items-center">
                     {pi.item?.name ?? "—"}
@@ -70,16 +74,18 @@ export function PurchaseItemsList({ items }: { items: PurchaseItem[] }) {
                   <span className="tabular-nums text-sm text-right">
                     <Qty value={pi.qty_purchased} unit={pi.unit} />
                   </span>
-                  <div className="text-right">
-                    <div className="tabular-nums text-sm">
-                      {costDisplay ?? "—"}
-                    </div>
-                    {pi.cost_total != null && perUnit != null && (
-                      <div className="tabular-nums text-xs text-muted-foreground">
-                        Rp{formatNum(perUnit)}/{pi.unit}
+                  {showCost && (
+                    <div className="text-right">
+                      <div className="tabular-nums text-sm">
+                        {costDisplay ?? "—"}
                       </div>
-                    )}
-                  </div>
+                      {pi.cost_total != null && perUnit != null && (
+                        <div className="tabular-nums text-xs text-muted-foreground">
+                          Rp{formatNum(perUnit)}/{pi.unit}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {pi.row_note && (
                   <div className="ml-14 pb-2 text-xs text-muted-foreground">Note: {pi.row_note}</div>

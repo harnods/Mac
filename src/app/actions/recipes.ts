@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, canAccessRecipeStation, canViewCost } from "@/lib/permissions";
 import type { CostableItem } from "@/lib/cogs";
 import { calculateRecipeCostRecursive, type RecipeCostSource } from "@/lib/cogs-server";
 
@@ -77,6 +77,9 @@ export async function createRecipe(raw: unknown): Promise<ActionResult> {
   const parsed = recipeSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { name, recipe_type, station, yield_qty, unit, weight_per_pcs, weight_unit, items } = parsed.data;
+
+  if (!canAccessRecipeStation(profile, station ?? null))
+    return { ok: false, error: "You don't have access to this recipe category" };
   let { product_id } = parsed.data;
 
   const supabase = await createClient();
@@ -133,6 +136,13 @@ export async function updateRecipe(id: string, raw: unknown): Promise<ActionResu
 
   const supabase = await createClient();
 
+  // Enforce category access: the caller must be able to reach both the recipe's
+  // current station and the station they're moving it to.
+  const { data: existingRecipe } = await supabase.from("recipes").select("station").eq("id", id).maybeSingle();
+  if (!existingRecipe) return { ok: false, error: "Recipe not found" };
+  if (!canAccessRecipeStation(profile, existingRecipe.station) || !canAccessRecipeStation(profile, station ?? null))
+    return { ok: false, error: "You don't have access to this recipe category" };
+
   if (product_id) {
     const conflictError = await checkOutputTaken(supabase, product_id, id);
     if (conflictError) return conflictError;
@@ -172,6 +182,9 @@ export async function deleteRecipe(id: string): Promise<ActionResult> {
   if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+  const { data: target } = await supabase.from("recipes").select("station").eq("id", id).maybeSingle();
+  if (target && !canAccessRecipeStation(profile, target.station))
+    return { ok: false, error: "You don't have access to this recipe category" };
   const { error } = await supabase.from("recipes").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
 
@@ -186,7 +199,36 @@ export async function bulkDeleteRecipes(ids: string[]): Promise<ActionResult> {
   if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("recipes").delete().in("id", ids);
+  // Only allow deleting recipes whose station this role may access.
+  const { data: targets } = await supabase.from("recipes").select("id,station").in("id", ids);
+  const deletableIds = (targets ?? [])
+    .filter((r) => canAccessRecipeStation(profile, r.station))
+    .map((r) => r.id);
+  if (deletableIds.length === 0) return { ok: false, error: "You don't have access to the selected recipes" };
+  const { error } = await supabase.from("recipes").delete().in("id", deletableIds);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/recipes");
+  return { ok: true };
+}
+
+export async function bulkUpdateRecipeStation(ids: string[], station: "bar" | "kitchen"): Promise<ActionResult> {
+  if (!ids.length) return { ok: false, error: "No recipes selected" };
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.RECIPES_WRITE)) return { ok: false, error: "No permission" };
+  if (!canAccessRecipeStation(profile, station))
+    return { ok: false, error: "You don't have access to this recipe category" };
+
+  const supabase = await createClient();
+
+  // Enforce category access: the caller must be able to reach every selected
+  // recipe's current station before moving it.
+  const { data: existing } = await supabase.from("recipes").select("station").in("id", ids);
+  if (existing?.some((r) => !canAccessRecipeStation(profile, r.station)))
+    return { ok: false, error: "You don't have access to one or more of the selected recipes" };
+
+  const { error } = await supabase.from("recipes").update({ station, updated_by: profile.id }).in("id", ids);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/recipes");
@@ -209,10 +251,12 @@ export type RecipeDrawerData = {
   yieldQty: number;
   yieldUnit: string | null;
   productName: string | null;
+  /** Whether the viewer (Super admin) may see cost. Drives client-side hiding. */
+  showCost: boolean;
   ingredients: RecipeDrawerIngredient[];
-  totalCost: number;
+  totalCost: number | null;
   hasIncompleteCost: boolean;
-  costPerYieldUnit: number;
+  costPerYieldUnit: number | null;
 };
 
 export async function getRecipeDrawerData(recipeId: string): Promise<RecipeDrawerData | null> {
@@ -220,12 +264,14 @@ export async function getRecipeDrawerData(recipeId: string): Promise<RecipeDrawe
   const { data } = await supabase
     .from("recipes")
     .select(
-      "id, name, recipe_type, yield_qty, unit, recipe_items(id, quantity, unit, item:items(id, name, unit, type, deleted_at, last_purchase_cost, avg_purchase_cost, default_purchase_cost, default_purchase_cost_unit, purchase_unit, purchase_unit_qty)), product:items!product_id(name, unit)"
+      "id, name, recipe_type, station, yield_qty, unit, recipe_items(id, quantity, unit, item:items(id, name, unit, type, deleted_at, last_purchase_cost, avg_purchase_cost, default_purchase_cost, default_purchase_cost_unit, purchase_unit, purchase_unit_qty)), product:items!product_id(name, unit)"
     )
     .eq("id", recipeId)
     .maybeSingle();
 
   if (!data) return null;
+  const profile = await getCurrentProfile();
+  if (!canAccessRecipeStation(profile, (data as { station: string | null }).station)) return null;
 
   const product = data.product as unknown as { name: string; unit: string } | null;
   const recipeItems = data.recipe_items as unknown as {
@@ -234,6 +280,9 @@ export async function getRecipeDrawerData(recipeId: string): Promise<RecipeDrawe
     item: (CostableItem & { id: string; name: string; type: string; deleted_at: string | null }) | null;
   }[];
 
+  // Cost is confidential — Super admin only. Strip every cost figure otherwise
+  // so it never reaches the client.
+  const viewCost = canViewCost(profile);
   const cogs = await calculateRecipeCostRecursive(supabase, recipeItems, data.yield_qty);
 
   return {
@@ -243,16 +292,17 @@ export async function getRecipeDrawerData(recipeId: string): Promise<RecipeDrawe
     yieldQty: data.yield_qty,
     yieldUnit: (data as unknown as { unit: string | null }).unit ?? product?.unit ?? null,
     productName: product?.name ?? null,
+    showCost: viewCost,
     ingredients: recipeItems.map((ri, idx) => ({
       id: ri.item?.id ?? `missing-${idx}`,
       name: ri.item?.name ?? "—",
       quantity: ri.quantity,
       unit: ri.unit,
-      cost: cogs.lines[idx].cost,
-      source: cogs.lines[idx].source,
+      cost: viewCost ? cogs.lines[idx].cost : null,
+      source: viewCost ? cogs.lines[idx].source : null,
     })),
-    totalCost: cogs.totalCost,
-    hasIncompleteCost: cogs.hasIncompleteCost,
-    costPerYieldUnit: cogs.costPerYieldUnit,
+    totalCost: viewCost ? cogs.totalCost : null,
+    hasIncompleteCost: viewCost ? cogs.hasIncompleteCost : false,
+    costPerYieldUnit: viewCost ? cogs.costPerYieldUnit : null,
   };
 }

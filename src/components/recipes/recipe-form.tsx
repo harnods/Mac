@@ -70,6 +70,7 @@ export function RecipeForm({
   units: initialUnits = [],
   initialProductId,
   initialRecipeType,
+  stationOptions = ["bar", "kitchen"],
 }: {
   items: Pick<Item, "id" | "name" | "unit" | "type">[];
   products: Pick<Item, "id" | "name" | "unit" | "type">[];
@@ -78,6 +79,7 @@ export function RecipeForm({
   units?: string[];
   initialProductId?: string;
   initialRecipeType?: "wip" | "product";
+  stationOptions?: ("bar" | "kitchen")[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -101,7 +103,9 @@ export function RecipeForm({
     : "wip";
 
   const [recipeType, setRecipeType] = useState<"wip" | "product">(initialRecipeType ?? initialType);
-  const [station, setStation] = useState<string>(recipe?.station ?? "");
+  const [station, setStation] = useState<string>(
+    recipe?.station ?? (stationOptions.length === 1 ? stationOptions[0] : ""),
+  );
   const [productId, setProductId] = useState<string | null>(recipe?.product_id ?? initialProductId ?? null);
   const [yieldQty, setYieldQty] = useState(String(recipe?.yield_qty ?? 1));
   const [yieldUnit, setYieldUnit] = useState<string>(recipe?.unit ?? "pcs");
@@ -332,8 +336,8 @@ export function RecipeForm({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">—</SelectItem>
-            <SelectItem value="bar">Bar</SelectItem>
-            <SelectItem value="kitchen">Kitchen</SelectItem>
+            {stationOptions.includes("bar") && <SelectItem value="bar">Bar</SelectItem>}
+            {stationOptions.includes("kitchen") && <SelectItem value="kitchen">Kitchen</SelectItem>}
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">Menu station this recipe belongs to (Bar / Kitchen).</p>

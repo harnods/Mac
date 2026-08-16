@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/lib/supabase/types";
+import { ALL_PERMISSION_KEYS, isSuperRole } from "@/lib/permissions";
 
 export type ProfileWithPermissions = Profile & { permissions: string[] };
 
@@ -16,6 +17,8 @@ export type ProfileWithPermissions = Profile & { permissions: string[] };
 // Uses the cookie-less admin client because unstable_cache forbids cookies().
 const getPermissionsForRole = unstable_cache(
   async (role: string): Promise<string[]> => {
+    // The admin role always has every permission, regardless of DB rows.
+    if (isSuperRole(role)) return [...ALL_PERMISSION_KEYS];
     const admin = createAdminClient();
     const { data } = await admin
       .from("role_permissions")
