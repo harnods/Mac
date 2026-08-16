@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P, canViewCost } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { convert } from "@/lib/units";
+import { effectiveUnitCost } from "@/lib/cogs";
 import { formatRp } from "@/lib/format";
 import { Qty } from "@/components/ui/qty";
 import {
@@ -29,7 +30,12 @@ type Recipe = {
     item_id: string;
     quantity: number;
     unit: string;
-    item: { id: string; name: string; unit: string; type: string; avg_purchase_cost: number | null; last_purchase_cost: number | null; default_purchase_cost: number | null } | null;
+    item: {
+      id: string; name: string; unit: string; type: string;
+      avg_purchase_cost: number | null; last_purchase_cost: number | null;
+      default_purchase_cost: number | null; default_purchase_cost_unit: string | null;
+      purchase_unit: string | null; purchase_unit_qty: number | null;
+    } | null;
   }[];
 };
 
@@ -84,7 +90,7 @@ export default async function SalesReportPage({
   const { data: recipeRows } = productIds.length
     ? await supabase
         .from("recipes")
-        .select("product_id, yield_qty, recipe_type, recipe_items(item_id, quantity, unit, item:items(id, name, unit, type, avg_purchase_cost, last_purchase_cost, default_purchase_cost))")
+        .select("product_id, yield_qty, recipe_type, recipe_items(item_id, quantity, unit, item:items(id, name, unit, type, avg_purchase_cost, last_purchase_cost, default_purchase_cost, default_purchase_cost_unit, purchase_unit, purchase_unit_qty))")
         .in("product_id", productIds)
     : { data: [] };
   const recipeMap = new Map<string, Recipe>();
@@ -103,8 +109,10 @@ export default async function SalesReportPage({
   const topProducts = [...perProduct.values()].sort((a, b) => b.revenue - a.revenue);
 
   // Ingredient usage from recipes (mirrors the sales-consumption logic)
-  const unitCost = (it: { avg_purchase_cost: number | null; last_purchase_cost: number | null; default_purchase_cost: number | null }) =>
-    it.avg_purchase_cost ?? it.last_purchase_cost ?? it.default_purchase_cost ?? null;
+  // Cost per the item's base unit — effectiveUnitCost converts a default cost
+  // that's denominated in another unit (e.g. Rp350.000/kg for a gram-based item).
+  const unitCost = (it: Recipe["recipe_items"][number]["item"]) =>
+    it ? (effectiveUnitCost(it)?.value ?? null) : null;
   const usage = new Map<string, { name: string; unit: string; qty: number; cost: number | null }>();
   const addUsage = (id: string, name: string, unit: string, qtyBase: number, cost: number | null) => {
     const cur = usage.get(id) ?? { name, unit, qty: 0, cost: cost != null ? 0 : null };
