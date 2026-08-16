@@ -35,21 +35,29 @@ function LoginForm() {
         toast.error(error.message);
         return;
       }
-      // Route crew to their mobile app; force a password change if required.
+      // Route by per-account app access (not role): anyone granted back-office
+      // access lands in the office; crew-only accounts go to the mobile app.
       const uid = signIn.user?.id;
       if (uid) {
-        const { data: prof } = await supabase.from("profiles").select("role, must_change_password").eq("id", uid).maybeSingle();
-        if (prof?.role === "crew") {
-          // Crew belong on me.machimoto.cafe only — never the back-office.
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("access_backoffice, access_crew, must_change_password")
+          .eq("id", uid)
+          .maybeSingle();
+        if (prof?.access_backoffice) {
+          // Has back-office access → the office (honor `next`).
+          dest = prof.must_change_password ? "/me/change-password" : next;
+        } else if (prof?.access_crew) {
+          // Crew-only belong on me.machimoto.cafe.
           const host = window.location.hostname.toLowerCase();
           if (["admin.machimoto.cafe", "machimoto.cafe", "www.machimoto.cafe"].includes(host)) {
             window.location.href = "https://me.machimoto.cafe";
             return;
           }
           dest = prof.must_change_password ? "/me/change-password" : "/me";
-        } else if (prof?.must_change_password) {
-          dest = "/me/change-password";
         }
+        // No access granted → fall through to `next`; the layout shows the
+        // no-access screen.
       }
     } catch {
       toast.error("Could not reach Supabase. Check that local Supabase is running.");

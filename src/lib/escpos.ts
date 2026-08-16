@@ -107,3 +107,20 @@ export function buildDocket(order: DocketOrder): Uint8Array {
   b.feed(3).cut();
   return b.build();
 }
+
+/** A short test receipt used to verify a paired printer works. */
+export function buildTestDocket(printedAt: string, deviceLabel?: string): Uint8Array {
+  const b = new Builder();
+  b.init().align("center");
+  b.size(true).line("Machimoto").size(false);
+  b.bold(true).line("TEST PRINT").bold(false);
+  b.line(printedAt);
+  b.align("left").line("--------------------------------");
+  if (deviceLabel) b.line(deviceLabel);
+  b.line("Printer paired successfully.");
+  b.line("--------------------------------");
+  b.align("center").line("1234567890");
+  b.line("abcdefghijklmnopqrstuvwxyz");
+  b.feed(3).cut();
+  return b.build();
+}
