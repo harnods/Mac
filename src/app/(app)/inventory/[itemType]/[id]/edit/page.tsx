@@ -54,12 +54,15 @@ export default async function EditItemPage({
   }
 
   const supabase = await createClient();
-  const [{ data: item }, { data: categories }, { data: units }, ...txResults] = await Promise.all([
+  const [{ data: item }, { data: categories }, { data: units }, { data: locations }, ...txResults] = await Promise.all([
     supabase.from("items").select("*").eq("id", id).eq("type", config.dbType).maybeSingle(),
     config.hasCategories
       ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
       : Promise.resolve({ data: [] }),
     supabase.from("units").select("code").order("is_system", { ascending: false }).order("code"),
+    config.dbType === "supply"
+      ? supabase.from("locations").select("id,name").order("name")
+      : Promise.resolve({ data: [] }),
     supabase.from("purchase_items").select("id", { count: "exact", head: true }).eq("item_id", id),
     supabase.from("purchase_request_items").select("id", { count: "exact", head: true }).eq("item_id", id),
     supabase.from("recipe_items").select("id", { count: "exact", head: true }).eq("item_id", id),
@@ -87,6 +90,7 @@ export default async function EditItemPage({
         item={itemForForm}
         categories={(categories ?? []) as Category[]}
         units={(units ?? []).map((u: { code: string }) => u.code)}
+        locations={(locations ?? []) as { id: string; name: string }[]}
         itemTypeSlug={itemType as ItemTypeSlug}
         hasCategories={config.hasCategories}
         unitLocked={unitLocked}

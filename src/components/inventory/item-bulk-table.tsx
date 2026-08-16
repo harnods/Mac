@@ -30,6 +30,7 @@ type Props = {
   itemTypeSlug: ItemTypeSlug;
   showPhoto?: boolean;
   showCategory: boolean;
+  showLocation?: boolean;
   stockMode: StockMode;
   showCost: boolean;
   showSellable?: boolean;
@@ -40,7 +41,7 @@ type Props = {
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, isAdmin, itemTypeSlug, showPhoto = false, showCategory, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
+  items, categories, isAdmin, itemTypeSlug, showPhoto = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -49,7 +50,7 @@ export function ItemBulkTable({
   const [editCategoryId, setEditCategoryId] = useState<string>("");
   const [pending, startTransition] = useTransition();
   const columns = getItemColumns({
-    showCategory, stockMode, showCost, showSellable, showDefaultCost,
+    showCategory, showLocation, stockMode, showCost, showSellable, showDefaultCost,
     hasRecipeColumn: !!linkedRecipeProductIds,
   });
   const { isVisible } = useColumnVisibility(`items-${itemTypeSlug}`, columns);
@@ -151,6 +152,7 @@ export function ItemBulkTable({
               {showPhoto && <TableHead className="w-14" />}
               <TableHead className="w-[240px]">Name</TableHead>
               {showCategory && isVisible("category") && <TableHead className="w-[160px]">Category</TableHead>}
+              {showLocation && isVisible("location") && <TableHead className="w-[160px]">Location</TableHead>}
               {stockMode === "full" && isVisible("onHand") && <TableHead className="w-[160px]">On hand</TableHead>}
               {stockMode === "full" && isVisible("reserved") && <TableHead className="w-[160px]">Reserved</TableHead>}
               {stockMode !== "none" && isVisible("available") && <TableHead className="w-[160px]">Available</TableHead>}
@@ -175,6 +177,7 @@ export function ItemBulkTable({
                 itemTypeSlug={itemTypeSlug}
                 showPhoto={showPhoto}
                 showCategory={showCategory && isVisible("category")}
+                showLocation={showLocation && isVisible("location")}
                 showOnHand={stockMode === "full" && isVisible("onHand")}
                 showReserved={stockMode === "full" && isVisible("reserved")}
                 showAvailable={stockMode !== "none" && isVisible("available")}

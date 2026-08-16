@@ -31,13 +31,16 @@ export default async function NewItemPage({
   if (isProduct && !productFormData) redirect(`/inventory/${itemType}`);
 
   const supabase = await createClient();
-  const [{ data: categories }, { data: units }] = isProduct
-    ? [{ data: [] }, { data: [] }]
+  const [{ data: categories }, { data: units }, { data: locations }] = isProduct
+    ? [{ data: [] }, { data: [] }, { data: [] }]
     : await Promise.all([
         config.hasCategories
           ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
           : Promise.resolve({ data: [] }),
         supabase.from("units").select("code").order("is_system", { ascending: false }).order("code"),
+        config.dbType === "supply"
+          ? supabase.from("locations").select("id,name").order("name")
+          : Promise.resolve({ data: [] }),
       ]);
 
   return (
@@ -59,6 +62,7 @@ export default async function NewItemPage({
         <ItemForm
           categories={(categories ?? []) as Category[]}
           units={(units ?? []).map((u: { code: string }) => u.code)}
+          locations={(locations ?? []) as { id: string; name: string }[]}
           itemTypeSlug={itemType as ItemTypeSlug}
           hasCategories={config.hasCategories}
           canViewCost={canViewCost(profile)}

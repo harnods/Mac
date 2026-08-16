@@ -15,6 +15,7 @@ type Props = {
   stockMode: StockMode;
   hasCategories: boolean;
   categoryName: string | null;
+  locationName?: string | null;
   lastPurchaseCost: number | null;
   avgPurchaseCost: number | null;
   defaultPurchaseCost: number | null;
@@ -34,6 +35,7 @@ export function ItemStockSection({
   stockMode,
   hasCategories,
   categoryName,
+  locationName = null,
   lastPurchaseCost,
   avgPurchaseCost,
   defaultPurchaseCost,
@@ -81,6 +83,7 @@ export function ItemStockSection({
 
       <dl>
         {hasCategories && categoryName && <DetailRow label="Category" value={categoryName} />}
+        {locationName && <DetailRow label="Location" value={locationName} />}
         <DetailRow label="Default base unit" value={baseUnit} />
         {showSellPrice && (
           <DetailRow

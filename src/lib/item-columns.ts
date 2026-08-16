@@ -3,6 +3,7 @@ import type { StockMode } from "@/lib/item-types";
 
 export type ItemColumnFlags = {
   showCategory: boolean;
+  showLocation?: boolean;
   stockMode: StockMode;
   showCost: boolean;
   showSellable?: boolean;
@@ -14,6 +15,7 @@ export type ItemColumnFlags = {
 export function getItemColumns(flags: ItemColumnFlags): ColumnDef[] {
   const cols: ColumnDef[] = [];
   if (flags.showCategory) cols.push({ key: "category", label: "Category" });
+  if (flags.showLocation) cols.push({ key: "location", label: "Location" });
   if (flags.stockMode === "full") cols.push({ key: "onHand", label: "On hand" });
   if (flags.stockMode === "full") cols.push({ key: "reserved", label: "Reserved" });
   if (flags.stockMode !== "none") cols.push({ key: "available", label: "Available" });

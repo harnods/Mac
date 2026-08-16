@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, canViewCost, itemWritePermission } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission, allowedRecipeStations, type RecipeStationKey } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { formatQty } from "@/lib/units";
@@ -47,7 +47,7 @@ export default async function ItemTypePage({
 
   let query = supabase
     .from("items")
-    .select("*, categories(id,name), updater:profiles!updated_by(full_name,email), item_unit_conversions(from_unit, factor, to_unit)", { count: "exact" })
+    .select("*, categories(id,name), location:locations(id,name), updater:profiles!updated_by(full_name,email), item_unit_conversions(from_unit, factor, to_unit)", { count: "exact" })
     .eq("type", config.dbType)
     .is("deleted_at", null)
     .order("name")
@@ -56,13 +56,32 @@ export default async function ItemTypePage({
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   if (cat) query = query.eq("category_id", cat);
 
-  const [{ data: items, count }, { data: categories }, { data: recipeLinks }] = await Promise.all([
+  // For products, resolve their linked product-recipes up front (with station) so
+  // we can badge them AND hide products whose recipe station this role can't
+  // access (e.g. a kitchen-only role never sees bar/drink products).
+  const productRecipes: { product_id: string; station: string | null }[] =
+    config.dbType === "product"
+      ? ((
+          await supabase
+            .from("recipes")
+            .select("product_id, station")
+            .eq("recipe_type", "product")
+            .not("product_id", "is", null)
+        ).data ?? [])
+      : [];
+
+  const allowedStations = allowedRecipeStations(profile);
+  if (config.dbType === "product" && allowedStations) {
+    const hidden = productRecipes
+      .filter((r) => r.station != null && !allowedStations.includes(r.station as RecipeStationKey))
+      .map((r) => r.product_id);
+    if (hidden.length) query = query.not("id", "in", `(${hidden.join(",")})`);
+  }
+
+  const [{ data: items, count }, { data: categories }] = await Promise.all([
     query,
     config.hasCategories
       ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
-      : Promise.resolve({ data: [] }),
-    config.dbType === "product"
-      ? supabase.from("recipes").select("product_id").eq("recipe_type", "product").not("product_id", "is", null)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -78,7 +97,7 @@ export default async function ItemTypePage({
         default_purchase_cost_unit: null,
       }));
   const cats = (categories ?? []) as Category[];
-  const linkedRecipeProductIds = new Set((recipeLinks ?? []).map((r: { product_id: string }) => r.product_id));
+  const linkedRecipeProductIds = new Set(productRecipes.map((r) => r.product_id));
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   const buildHref = (p: number, size: number = PAGE_SIZE) => {
@@ -115,6 +134,7 @@ export default async function ItemTypePage({
           itemTypeSlug={itemType as ItemTypeSlug}
           columnFlags={{
             showCategory: config.hasCategories,
+            showLocation: config.dbType === "supply",
             stockMode: config.stockMode,
             showCost,
             showSellable: config.showSellable,
@@ -146,6 +166,7 @@ export default async function ItemTypePage({
             itemTypeSlug={itemType as ItemTypeSlug}
             showPhoto={config.showPhoto}
             showCategory={config.hasCategories}
+            showLocation={config.dbType === "supply"}
             stockMode={config.stockMode}
             showCost={showCost}
             showSellable={config.showSellable}

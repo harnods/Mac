@@ -56,10 +56,20 @@ export type Item = {
   is_addon: boolean;
   image_url: string | null;
   description: string | null;
+  location_id: string | null;
+};
+
+export type Location = {
+  id: string;
+  name: string;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type ItemWithCategory = Item & {
   categories: Pick<Category, "id" | "name"> | null;
+  location?: Pick<Location, "id" | "name"> | null;
   updater: Updater | null;
 };
 

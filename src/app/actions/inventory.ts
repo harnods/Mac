@@ -25,6 +25,7 @@ const itemSchema = z.object({
   purchase_unit: z.string().nullable().optional(),
   purchase_unit_qty: z.coerce.number().positive().nullable().optional(),
   image_url: z.string().url().nullable().optional(),
+  location_id: z.string().uuid().nullable().optional(),
 }).refine(
   (d) =>
     d.default_purchase_cost == null ||
@@ -142,6 +143,7 @@ export async function createItem(input: unknown): Promise<ActionResult> {
       default_purchase_cost_unit: mayWriteCost && parsed.data.default_purchase_cost != null
         ? (parsed.data.default_purchase_cost_unit ?? parsed.data.unit)
         : null,
+      location_id: parsed.data.location_id ?? null,
       updated_by: profile.id,
     })
     .select("id")
@@ -168,6 +170,7 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
   // If unit is changing, fetch current values and convert qty + costs
   const patch: Record<string, unknown> = {
     ...parsed.data,
+    location_id: parsed.data.location_id ?? null,
     updated_by: profile.id,
   };
   if (mayWriteCost) {

@@ -29,6 +29,7 @@ export function ItemTableRow({
   itemTypeSlug,
   showPhoto = false,
   showCategory = true,
+  showLocation = false,
   showOnHand = true,
   showReserved = true,
   showAvailable = true,
@@ -49,6 +50,7 @@ export function ItemTableRow({
   itemTypeSlug: string;
   showPhoto?: boolean;
   showCategory?: boolean;
+  showLocation?: boolean;
   showOnHand?: boolean;
   showReserved?: boolean;
   showAvailable?: boolean;
@@ -113,6 +115,11 @@ export function ItemTableRow({
         {showCategory && (
           <TableCell>
             {item.categories?.name ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
+        {showLocation && (
+          <TableCell>
+            {item.location?.name ?? <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
         {showOnHand && (

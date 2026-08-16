@@ -12,12 +12,13 @@ import { Label } from "@/components/ui/label";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryCombobox } from "./category-combobox";
+import { LocationCombobox } from "./location-combobox";
 import { UnitCombobox } from "./unit-combobox";
 import { ITEM_TYPE_CONFIG } from "@/lib/item-types";
 import { compatibleUnits, parseDecimal } from "@/lib/units";
 import { createItem, updateItem } from "@/app/actions/inventory";
 import { createClient } from "@/lib/supabase/client";
-import type { Category, Item } from "@/lib/supabase/types";
+import type { Category, Item, Location } from "@/lib/supabase/types";
 import type { ItemTypeSlug } from "@/lib/item-types";
 import type { UnitCode } from "@/lib/supabase/types";
 
@@ -30,6 +31,8 @@ function Required() {
 type Props = {
   categories: Pick<Category, "id" | "name">[];
   units: string[];
+  /** Storage locations for the picker (supplies only). */
+  locations?: Pick<Location, "id" | "name">[];
   item?: Item;
   itemTypeSlug: ItemTypeSlug;
   hasCategories: boolean;
@@ -44,11 +47,12 @@ function defaultUnitFor(): string {
   return "pcs";
 }
 
-export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, hasCategories, unitLocked = false, canViewCost = false, onSuccess, onCancel }: Props) {
+export function ItemForm({ categories, units: initialUnits, locations = [], item, itemTypeSlug, hasCategories, unitLocked = false, canViewCost = false, onSuccess, onCancel }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState(item?.name ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(item?.category_id ?? null);
+  const [locationId, setLocationId] = useState<string | null>(item?.location_id ?? null);
   const [unit, setUnit] = useState<string>(item?.unit ?? defaultUnitFor());
   const [defaultCost, setDefaultCost] = useState(
     item?.default_purchase_cost != null ? String(item.default_purchase_cost) : "",
@@ -70,6 +74,8 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
   // Cost is confidential — only Super admins can see or set it.
   const showDefaultCost = itemTypeSlug === "ingredients" && canViewCost;
   const showPhoto = itemTypeSlug === "supplies";
+  // Storage location applies to supplies.
+  const showLocation = itemTypeSlug === "supplies";
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -126,6 +132,7 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
         purchase_unit: usePurchaseUnit && purchaseUnit ? purchaseUnit : null,
         purchase_unit_qty: usePurchaseUnit && purchaseUnit && purchaseUnitQty.trim() ? parseDecimal(purchaseUnitQty) : null,
         image_url: showPhoto ? imageUrl : null,
+        location_id: showLocation ? locationId : null,
       };
       const res = isEdit ? await updateItem(item!.id, payload) : await createItem(payload);
       if (!res.ok) { toast.error(res.error); return; }
@@ -196,6 +203,17 @@ export function ItemForm({ categories, units: initialUnits, item, itemTypeSlug, 
                   </>
                 )}
               </div>
+
+              {showLocation && (
+                <div className="col-span-6 space-y-2 sm:col-span-3">
+                  <Label>Location</Label>
+                  <LocationCombobox
+                    locations={locations}
+                    value={locationId}
+                    onChange={setLocationId}
+                  />
+                </div>
+              )}
             </div>
           </section>
 

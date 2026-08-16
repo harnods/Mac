@@ -55,6 +55,7 @@ const MENU: MenuNode[] = [
       { label: "Supplies categories", href: "/inventory/categories/supplies" },
       { label: "Product categories", href: "/inventory/categories/products" },
       { label: "Units", href: "/inventory/units" },
+      { label: "Locations", href: "/inventory/locations" },
     ],
   },
   { label: "Recipes", icon: RecipesIcon, href: "/recipes" },

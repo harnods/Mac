@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, canViewCost, itemWritePermission } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission, canAccessRecipeStation } from "@/lib/permissions";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
 import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import { LinkedRecipeIngredientsTable } from "@/components/inventory/linked-recipe-ingredients-table";
@@ -43,7 +43,7 @@ export default async function ItemDetailPage({
     getCurrentProfile(),
     supabase
       .from("items")
-      .select("*, categories(id,name), updater:profiles!updated_by(full_name,email)")
+      .select("*, categories(id,name), location:locations(id,name), updater:profiles!updated_by(full_name,email)")
       .eq("id", id)
       .eq("type", config.dbType)
       .maybeSingle(),
@@ -64,7 +64,7 @@ export default async function ItemDetailPage({
     config.dbType === 'product'
       ? supabase
           .from("recipes")
-          .select("id, name, recipe_items(id, quantity, unit, item:items!item_id(id, name, deleted_at))")
+          .select("id, name, station, recipe_items(id, quantity, unit, item:items!item_id(id, name, deleted_at))")
           .eq("product_id", id)
           .eq("recipe_type", "product")
           .maybeSingle()
@@ -85,6 +85,13 @@ export default async function ItemDetailPage({
   ]);
 
   if (error || !data) notFound();
+  // A product tied to a recipe station this role can't access is hidden entirely.
+  if (
+    config.dbType === "product" &&
+    !canAccessRecipeStation(profile, (recipeData as { station?: string | null } | null)?.station ?? null)
+  ) {
+    notFound();
+  }
   const item = data as ItemWithCategory & { product_kind?: string; status?: string };
   const isAdmin = can(profile, itemWritePermission(config.dbType));
   // Cost is restricted to the Super admin role — withhold the values entirely
@@ -168,6 +175,7 @@ export default async function ItemDetailPage({
           stockMode={config.stockMode}
           hasCategories={config.hasCategories}
           categoryName={item.categories?.name ?? null}
+          locationName={config.dbType === "supply" ? ((item as unknown as { location?: { name: string } | null }).location?.name ?? null) : null}
           lastPurchaseCost={viewCost ? item.last_purchase_cost : null}
           avgPurchaseCost={viewCost ? item.avg_purchase_cost : null}
           defaultPurchaseCost={viewCost ? item.default_purchase_cost : null}
