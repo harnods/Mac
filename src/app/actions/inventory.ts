@@ -147,6 +147,37 @@ export async function deleteItemUnitConversion(id: string, itemId: string): Prom
   return { ok: true };
 }
 
+/**
+ * Mirror an item's purchase unit into its custom unit conversions so it doesn't
+ * have to be entered twice. A purchase unit "1 <unit> = <qty> <base>" is exactly
+ * the conversion `from_unit=<unit>, factor=<qty>, to_unit=<base>`. Keeps the
+ * mirror in sync on create/update and removes it when the purchase unit changes
+ * or is cleared. Ingredients only (that's where custom conversions live).
+ */
+async function syncPurchaseUnitConversion(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profileId: string,
+  itemId: string,
+  itemType: string,
+  baseUnit: string,
+  purchaseUnit: string | null | undefined,
+  purchaseUnitQty: number | null | undefined,
+  prevPurchaseUnit?: string | null,
+) {
+  if (itemType !== "ingredient") return;
+  // Drop the previous mirror when the purchase unit changed or was removed.
+  if (prevPurchaseUnit && prevPurchaseUnit !== purchaseUnit) {
+    await supabase.from("item_unit_conversions").delete().eq("item_id", itemId).eq("from_unit", prevPurchaseUnit);
+  }
+  if (purchaseUnit && purchaseUnitQty && purchaseUnitQty > 0 && purchaseUnit !== baseUnit) {
+    await supabase.from("units").upsert({ code: purchaseUnit, is_system: false }, { onConflict: "code", ignoreDuplicates: true });
+    await supabase.from("item_unit_conversions").upsert(
+      { item_id: itemId, from_unit: purchaseUnit, factor: purchaseUnitQty, to_unit: baseUnit, updated_by: profileId },
+      { onConflict: "item_id,from_unit" },
+    );
+  }
+}
+
 export async function createItem(input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
@@ -174,6 +205,10 @@ export async function createItem(input: unknown): Promise<ActionResult> {
     .single();
 
   if (error) return { ok: false, error: error.message };
+  await syncPurchaseUnitConversion(
+    supabase, profile.id, data.id, parsed.data.type, parsed.data.unit,
+    parsed.data.purchase_unit, parsed.data.purchase_unit_qty, null,
+  );
   revalidatePath("/inventory", "layout");
   return { ok: true, id: data.id };
 }
@@ -213,7 +248,7 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
 
   const { data: current } = await supabase
     .from("items")
-    .select("unit, on_hand, reserved, last_purchase_cost, avg_purchase_cost")
+    .select("unit, on_hand, reserved, last_purchase_cost, avg_purchase_cost, purchase_unit")
     .eq("id", id)
     .maybeSingle();
 
@@ -241,6 +276,10 @@ export async function updateItem(id: string, input: unknown): Promise<ActionResu
 
   const { error } = await supabase.from("items").update(patch).eq("id", id);
   if (error) return { ok: false, error: error.message };
+  await syncPurchaseUnitConversion(
+    supabase, profile.id, id, parsed.data.type, parsed.data.unit,
+    parsed.data.purchase_unit, parsed.data.purchase_unit_qty, current?.purchase_unit,
+  );
   revalidatePath("/inventory", "layout");
   return { ok: true };
 }
