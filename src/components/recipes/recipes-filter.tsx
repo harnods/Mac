@@ -27,7 +27,8 @@ export function RecipesFilter() {
 
   const q = params.get("q") ?? "";
   const type = params.get("type") ?? ALL;
-  const hasFilter = q !== "" || type !== ALL;
+  const category = params.get("category") ?? ALL;
+  const hasFilter = q !== "" || type !== ALL || category !== ALL;
 
   const push = useCallback(
     (next: Record<string, string>) => {
@@ -55,11 +56,21 @@ export function RecipesFilter() {
             <SelectItem value="product">Product</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={category} onValueChange={(v) => push({ category: v })}>
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>All categories</SelectItem>
+            <SelectItem value="bar">Bar</SelectItem>
+            <SelectItem value="kitchen">Kitchen</SelectItem>
+          </SelectContent>
+        </Select>
         {hasFilter && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => push({ q: "", type: ALL })}
+            onClick={() => push({ q: "", type: ALL, category: ALL })}
             className="text-muted-foreground"
           >
             <X className="size-4" /> Clear

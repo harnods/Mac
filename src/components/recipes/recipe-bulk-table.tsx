@@ -18,6 +18,7 @@ import type { Updater } from "@/lib/supabase/types";
 
 export const RECIPE_COLUMNS: ColumnDef[] = [
   { key: "type", label: "Type" },
+  { key: "category", label: "Category" },
   { key: "output", label: "Output" },
   { key: "ingredients", label: "Ingredients" },
   { key: "lastUpdated", label: "Last updated", defaultHidden: true },
@@ -27,6 +28,7 @@ type RecipeRow = {
   id: string;
   name: string;
   recipe_type: string | null;
+  station: string | null;
   updated_at: string;
   updater: Updater | null;
   recipe_items: { id: string }[];
@@ -107,10 +109,11 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
               )}
               <TableHead className="w-[240px]">Name</TableHead>
               {isVisible("type") && <TableHead className="w-[160px]">Type</TableHead>}
+              {isVisible("category") && <TableHead className="w-[130px]">Category</TableHead>}
               {isVisible("output") && <TableHead className="w-[160px]">Output</TableHead>}
               {isVisible("ingredients") && <TableHead className="w-[160px]">Ingredients</TableHead>}
               {isVisible("lastUpdated") && <TableHead className="w-[160px]">Last updated</TableHead>}
-              <TableHead className="w-0 p-0" />
+              <TableHead className="p-0" />
               <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />
             </TableRow>
           </TableHeader>
@@ -122,6 +125,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
                 name={r.name}
                 product={r.product?.name ?? null}
                 productType={r.recipe_type ?? r.product?.type ?? null}
+                station={r.station}
                 ingredientCount={r.recipe_items.length}
                 updatedAt={r.updated_at}
                 updater={r.updater}
@@ -129,6 +133,7 @@ export function RecipeBulkTable({ recipes, isAdmin }: Props) {
                 isSelected={selected.has(r.id)}
                 onToggleSelect={isAdmin ? () => toggleOne(r.id) : undefined}
                 showType={isVisible("type")}
+                showCategory={isVisible("category")}
                 showOutput={isVisible("output")}
                 showIngredients={isVisible("ingredients")}
                 showLastUpdated={isVisible("lastUpdated")}

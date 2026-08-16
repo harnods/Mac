@@ -22,6 +22,7 @@ type Props = {
   name: string;
   product: string | null;
   productType: string | null;
+  station: string | null;
   ingredientCount: number;
   updatedAt: string;
   updater: Updater | null;
@@ -29,14 +30,15 @@ type Props = {
   isSelected?: boolean;
   onToggleSelect?: () => void;
   showType?: boolean;
+  showCategory?: boolean;
   showOutput?: boolean;
   showIngredients?: boolean;
   showLastUpdated?: boolean;
 };
 
 export function RecipeTableRowClient({
-  id, name, product, productType, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect,
-  showType = true, showOutput = true, showIngredients = true, showLastUpdated = true,
+  id, name, product, productType, station, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect,
+  showType = true, showCategory = true, showOutput = true, showIngredients = true, showLastUpdated = true,
 }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -72,6 +74,11 @@ export function RecipeTableRowClient({
             {typeLabel ?? <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
+        {showCategory && (
+          <TableCell className="text-sm">
+            {station ? (station === "bar" ? "Bar" : "Kitchen") : <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
         {showOutput && <TableCell className="truncate">{product ?? <span className="text-muted-foreground">—</span>}</TableCell>}
         {showIngredients && <TableCell className="tabular-nums">{ingredientCount}</TableCell>}
         {showLastUpdated && (
@@ -80,8 +87,8 @@ export function RecipeTableRowClient({
             <div className="text-xs text-muted-foreground">{updaterName(updater)}</div>
           </TableCell>
         )}
-        <TableCell />
-        <TableCell className={STICKY_ACTION_CELL}>
+        <TableCell className="p-0" />
+        <TableCell className={`w-12 ${STICKY_ACTION_CELL}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="size-8">

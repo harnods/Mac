@@ -17,6 +17,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { compatibleUnits, convertToPieces, formatNum, parseDecimal } from "@/lib/units";
 import { UNITS } from "@/lib/units";
 import { createRecipe, updateRecipe } from "@/app/actions/recipes";
@@ -100,6 +101,7 @@ export function RecipeForm({
     : "wip";
 
   const [recipeType, setRecipeType] = useState<"wip" | "product">(initialRecipeType ?? initialType);
+  const [station, setStation] = useState<string>(recipe?.station ?? "");
   const [productId, setProductId] = useState<string | null>(recipe?.product_id ?? initialProductId ?? null);
   const [yieldQty, setYieldQty] = useState(String(recipe?.yield_qty ?? 1));
   const [yieldUnit, setYieldUnit] = useState<string>(recipe?.unit ?? "pcs");
@@ -263,6 +265,7 @@ export function RecipeForm({
     const payload = {
       name,
       recipe_type: recipeType,
+      station: station || null,
       product_id: productId ?? null,
       yield_qty: parseDecimal(yieldQty),
       unit: recipeType === "wip" ? yieldUnit : null,
@@ -318,6 +321,22 @@ export function RecipeForm({
             ? "Recipe for a prep item — ingredients are raw ingredients, output is a prep item."
             : "Recipe for a finished product — ingredients can include prep items."}
         </p>
+      </div>
+
+      {/* Category — which station this menu item belongs to */}
+      <div className="space-y-2">
+        <Label htmlFor="recipe-station">Category</Label>
+        <Select value={station || "none"} onValueChange={(v) => setStation(v === "none" ? "" : v)}>
+          <SelectTrigger id="recipe-station" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">—</SelectItem>
+            <SelectItem value="bar">Bar</SelectItem>
+            <SelectItem value="kitchen">Kitchen</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">Menu station this recipe belongs to (Bar / Kitchen).</p>
       </div>
 
       {/* Output item — this item's name becomes the recipe's name */}

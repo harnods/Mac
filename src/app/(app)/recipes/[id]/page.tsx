@@ -91,6 +91,10 @@ export default async function RecipeDetailPage({
                 )}
               />
               <DetailRow
+                label="Category"
+                value={recipe.station ? (recipe.station === "bar" ? "Bar" : "Kitchen") : null}
+              />
+              <DetailRow
                 label="Yield"
                 value={
                   <span className="tabular-nums">

@@ -17,6 +17,7 @@ type RecipeRow = {
   id: string;
   name: string;
   recipe_type: string | null;
+  station: string | null;
   updated_at: string;
   updater: Updater | null;
   recipe_items: { id: string }[];
@@ -26,9 +27,9 @@ type RecipeRow = {
 export default async function RecipesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string; page?: string; size?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; category?: string; page?: string; size?: string }>;
 }) {
-  const { q = "", type, page: rawPageStr, size: rawSizeStr } = await searchParams;
+  const { q = "", type, category, page: rawPageStr, size: rawSizeStr } = await searchParams;
   const rawPage = Number(rawPageStr ?? 1);
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
   const PAGE_SIZE = parsePageSize(rawSizeStr);
@@ -47,22 +48,24 @@ export default async function RecipesPage({
 
   let query = supabase
     .from("recipes")
-    .select(`id, name, recipe_type, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`, { count: "exact" })
+    .select(`id, name, recipe_type, station, updated_at, updater:profiles!updated_by(full_name,email), recipe_items(id), ${productJoin}`, { count: "exact" })
     .order("name")
     .range(from, to);
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   if (filterByType) query = query.eq("items.type", itemType);
+  if (category === "bar" || category === "kitchen") query = query.eq("station", category);
 
   const { data, count } = await query;
   const list = (data ?? []) as unknown as RecipeRow[];
-  const isFiltered = !!q.trim() || !!type;
+  const isFiltered = !!q.trim() || !!type || !!category;
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
   const buildHref = (p: number, size: number = PAGE_SIZE) => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
     if (type) sp.set("type", type);
+    if (category) sp.set("category", category);
     if (size !== DEFAULT_PAGE_SIZE) sp.set("size", String(size));
     if (p > 1) sp.set("page", String(p));
     return `?${sp.toString()}`;

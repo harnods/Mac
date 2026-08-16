@@ -61,10 +61,13 @@ export type ItemWithCategory = Item & {
   updater: Updater | null;
 };
 
+export type RecipeStation = 'bar' | 'kitchen';
+
 export type Recipe = {
   id: string;
   name: string;
   product_id: string | null;
+  station: RecipeStation | null;
   yield_qty: number;
   created_at: string;
   updated_at: string;
