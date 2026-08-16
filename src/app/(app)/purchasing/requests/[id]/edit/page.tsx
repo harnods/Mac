@@ -28,7 +28,7 @@ export default async function EditPurchaseRequestPage({
       .maybeSingle(),
     supabase
       .from("items")
-      .select("id, name, unit, on_hand, reserved, type")
+      .select("id, name, unit, on_hand, reserved, type, purchase_unit, item_unit_conversions(from_unit, factor, to_unit)")
       .in("type", ["ingredient", "supply"])
       .is("deleted_at", null)
       .order("type")

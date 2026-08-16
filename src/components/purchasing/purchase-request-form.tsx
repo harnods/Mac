@@ -17,7 +17,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { compatibleUnits, convert, formatNum } from "@/lib/units";
+import { unitOptionsForItem } from "@/lib/units";
+import { ItemQty } from "@/components/ui/item-qty";
 import { createPurchaseRequest, updatePurchaseRequest } from "@/app/actions/purchasing";
 import {
   DndContext,
@@ -42,6 +43,8 @@ type ItemStock = {
   on_hand: number;
   reserved: number;
   type: string;
+  purchase_unit?: string | null;
+  item_unit_conversions?: { from_unit: string; factor: number; to_unit: string }[];
 };
 
 type RequestRow = {
@@ -284,16 +287,9 @@ function RequestRowField({
   }
 
   const selectedItem = items.find((i) => i.id === row.item_id) ?? null;
-  const units = selectedItem ? compatibleUnits(selectedItem.unit) : [];
+  // Include the item's custom conversion units (box, karton, …) in the picker.
+  const units = selectedItem ? unitOptionsForItem(selectedItem) : [];
   const displayUnit = row.unit ?? selectedItem?.unit ?? null;
-
-  const onHand = selectedItem
-    ? (convert(Number(selectedItem.on_hand), selectedItem.unit, displayUnit!) ?? Number(selectedItem.on_hand))
-    : null;
-  const reserved = selectedItem
-    ? (convert(Number(selectedItem.reserved), selectedItem.unit, displayUnit!) ?? Number(selectedItem.reserved))
-    : null;
-  const available = onHand != null && reserved != null ? onHand - reserved : null;
 
   return (
     <div ref={setNodeRef} style={style} className="space-y-1">
@@ -424,12 +420,13 @@ function RequestRowField({
         </Button>
       </div>
 
-      {/* Current stock display */}
-      {selectedItem && displayUnit && (
+      {/* Current stock — rolled up to the largest packaging unit, independent of
+          the row's chosen unit. */}
+      {selectedItem && (
         <div className="ml-14 flex gap-4 text-xs text-muted-foreground">
-          <span>On hand: <span className="tabular-nums font-medium text-foreground">{formatNum(onHand!)} {displayUnit}</span></span>
-          <span>Reserved: <span className="tabular-nums font-medium text-foreground">{formatNum(reserved!)} {displayUnit}</span></span>
-          <span>Available: <span className="tabular-nums font-medium text-foreground">{formatNum(available!)} {displayUnit}</span></span>
+          <span>On hand: <span className="tabular-nums font-medium text-foreground"><ItemQty baseValue={Number(selectedItem.on_hand)} unit={selectedItem.unit} conversions={selectedItem.item_unit_conversions} /></span></span>
+          <span>Reserved: <span className="tabular-nums font-medium text-foreground"><ItemQty baseValue={Number(selectedItem.reserved)} unit={selectedItem.unit} conversions={selectedItem.item_unit_conversions} /></span></span>
+          <span>Available: <span className="tabular-nums font-medium text-foreground"><ItemQty baseValue={Number(selectedItem.on_hand) - Number(selectedItem.reserved)} unit={selectedItem.unit} conversions={selectedItem.item_unit_conversions} /></span></span>
         </div>
       )}
 

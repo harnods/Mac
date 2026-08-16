@@ -15,7 +15,7 @@ export default async function NewPurchaseRequestPage() {
   const supabase = await createClient();
   const { data } = await supabase
     .from("items")
-    .select("id, name, unit, on_hand, reserved, type")
+    .select("id, name, unit, on_hand, reserved, type, purchase_unit, item_unit_conversions(from_unit, factor, to_unit)")
     .in("type", ["ingredient", "supply"])
     .is("deleted_at", null)
     .order("type")
