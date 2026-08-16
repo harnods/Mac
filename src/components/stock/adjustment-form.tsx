@@ -34,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { parseDecimal, unitOptionsForItem, convertToItemUnit } from "@/lib/units";
-import { Qty } from "@/components/ui/qty";
+import { ItemQty } from "@/components/ui/item-qty";
 import type { UnitCode } from "@/lib/supabase/types";
 import { createStockAdjustment } from "@/app/actions/stock";
 import {
@@ -488,7 +488,7 @@ function AdjustmentRowField({
 
       <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
         {newOnHand != null && selectedItem ? (
-          <Qty value={newOnHand} unit={selectedItem.unit} />
+          <ItemQty baseValue={newOnHand} unit={selectedItem.unit} conversions={selectedItem.item_unit_conversions} />
         ) : "—"}
       </TableCell>
 
