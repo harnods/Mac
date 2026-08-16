@@ -9,8 +9,15 @@ import { convert } from "@/lib/units";
 
 type ActionResult = { ok: true; id: string } | { ok: false; error: string };
 
+// Restaurant charges: service charge on gross (before discount), PB1 tax on the
+// discounted amount plus service charge.
+const SERVICE_CHARGE_RATE = 0.05;
+const TAX_RATE = 0.10;
+
 const createSalesEntrySchema = z.object({
   entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  shift: z.string().trim().max(60).optional(),
+  total_discount: z.coerce.number().nonnegative().optional().default(0),
   notes: z.string().max(500).optional(),
   items: z.array(
     z.object({
@@ -28,7 +35,7 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
 
   const parsed = createSalesEntrySchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { entry_date, notes, items } = parsed.data;
+  const { entry_date, shift, total_discount, notes, items } = parsed.data;
 
   // Check for duplicate products
   const productIds = items.map((i) => i.product_id);
@@ -37,10 +44,31 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
 
   const supabase = await createClient();
 
+  // Gross sales = Σ qty × sell price, snapshotted so it stays correct if prices
+  // change later. Service charge is 5% of gross (before discount); PB1 tax is
+  // 10% of (gross − discount + service charge); net = gross − discount + SC + tax.
+  const { data: priceRows } = await supabase.from("items").select("id, sell_price").in("id", productIds);
+  const priceMap = new Map((priceRows ?? []).map((p: { id: string; sell_price: number | null }) => [p.id, Number(p.sell_price ?? 0)]));
+  const grossSales = items.reduce((sum, it) => sum + it.qty * (priceMap.get(it.product_id) ?? 0), 0);
+  const discount = Math.min(total_discount, grossSales);
+  const serviceCharge = Math.round(grossSales * SERVICE_CHARGE_RATE);
+  const taxTotal = Math.round((grossSales - discount + serviceCharge) * TAX_RATE);
+  const netSales = grossSales - discount + serviceCharge + taxTotal;
+
   // Create the sales entry
   const { data: entry, error: entryError } = await supabase
     .from("sales_entries")
-    .insert({ entry_date, notes: notes || null, created_by: profile.id })
+    .insert({
+      entry_date,
+      shift: shift || null,
+      notes: notes || null,
+      gross_sales: grossSales,
+      total_discount: discount,
+      service_charge: serviceCharge,
+      tax_total: taxTotal,
+      net_sales: netSales,
+      created_by: profile.id,
+    })
     .select("id")
     .single();
 

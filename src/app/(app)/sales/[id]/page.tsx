@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { formatId, formatDate, formatDateTime, updaterName } from "@/lib/format";
+import { formatId, formatDate, formatDateTime, updaterName, formatRp } from "@/lib/format";
 import { DeleteSalesEntryButtonClient } from "@/components/sales/delete-sales-entry-button";
 import { SalesEntryItemsTable } from "@/components/sales/sales-entry-items-table";
 import { DetailSection, DetailRow } from "@/components/ui/detail-list";
@@ -16,7 +16,13 @@ export const dynamic = "force-dynamic";
 type SalesEntryDetail = {
   id: string;
   entry_date: string;
+  shift: string | null;
   notes: string | null;
+  gross_sales: number;
+  total_discount: number;
+  service_charge: number;
+  tax_total: number;
+  net_sales: number;
   created_at: string;
   creator: Updater | null;
   sales_entry_items: {
@@ -39,7 +45,7 @@ export default async function SalesEntryDetailPage({
   const { data, error } = await supabase
     .from("sales_entries")
     .select(`
-      id, entry_date, notes, created_at,
+      id, entry_date, shift, notes, gross_sales, total_discount, service_charge, tax_total, net_sales, created_at,
       creator:profiles!created_by(full_name,email),
       sales_entry_items(id, qty, unit, product:items!product_id(id,name))
     `)
@@ -72,12 +78,23 @@ export default async function SalesEntryDetailPage({
         <div className="col-span-12 space-y-8 lg:col-span-6">
           <DetailSection title="Details">
             <DetailRow label="Date" value={formatDate(entry.entry_date)} />
+            {entry.shift && <DetailRow label="Shift" value={entry.shift} />}
             <DetailRow label="Products sold" value={<span className="tabular-nums">{totalProducts}</span>} />
             <DetailRow label="Recorded by" value={updaterName(entry.creator)} />
             <DetailRow label="Recorded at" value={formatDateTime(entry.created_at)} />
             {entry.notes && (
               <DetailRow label="Notes" value={<span className="whitespace-pre-wrap">{entry.notes}</span>} />
             )}
+          </DetailSection>
+
+          <DetailSection title="Sales summary">
+            <DetailRow label="Gross sales" value={<span className="tabular-nums">{formatRp(entry.gross_sales)}</span>} />
+            {entry.total_discount > 0 && (
+              <DetailRow label="Total discount" value={<span className="tabular-nums">− {formatRp(entry.total_discount)}</span>} />
+            )}
+            <DetailRow label="Service charge (5%)" value={<span className="tabular-nums">{formatRp(entry.service_charge)}</span>} />
+            <DetailRow label="Tax (PB1 10%)" value={<span className="tabular-nums">{formatRp(entry.tax_total)}</span>} />
+            <DetailRow label="Net sales" value={<span className="tabular-nums font-semibold">{formatRp(entry.net_sales)}</span>} />
           </DetailSection>
         </div>
       </div>

@@ -28,9 +28,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
+import { formatRp } from "@/lib/format";
 import { createSalesEntry } from "@/app/actions/sales";
 
-type Product = { id: string; name: string; unit: string };
+const SERVICE_CHARGE_RATE = 0.05;
+const TAX_RATE = 0.10;
+
+type Product = { id: string; name: string; unit: string; sell_price: number | null };
 type Row = { key: string; product_id: string | null; qty: string; unit: string | null };
 
 function todayIso() {
@@ -46,8 +50,17 @@ export function SalesForm({ products }: { products: Product[] }) {
   const [pending, start] = useTransition();
 
   const [entryDate, setEntryDate] = useState(todayIso());
+  const [shift, setShift] = useState("");
+  const [discountText, setDiscountText] = useState("");
   const [notes, setNotes] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
+
+  const priceOf = (id: string | null) => Number(products.find((p) => p.id === id)?.sell_price ?? 0);
+  const grossSales = rows.reduce((sum, r) => (r.product_id && r.qty ? sum + parseDecimal(r.qty) * priceOf(r.product_id) : sum), 0);
+  const discount = Math.min(discountText.trim() ? parseDecimal(discountText) : 0, grossSales);
+  const serviceCharge = Math.round(grossSales * SERVICE_CHARGE_RATE);
+  const taxTotal = Math.round((grossSales - discount + serviceCharge) * TAX_RATE);
+  const netSales = grossSales - discount + serviceCharge + taxTotal;
 
   function addRow() { setRows((p) => [...p, newRow()]); }
   function removeRow(key: string) { setRows((p) => p.filter((r) => r.key !== key)); }
@@ -62,6 +75,8 @@ export function SalesForm({ products }: { products: Product[] }) {
     start(async () => {
       const res = await createSalesEntry({
         entry_date: entryDate,
+        shift: shift || undefined,
+        total_discount: discountText.trim() ? parseDecimal(discountText) : 0,
         notes: notes || undefined,
         items: validRows.map((r) => ({
           product_id: r.product_id!,
@@ -92,6 +107,16 @@ export function SalesForm({ products }: { products: Product[] }) {
                 type="date"
                 value={entryDate}
                 onChange={(e) => setEntryDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="shift">Shift</Label>
+              <Input
+                id="shift"
+                value={shift}
+                onChange={(e) => setShift(e.target.value)}
+                placeholder="e.g. Morning, Evening"
+                maxLength={60}
               />
             </div>
           </div>
@@ -149,7 +174,39 @@ export function SalesForm({ products }: { products: Product[] }) {
         </Button>
       </section>
 
-      {/* Summary */}
+      {/* Money summary */}
+      <section className="space-y-3 max-w-sm">
+        <h2 className="text-sm font-semibold">Sales summary</h2>
+        <div className="space-y-2 rounded-lg border p-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Gross sales</span>
+            <span className="tabular-nums font-medium">{formatRp(grossSales)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="discount" className="text-muted-foreground font-normal">Total discount</Label>
+            <div className="w-40">
+              <DecimalInput id="discount" value={discountText} onValueChange={setDiscountText} className="h-9 text-right" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Service charge (5%)</span>
+            <span className="tabular-nums">{formatRp(serviceCharge)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Tax (PB1 10%)</span>
+            <span className="tabular-nums">{formatRp(taxTotal)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t pt-2">
+            <span className="font-medium">Net sales</span>
+            <span className="tabular-nums font-semibold">{formatRp(netSales)}</span>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Service charge is 5% of gross (before discount); tax is 10% of gross − discount + service charge.
+        </p>
+      </section>
+
+      {/* Stock note */}
       {totalItems > 0 && (
         <p className="text-sm text-muted-foreground">
           {totalItems} product{totalItems !== 1 ? "s" : ""} — stock will be deducted from ingredients and prep items based on each product&apos;s recipe.

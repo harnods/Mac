@@ -18,12 +18,12 @@ export default async function NewSalesEntryPage() {
 
   const { data } = await supabase
     .from("items")
-    .select("id, name, unit")
+    .select("id, name, unit, sell_price")
     .eq("type", "product")
     .is("deleted_at", null)
     .order("name");
 
-  const products = (data ?? []) as { id: string; name: string; unit: string }[];
+  const products = (data ?? []) as { id: string; name: string; unit: string; sell_price: number | null }[];
 
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">
