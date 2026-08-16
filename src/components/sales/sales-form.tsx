@@ -68,7 +68,6 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
 
   const filledPayments = payments.filter((p) => p.method.trim() && p.amount.trim());
   const allocated = filledPayments.reduce((s, p) => s + parseDecimal(p.amount), 0);
-  const paymentRemaining = netSales - allocated;
   const paymentsBalanced = filledPayments.length === 0 || Math.round(allocated) === Math.round(netSales);
 
   function addRow() { setRows((p) => [...p, newRow()]); }
@@ -251,12 +250,6 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
         <Button type="button" variant="outline" size="sm" onClick={() => setPayments((prev) => [...prev, { key: crypto.randomUUID(), method: "", amount: "" }])}>
           <Plus className="size-4" /> Add payment method
         </Button>
-        <div className={cn("flex items-center justify-between text-sm rounded-md px-3 py-2", paymentsBalanced ? "bg-muted/40" : "bg-destructive/10 text-destructive")}>
-          <span>Allocated {formatRp(allocated)} / Net {formatRp(netSales)}</span>
-          <span className="tabular-nums font-medium">
-            {paymentRemaining === 0 ? "Balanced" : `${paymentRemaining > 0 ? "Remaining" : "Over"} ${formatRp(Math.abs(paymentRemaining))}`}
-          </span>
-        </div>
       </section>
 
       {/* Stock note */}
@@ -271,7 +264,7 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
         <Button variant="ghost" onClick={() => router.push("/sales")} disabled={pending}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={pending || !paymentsBalanced}>
+        <Button onClick={handleSubmit} disabled={pending}>
           {pending ? "Recording..." : "Record sales"}
         </Button>
       </div>

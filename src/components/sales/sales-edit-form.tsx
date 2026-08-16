@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { parseDecimal } from "@/lib/units";
 import { formatRp } from "@/lib/format";
 import { updateSalesEntry } from "@/app/actions/sales";
@@ -50,7 +49,6 @@ export function SalesEditForm({
 
   const filledPayments = payments.filter((p) => p.method.trim() && p.amount.trim());
   const allocated = filledPayments.reduce((s, p) => s + parseDecimal(p.amount), 0);
-  const paymentRemaining = netSales - allocated;
   const paymentsBalanced = filledPayments.length === 0 || Math.round(allocated) === Math.round(netSales);
 
   function handleSubmit() {
@@ -146,17 +144,11 @@ export function SalesEditForm({
         <Button type="button" variant="outline" size="sm" onClick={() => setPayments((prev) => [...prev, { key: crypto.randomUUID(), method: "", amount: "" }])}>
           <Plus className="size-4" /> Add payment method
         </Button>
-        <div className={cn("flex items-center justify-between text-sm rounded-md px-3 py-2", paymentsBalanced ? "bg-muted/40" : "bg-destructive/10 text-destructive")}>
-          <span>Allocated {formatRp(allocated)} / Net {formatRp(netSales)}</span>
-          <span className="tabular-nums font-medium">
-            {paymentRemaining === 0 ? "Balanced" : `${paymentRemaining > 0 ? "Remaining" : "Over"} ${formatRp(Math.abs(paymentRemaining))}`}
-          </span>
-        </div>
       </section>
 
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={() => router.push(`/sales/${id}`)} disabled={pending}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={pending || !paymentsBalanced}>{pending ? "Saving..." : "Save changes"}</Button>
+        <Button onClick={handleSubmit} disabled={pending}>{pending ? "Saving..." : "Save changes"}</Button>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { ReportDateFilter } from "@/components/reports/report-date-filter";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export const dynamic = "force-dynamic";
 
@@ -221,8 +222,7 @@ export default async function SalesReportPage({
         )}
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-base font-semibold">Ingredient usage (from recipes)</h2>
+      <CollapsibleSection title="Ingredient usage (from recipes)">
         {ingredientUsage.length === 0 ? (
           <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">No sales in this range.</div>
         ) : (
@@ -247,7 +247,7 @@ export default async function SalesReportPage({
             </Table>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       <section className="space-y-2">
         <h2 className="text-base font-semibold">Top products</h2>
