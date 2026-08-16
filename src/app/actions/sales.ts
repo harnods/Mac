@@ -212,6 +212,60 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
   return { ok: true, id: entry.id };
 }
 
+const updateSalesEntrySchema = z.object({
+  entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  shift: z.string().trim().max(60).optional(),
+  total_discount: z.coerce.number().nonnegative().optional().default(0),
+  notes: z.string().max(500).optional(),
+});
+
+/**
+ * Edit a sales entry's header (date, shift, notes) and total discount, and
+ * recompute the money breakdown. Gross is unchanged (line items are fixed), so
+ * this touches no stock. To change sold products, delete and re-create.
+ */
+export async function updateSalesEntry(id: string, raw: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.SALES_WRITE)) return { ok: false, error: "No permission" };
+
+  const parsed = updateSalesEntrySchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { entry_date, shift, total_discount, notes } = parsed.data;
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("sales_entries")
+    .select("gross_sales")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing) return { ok: false, error: "Sales entry not found" };
+
+  const grossSales = Number(existing.gross_sales);
+  const discount = Math.min(total_discount, grossSales);
+  const serviceCharge = Math.round(grossSales * SERVICE_CHARGE_RATE);
+  const taxTotal = Math.round((grossSales - discount + serviceCharge) * TAX_RATE);
+  const netSales = grossSales - discount + serviceCharge + taxTotal;
+
+  const { error } = await supabase
+    .from("sales_entries")
+    .update({
+      entry_date,
+      shift: shift || null,
+      notes: notes || null,
+      total_discount: discount,
+      service_charge: serviceCharge,
+      tax_total: taxTotal,
+      net_sales: netSales,
+    })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/sales");
+  revalidatePath(`/sales/${id}`);
+  return { ok: true, id };
+}
+
 export async function deleteSalesEntry(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };

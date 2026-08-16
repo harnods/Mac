@@ -6,7 +6,7 @@ import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { formatId, formatDate, formatDateTime, updaterName, formatRp } from "@/lib/format";
-import { DeleteSalesEntryButtonClient } from "@/components/sales/delete-sales-entry-button";
+import { SalesEntryActions } from "@/components/sales/sales-entry-actions";
 import { SalesEntryItemsTable } from "@/components/sales/sales-entry-items-table";
 import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import type { Updater } from "@/lib/supabase/types";
@@ -71,7 +71,7 @@ export default async function SalesEntryDetailPage({
             <span className="text-muted-foreground font-normal">{formatId(id)}</span>
           </h1>
         </div>
-        {can(profile, P.SALES_WRITE) && <DeleteSalesEntryButtonClient id={id} />}
+        {can(profile, P.SALES_WRITE) && <SalesEntryActions id={id} />}
       </div>
 
       <div className="grid grid-cols-12 gap-8">
@@ -80,8 +80,7 @@ export default async function SalesEntryDetailPage({
             <DetailRow label="Date" value={formatDate(entry.entry_date)} />
             {entry.shift && <DetailRow label="Shift" value={entry.shift} />}
             <DetailRow label="Products sold" value={<span className="tabular-nums">{totalProducts}</span>} />
-            <DetailRow label="Recorded by" value={updaterName(entry.creator)} />
-            <DetailRow label="Recorded at" value={formatDateTime(entry.created_at)} />
+            <DetailRow label="Recorded" value={`${formatDateTime(entry.created_at)} by ${updaterName(entry.creator)}`} />
             {entry.notes && (
               <DetailRow label="Notes" value={<span className="whitespace-pre-wrap">{entry.notes}</span>} />
             )}
