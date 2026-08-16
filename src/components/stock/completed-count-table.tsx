@@ -41,7 +41,7 @@ export type CompletedCountItem = {
   qty_counted: number | null;
   unit: string;
   note: string | null;
-  item: { name: string; type: string } | null;
+  item: { name: string; brand: string | null; type: string } | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -166,7 +166,10 @@ export function CompletedCountTable({ items, canEdit }: { items: CompletedCountI
               const variance = counted != null ? counted - row.qty_system : null;
               return (
                 <TableRow key={row.id}>
-                  <TableCell className="font-medium truncate">{row.item?.name ?? "Deleted item"}</TableCell>
+                  <TableCell className="font-medium truncate">
+                    {row.item?.name ?? "Deleted item"}
+                    {row.item?.brand && <span className="block text-xs font-normal text-muted-foreground truncate">{row.item.brand}</span>}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{TYPE_LABEL[row.item?.type ?? ""] ?? "—"}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     <Qty value={row.qty_system} unit={row.unit} />

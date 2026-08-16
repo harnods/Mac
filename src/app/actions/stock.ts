@@ -12,6 +12,7 @@ type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 export type StockCountItemOption = {
   id: string;
   name: string;
+  brand: string | null;
   unit: string;
   type: string;
   on_hand: number;
@@ -168,7 +169,7 @@ export async function getStockCountOptions(): Promise<
   const [{ data: items }, { data: categories }, { data: completedCounts }] = await Promise.all([
     supabase
       .from("items")
-      .select("id, name, unit, type, on_hand, category_id, categories(id,name)")
+      .select("id, name, brand, unit, type, on_hand, category_id, categories(id,name)")
       .is("deleted_at", null)
       .in("type", ["ingredient", "supply", "prep_item"])
       .order("name"),

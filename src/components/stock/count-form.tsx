@@ -218,7 +218,10 @@ export function CountForm({
                       className="size-4 rounded border-border"
                     />
                   </TableCell>
-                  <TableCell className="font-medium truncate">{item.name}</TableCell>
+                  <TableCell className="font-medium truncate">
+                    {item.name}
+                    {item.brand && <span className="block text-xs font-normal text-muted-foreground truncate">{item.brand}</span>}
+                  </TableCell>
                   <TableCell className="text-sm">{TYPE_LABEL[item.type] ?? item.type}</TableCell>
                   <TableCell className="text-sm">
                     {item.categories?.name ?? (

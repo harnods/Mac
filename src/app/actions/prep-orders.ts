@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P } from "@/lib/permissions";
+import { can, P, canAccessRecipeStation } from "@/lib/permissions";
 import { convert, convertToPieces } from "@/lib/units";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
@@ -36,6 +36,13 @@ export async function createPrepOrder(raw: unknown): Promise<ActionResult> {
   const { recipe_id, product_id, batch_count, target_qty, unit, prep_date, notes, items } = parsed.data;
 
   const supabase = await createClient();
+
+  // Station scope: you can't create a prep order for a recipe outside your
+  // station (e.g. bar staff can't prep a kitchen recipe).
+  const { data: rec } = await supabase.from("recipes").select("station").eq("id", recipe_id).maybeSingle();
+  if (!rec) return { ok: false, error: "Recipe not found" };
+  if (!canAccessRecipeStation(profile, rec.station))
+    return { ok: false, error: "You don't have access to this recipe's station" };
 
   // Insert prep order as pending — no stock changes yet
   const { data: order, error: orderError } = await supabase

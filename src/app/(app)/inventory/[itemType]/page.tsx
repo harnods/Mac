@@ -139,6 +139,7 @@ export default async function ItemTypePage({
           label={config.label.toLowerCase()}
           itemTypeSlug={itemType as ItemTypeSlug}
           columnFlags={{
+            showBrand: config.dbType === "supply",
             showCategory: config.hasCategories,
             showLocation: config.dbType === "supply",
             stockMode: config.stockMode,
@@ -172,6 +173,7 @@ export default async function ItemTypePage({
             isAdmin={isAdmin}
             itemTypeSlug={itemType as ItemTypeSlug}
             showPhoto={config.showPhoto}
+            showBrand={config.dbType === "supply"}
             showCategory={config.hasCategories}
             showLocation={config.dbType === "supply"}
             stockMode={config.stockMode}

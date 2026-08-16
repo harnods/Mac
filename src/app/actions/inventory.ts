@@ -17,6 +17,7 @@ const CAT_TYPE = z.enum(["ingredient", "supply", "product"]);
 
 const itemSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
+  brand: z.string().trim().max(120).nullable().optional(),
   category_id: z.string().uuid().nullable(),
   unit: UNIT,
   type: ITEM_TYPE.default("ingredient"),

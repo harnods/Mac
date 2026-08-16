@@ -51,6 +51,7 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
   const router = useRouter();
   const [pending, start] = useTransition();
   const [name, setName] = useState(item?.name ?? "");
+  const [brand, setBrand] = useState(item?.brand ?? "");
   const [categoryId, setCategoryId] = useState<string | null>(item?.category_id ?? null);
   const [locationId, setLocationId] = useState<string | null>(item?.location_id ?? null);
   const [unit, setUnit] = useState<string>(item?.unit ?? defaultUnitFor());
@@ -74,8 +75,9 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
   // Cost is confidential — only Super admins can see or set it.
   const showDefaultCost = itemTypeSlug === "ingredients" && canViewCost;
   const showPhoto = itemTypeSlug === "supplies";
-  // Storage location applies to supplies.
+  // Storage location and brand apply to supplies (Assets).
   const showLocation = itemTypeSlug === "supplies";
+  const showBrand = itemTypeSlug === "supplies";
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -124,6 +126,7 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
     start(async () => {
       const payload = {
         name,
+        brand: showBrand ? (brand.trim() || null) : null,
         category_id: hasCategories ? categoryId : null,
         unit,
         type: config.dbType,
@@ -154,7 +157,7 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
           <section className="space-y-4">
             <h2 className="text-sm font-semibold">{config.singular} info</h2>
             <div className="grid grid-cols-6 gap-4">
-              <div className="col-span-6 space-y-2">
+              <div className={`col-span-6 space-y-2 ${showBrand ? "sm:col-span-3" : ""}`}>
                 <Label htmlFor="name">Name <Required /></Label>
                 <Input
                   id="name"
@@ -163,6 +166,18 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
                   onChange={(e) => setName(e.target.value)}
                 />
               </div>
+
+              {showBrand && (
+                <div className="col-span-6 space-y-2 sm:col-span-3">
+                  <Label htmlFor="brand">Brand</Label>
+                  <Input
+                    id="brand"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    placeholder="e.g. Sika, 3M"
+                  />
+                </div>
+              )}
 
               {hasCategories && (
                 <div className="col-span-6 space-y-2 sm:col-span-3">

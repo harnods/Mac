@@ -30,6 +30,7 @@ type Props = {
   isAdmin: boolean;
   itemTypeSlug: ItemTypeSlug;
   showPhoto?: boolean;
+  showBrand?: boolean;
   showCategory: boolean;
   showLocation?: boolean;
   stockMode: StockMode;
@@ -42,7 +43,7 @@ type Props = {
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, locations = [], isAdmin, itemTypeSlug, showPhoto = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
+  items, categories, locations = [], isAdmin, itemTypeSlug, showPhoto = false, showBrand = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -52,7 +53,7 @@ export function ItemBulkTable({
   const [editLocationId, setEditLocationId] = useState<string>("");
   const [pending, startTransition] = useTransition();
   const columns = getItemColumns({
-    showCategory, showLocation, stockMode, showCost, showSellable, showDefaultCost,
+    showBrand, showCategory, showLocation, stockMode, showCost, showSellable, showDefaultCost,
     hasRecipeColumn: !!linkedRecipeProductIds,
   });
   const { isVisible } = useColumnVisibility(`items-${itemTypeSlug}`, columns);
@@ -156,6 +157,7 @@ export function ItemBulkTable({
               )}
               {showPhoto && <TableHead className="w-14" />}
               <TableHead className="w-[240px]">Name</TableHead>
+              {showBrand && isVisible("brand") && <TableHead className="w-[160px]">Brand</TableHead>}
               {showCategory && isVisible("category") && <TableHead className="w-[160px]">Category</TableHead>}
               {showLocation && isVisible("location") && <TableHead className="w-[160px]">Location</TableHead>}
               {stockMode === "full" && isVisible("onHand") && <TableHead className="w-[160px]">On hand</TableHead>}
@@ -181,6 +183,7 @@ export function ItemBulkTable({
                 isAdmin={isAdmin}
                 itemTypeSlug={itemTypeSlug}
                 showPhoto={showPhoto}
+                showBrand={showBrand && isVisible("brand")}
                 showCategory={showCategory && isVisible("category")}
                 showLocation={showLocation && isVisible("location")}
                 showOnHand={stockMode === "full" && isVisible("onHand")}

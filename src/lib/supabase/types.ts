@@ -36,6 +36,7 @@ export type CategoryWithUpdater = Category & {
 export type Item = {
   id: string;
   name: string;
+  brand: string | null;
   category_id: string | null;
   unit: UnitCode;
   type: ItemType;

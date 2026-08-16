@@ -56,6 +56,7 @@ import { CSS } from "@dnd-kit/utilities";
 type Item = {
   id: string;
   name: string;
+  brand: string | null;
   unit: string;
   type: string;
   on_hand: number;
@@ -392,8 +393,15 @@ function AdjustmentRowField({
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" role="combobox"
               className="w-full justify-between font-normal">
-              <span className={cn("truncate", !selectedItem && "text-muted-foreground")}>
-                {selectedItem ? selectedItem.name : "Select item"}
+              <span className={cn("min-w-0 text-left", !selectedItem && "text-muted-foreground")}>
+                {selectedItem ? (
+                  <>
+                    <span className="block truncate">{selectedItem.name}</span>
+                    {selectedItem.brand && (
+                      <span className="block truncate text-xs text-muted-foreground">{selectedItem.brand}</span>
+                    )}
+                  </>
+                ) : "Select item"}
               </span>
               <ChevronsUpDown className="size-4 opacity-50 shrink-0 ml-1" />
             </Button>
@@ -412,7 +420,12 @@ function AdjustmentRowField({
                       className="flex items-center gap-2 py-1.5"
                     >
                       <Check className={cn("size-4 shrink-0", pendingIds.includes(item.id) ? "opacity-100" : "opacity-0")} />
-                      <span className="flex-1 truncate">{item.name}</span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate">{item.name}</span>
+                        {item.brand && (
+                          <span className="block truncate text-xs text-muted-foreground">{item.brand}</span>
+                        )}
+                      </span>
                       <span className="text-xs text-muted-foreground ml-2">{item.type}</span>
                     </CommandItem>
                   ))}

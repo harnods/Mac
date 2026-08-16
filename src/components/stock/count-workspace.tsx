@@ -45,6 +45,7 @@ type CountItem = {
   note: string | null;
   item: {
     name: string;
+    brand: string | null;
     type: string;
     unit: string;
     purchase_unit: string | null;
@@ -372,6 +373,7 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
                 <TableRow key={row.id}>
                   <TableCell className="min-w-56 font-medium truncate">
                     {row.item?.name ?? "Deleted item"}
+                    {row.item?.brand && <span className="block text-xs font-normal text-muted-foreground truncate">{row.item.brand}</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     <Qty value={systemQty} unit={row.unit} auto={false} />
@@ -496,6 +498,7 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-semibold">{row.item?.name ?? "Deleted item"}</h2>
+                  {row.item?.brand && <p className="text-sm text-muted-foreground">{row.item.brand}</p>}
                   <p className="text-sm text-muted-foreground">Unit: {row.unit}</p>
                 </div>
                 <div className="text-right text-sm">

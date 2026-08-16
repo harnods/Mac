@@ -2,6 +2,7 @@ import type { ColumnDef } from "@/hooks/use-column-visibility";
 import type { StockMode } from "@/lib/item-types";
 
 export type ItemColumnFlags = {
+  showBrand?: boolean;
   showCategory: boolean;
   showLocation?: boolean;
   stockMode: StockMode;
@@ -14,6 +15,7 @@ export type ItemColumnFlags = {
 /** The set of user-toggleable columns for a given item type's list table. */
 export function getItemColumns(flags: ItemColumnFlags): ColumnDef[] {
   const cols: ColumnDef[] = [];
+  if (flags.showBrand) cols.push({ key: "brand", label: "Brand" });
   if (flags.showCategory) cols.push({ key: "category", label: "Category" });
   if (flags.showLocation) cols.push({ key: "location", label: "Location" });
   if (flags.stockMode === "full") cols.push({ key: "onHand", label: "On hand" });

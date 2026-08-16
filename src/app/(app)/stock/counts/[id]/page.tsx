@@ -26,6 +26,7 @@ type CountItemRecord = {
   note: string | null;
   item: {
     name: string;
+    brand: string | null;
     type: string;
     unit: string;
     purchase_unit: string | null;
@@ -78,7 +79,7 @@ export default async function StockCountDetailPage({
       completer:profiles!completed_by(full_name, email),
       stock_count_items(
         id, item_id, qty_system, qty_counted, unit, unopened_qty, unopened_unit, in_use_qty, in_use_unit, note,
-        item:items(name, type, unit, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit))
+        item:items(name, brand, type, unit, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit))
       )
     `)
     .eq("id", id)

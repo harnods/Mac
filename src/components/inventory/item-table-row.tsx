@@ -28,6 +28,7 @@ export function ItemTableRow({
   isAdmin,
   itemTypeSlug,
   showPhoto = false,
+  showBrand = false,
   showCategory = true,
   showLocation = false,
   showOnHand = true,
@@ -49,6 +50,7 @@ export function ItemTableRow({
   isAdmin: boolean;
   itemTypeSlug: string;
   showPhoto?: boolean;
+  showBrand?: boolean;
   showCategory?: boolean;
   showLocation?: boolean;
   showOnHand?: boolean;
@@ -112,6 +114,11 @@ export function ItemTableRow({
             )}
           </span>
         </TableCell>
+        {showBrand && (
+          <TableCell>
+            {item.brand ?? <span className="text-muted-foreground">—</span>}
+          </TableCell>
+        )}
         {showCategory && (
           <TableCell>
             {item.categories?.name ?? <span className="text-muted-foreground">—</span>}
