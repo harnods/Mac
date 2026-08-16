@@ -65,6 +65,14 @@ const MENU: MenuNode[] = [
   },
   { label: "Sales", icon: Calculator, href: "/sales" },
   {
+    label: "Reports",
+    icon: ChartColumn,
+    children: [
+      { label: "Sales", href: "/reports/sales", perm: P.SALES_READ },
+      { label: "Service charge", href: "/reports/service-charge", perm: P.SALES_READ },
+    ],
+  },
+  {
     label: "Settings",
     icon: SettingsIcon,
     children: [
