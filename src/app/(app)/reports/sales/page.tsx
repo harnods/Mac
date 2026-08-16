@@ -75,6 +75,17 @@ export default async function SalesReportPage({
   );
   const daysWithSales = new Set(entries.map((e) => e.entry_date)).size;
 
+  // Payment reconciliation: total collected per payment method.
+  const { data: payRows } = entryIds.length
+    ? await supabase.from("sales_entry_payments").select("method, amount").in("entry_id", entryIds)
+    : { data: [] };
+  const byMethod = new Map<string, number>();
+  for (const p of (payRows ?? []) as { method: string; amount: number }[]) {
+    byMethod.set(p.method, (byMethod.get(p.method) ?? 0) + Number(p.amount));
+  }
+  const reconciliation = [...byMethod.entries()].map(([method, amount]) => ({ method, amount })).sort((a, b) => b.amount - a.amount);
+  const reconciledTotal = reconciliation.reduce((s, r) => s + r.amount, 0);
+
   // Line items across all entries in range
   const { data: itemRows } = entryIds.length
     ? await supabase.from("sales_entry_items").select("product_id, qty, unit").in("entry_id", entryIds)
@@ -174,6 +185,41 @@ export default async function SalesReportPage({
           {tile("Est. margin", margin != null ? `${margin.toFixed(1)}%` : "—")}
         </div>
       )}
+
+      <section className="space-y-2">
+        <h2 className="text-base font-semibold">Payment reconciliation</h2>
+        {reconciliation.length === 0 ? (
+          <div className="rounded-lg border p-8 text-center text-sm text-muted-foreground">No payment splits recorded in this range.</div>
+        ) : (
+          <div className="table-outer overflow-x-auto rounded-lg border">
+            <Table className="w-auto min-w-full">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[280px]">Payment method</TableHead>
+                  <TableHead className="text-right w-[180px]">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reconciliation.map((r) => (
+                  <TableRow key={r.method}>
+                    <TableCell className="font-medium">{r.method}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatRp(r.amount)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell className="font-semibold">Total collected</TableCell>
+                  <TableCell className="text-right tabular-nums font-semibold">{formatRp(reconciledTotal)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        {reconciliation.length > 0 && Math.round(reconciledTotal) !== Math.round(summary.net) && (
+          <p className="text-xs text-destructive">
+            Collected {formatRp(reconciledTotal)} vs net sales {formatRp(summary.net)} — {formatRp(Math.abs(reconciledTotal - summary.net))} unreconciled (some entries may have no payment split).
+          </p>
+        )}
+      </section>
 
       <section className="space-y-2">
         <h2 className="text-base font-semibold">Ingredient usage (from recipes)</h2>

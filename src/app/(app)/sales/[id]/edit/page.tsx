@@ -29,6 +29,8 @@ export default async function EditSalesEntryPage({
   if (error || !data) notFound();
   const payments = ((data as unknown as { sales_entry_payments?: { method: string; amount: number }[] }).sales_entry_payments ?? [])
     .map((p) => ({ method: p.method, amount: Number(p.amount) }));
+  const { data: pmData } = await supabase.from("payment_methods").select("name").order("name");
+  const paymentMethods = (pmData ?? []).map((m: { name: string }) => m.name);
 
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">
@@ -41,6 +43,7 @@ export default async function EditSalesEntryPage({
       <SalesEditForm
         id={id}
         grossSales={Number(data.gross_sales)}
+        paymentMethods={paymentMethods}
         initial={{
           entry_date: data.entry_date,
           shift: data.shift ?? "",

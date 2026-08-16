@@ -25,6 +25,9 @@ export default async function NewSalesEntryPage() {
 
   const products = (data ?? []) as { id: string; name: string; unit: string; sell_price: number | null }[];
 
+  const { data: pmData } = await supabase.from("payment_methods").select("name").order("name");
+  const paymentMethods = (pmData ?? []).map((m: { name: string }) => m.name);
+
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">
       <div className="flex items-center gap-3">
@@ -35,7 +38,7 @@ export default async function NewSalesEntryPage() {
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">New sales entry</h1>
       </div>
-      <SalesForm products={products} />
+      <SalesForm products={products} paymentMethods={paymentMethods} />
     </div>
   );
 }

@@ -77,6 +77,7 @@ const MENU: MenuNode[] = [
     icon: SettingsIcon,
     children: [
       { label: "Roles & permissions", href: "/settings/roles" },
+      { label: "Payment methods", href: "/settings/payment-methods", perm: P.SALES_READ },
       { label: "Tables & QR", href: "/settings/tables" },
       { label: "Loyalty points", href: "/settings/loyalty" },
       "divider",

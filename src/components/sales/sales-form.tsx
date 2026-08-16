@@ -19,6 +19,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -45,7 +46,7 @@ function newRow(): Row {
   return { key: crypto.randomUUID(), product_id: null, qty: "", unit: null };
 }
 
-export function SalesForm({ products }: { products: Product[] }) {
+export function SalesForm({ products, paymentMethods }: { products: Product[]; paymentMethods: string[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -222,13 +223,12 @@ export function SalesForm({ products }: { products: Product[] }) {
         <div className="space-y-2">
           {payments.map((p) => (
             <div key={p.key} className="flex items-center gap-2">
-              <Input
-                value={p.method}
-                onChange={(e) => setPayments((prev) => prev.map((x) => (x.key === p.key ? { ...x, method: e.target.value } : x)))}
-                placeholder="e.g. EDC Bank Mandiri, QRIS, Cash"
-                maxLength={60}
-                className="flex-1"
-              />
+              <Select value={p.method || undefined} onValueChange={(v) => setPayments((prev) => prev.map((x) => (x.key === p.key ? { ...x, method: v } : x)))}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Select payment method" /></SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <div className="w-40">
                 <DecimalInput
                   value={p.amount}

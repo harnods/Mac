@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseDecimal } from "@/lib/units";
@@ -20,12 +21,16 @@ const TAX_RATE = 0.10;
 export function SalesEditForm({
   id,
   grossSales,
+  paymentMethods,
   initial,
 }: {
   id: string;
   grossSales: number;
+  paymentMethods: string[];
   initial: { entry_date: string; shift: string; notes: string; total_discount: number; payments: { method: string; amount: number }[] };
 }) {
+  // Include any already-recorded methods that are no longer in the master list.
+  const methodOptions = [...new Set([...paymentMethods, ...initial.payments.map((p) => p.method)])];
   const router = useRouter();
   const [pending, start] = useTransition();
   const [entryDate, setEntryDate] = useState(initial.entry_date);
@@ -118,13 +123,12 @@ export function SalesEditForm({
         <div className="space-y-2">
           {payments.map((p) => (
             <div key={p.key} className="flex items-center gap-2">
-              <Input
-                value={p.method}
-                onChange={(e) => setPayments((prev) => prev.map((x) => (x.key === p.key ? { ...x, method: e.target.value } : x)))}
-                placeholder="e.g. EDC Bank Mandiri, QRIS, Cash"
-                maxLength={60}
-                className="flex-1"
-              />
+              <Select value={p.method || undefined} onValueChange={(v) => setPayments((prev) => prev.map((x) => (x.key === p.key ? { ...x, method: v } : x)))}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder="Select payment method" /></SelectTrigger>
+                <SelectContent>
+                  {methodOptions.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <div className="w-40">
                 <DecimalInput
                   value={p.amount}
