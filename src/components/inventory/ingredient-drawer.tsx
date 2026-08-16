@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose, SheetBody } f
 import { formatNum } from "@/lib/units";
 import { formatRp } from "@/lib/format";
 import { Qty } from "@/components/ui/qty";
+import { ItemQty } from "@/components/ui/item-qty";
 import { defaultCostBreakdown } from "@/lib/cogs";
 import { getIngredientDrawerData } from "@/app/actions/inventory";
 import type { IngredientDrawerData } from "@/app/actions/inventory";
@@ -67,17 +68,17 @@ export function IngredientDrawerTrigger({ itemId, itemName }: Props) {
                         <>
                           <div className="space-y-0.5">
                             <p className="text-xs text-muted-foreground">On hand</p>
-                            <p className="text-sm font-medium tabular-nums"><Qty value={data.on_hand} unit={data.unit} /></p>
+                            <p className="text-sm font-medium tabular-nums"><ItemQty baseValue={data.on_hand} unit={data.unit} conversions={data.unit_conversions} /></p>
                           </div>
                           <div className="space-y-0.5">
                             <p className="text-xs text-muted-foreground">Reserved</p>
-                            <p className="text-sm font-medium tabular-nums"><Qty value={data.reserved} unit={data.unit} /></p>
+                            <p className="text-sm font-medium tabular-nums"><ItemQty baseValue={data.reserved} unit={data.unit} conversions={data.unit_conversions} /></p>
                           </div>
                         </>
                       )}
                       <div className="space-y-0.5">
                         <p className="text-xs text-muted-foreground">Available</p>
-                        <p className="text-sm font-medium tabular-nums"><Qty value={data.available} unit={data.unit} /></p>
+                        <p className="text-sm font-medium tabular-nums"><ItemQty baseValue={data.available} unit={data.unit} conversions={data.unit_conversions} /></p>
                       </div>
                     </div>
                   </div>

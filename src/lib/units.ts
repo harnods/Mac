@@ -128,6 +128,67 @@ export function convertToItemUnit(
   return value;
 }
 
+type RollupItem = {
+  unit: UnitCode;
+  item_unit_conversions?: ItemUnitConversion[] | null;
+};
+
+const isWholeCount = (n: number) => Math.abs(n - Math.round(n)) < 1e-6;
+
+/** Every unit a base-quantity can be expressed in (custom conversions first,
+ * then group units, then the base unit), with each unit's base-equivalent size
+ * "1 unit = factor base". Sorted largest-first; duplicate sizes de-duped. */
+function displayUnitCandidates(item: RollupItem): { unit: string; factor: number }[] {
+  const byUnit = new Map<string, number>();
+  for (const c of item.item_unit_conversions ?? []) {
+    if (byUnit.has(c.from_unit)) continue;
+    const factor = convertToItemUnit(1, c.from_unit, item); // base per 1 conversion unit
+    if (factor > 0) byUnit.set(c.from_unit, factor);
+  }
+  for (const u of compatibleUnits(item.unit)) {
+    if (u === item.unit || byUnit.has(u)) continue;
+    const factor = convert(1, u, item.unit);
+    if (factor != null && factor > 0) byUnit.set(u, factor);
+  }
+  byUnit.set(item.unit, 1);
+  return [...byUnit.entries()]
+    .map(([unit, factor]) => ({ unit, factor }))
+    .sort((a, b) => b.factor - a.factor);
+}
+
+/**
+ * Roll a base-unit quantity up to the LARGEST unit it's an exact whole multiple
+ * of (e.g. 24000 ml with "1 karton = 12000 ml" → 2 karton). Falls to the next
+ * smaller unit when not an exact multiple, down to the base unit.
+ */
+export function rollupItemQty(baseValue: number, item: RollupItem): { value: number; unit: string } {
+  for (const c of displayUnitCandidates(item)) {
+    const count = baseValue / c.factor;
+    if (count >= 1 && isWholeCount(count)) return { value: Math.round(count), unit: c.unit };
+  }
+  return { value: baseValue, unit: item.unit };
+}
+
+/**
+ * Full breakdown of a base-unit quantity across every unit it maps to as a whole
+ * number (largest → smallest), for a hover tooltip. Duplicate-size units are
+ * collapsed. Always includes the base-unit amount.
+ */
+export function itemQtyBreakdown(baseValue: number, item: RollupItem): { value: number; unit: string }[] {
+  const out: { value: number; unit: string }[] = [];
+  const seenFactor = new Set<number>();
+  for (const c of displayUnitCandidates(item)) {
+    if (seenFactor.has(c.factor)) continue;
+    const count = baseValue / c.factor;
+    if (count >= 1 && isWholeCount(count)) {
+      out.push({ value: Math.round(count), unit: c.unit });
+      seenFactor.add(c.factor);
+    }
+  }
+  if (!out.some((o) => o.unit === item.unit)) out.push({ value: baseValue, unit: item.unit });
+  return out;
+}
+
 /**
  * Parses a user-entered decimal string, accepting both "." and "," as the
  * decimal separator (e.g. "2.5" and "2,5" both → 2.5). Also tolerates

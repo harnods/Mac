@@ -649,6 +649,7 @@ export type IngredientDrawerData = {
   default_purchase_cost_unit: string | null;
   purchase_unit: string | null;
   purchase_unit_qty: number | null;
+  unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
   computedCost: ComputedRecipeCost | null;
   usedInRecipes: { id: string; name: string; quantity: number; unit: string }[];
   producedByRecipe: { id: string; name: string } | null;
@@ -658,7 +659,7 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
   const supabase = await createClient();
   const { data: item } = await supabase
     .from("items")
-    .select("id, name, type, unit, on_hand, reserved, categories(name), last_purchase_cost, avg_purchase_cost, default_purchase_cost, default_purchase_cost_unit, purchase_unit, purchase_unit_qty")
+    .select("id, name, type, unit, on_hand, reserved, categories(name), last_purchase_cost, avg_purchase_cost, default_purchase_cost, default_purchase_cost_unit, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit)")
     .eq("id", itemId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -736,6 +737,7 @@ export async function getIngredientDrawerData(itemId: string): Promise<Ingredien
     default_purchase_cost_unit: viewCost ? item.default_purchase_cost_unit : null,
     purchase_unit: item.purchase_unit,
     purchase_unit_qty: item.purchase_unit_qty,
+    unit_conversions: ((item as unknown as { item_unit_conversions?: { from_unit: string; factor: number; to_unit: string }[] }).item_unit_conversions ?? []),
     computedCost,
     usedInRecipes,
     producedByRecipe,
