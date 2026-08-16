@@ -72,9 +72,33 @@ export async function createItemUnitConversion(input: unknown): Promise<ActionRe
 
   if (!item) return { ok: false, error: "Item not found" };
   if (item.type !== "ingredient") return { ok: false, error: "Unit conversions are only available for ingredients" };
-  if (convert(factor, to_unit as UnitCode, item.unit as UnitCode) == null && to_unit !== item.unit) {
-    return { ok: false, error: "Base unit must be compatible with the ingredient unit" };
-  }
+
+  // `to_unit` may be the base unit, a group-compatible unit (g/kg, ml/l), OR
+  // another existing conversion unit for this item (nested, e.g. "1 karton =
+  // 12 box" where "1 box = 1000 ml"). Validate that it ultimately resolves to
+  // the base unit, and reject anything that would create a conversion loop.
+  const { data: existing } = await supabase
+    .from("item_unit_conversions")
+    .select("from_unit, to_unit")
+    .eq("item_id", item_id);
+  const chain = new Map<string, string>();
+  for (const c of (existing ?? []) as { from_unit: string; to_unit: string }[]) chain.set(c.from_unit, c.to_unit);
+
+  const resolves = (() => {
+    let u = to_unit as string;
+    const walked = new Set<string>();
+    for (;;) {
+      if (u === item.unit) return "ok";
+      if (convert(1, u as UnitCode, item.unit as UnitCode) != null) return "ok"; // group-compatible
+      if (u === from_unit || walked.has(u)) return "cycle";                      // loops back
+      walked.add(u);
+      const next = chain.get(u);
+      if (!next) return "deadend";                                              // never reaches base
+      u = next;
+    }
+  })();
+  if (resolves === "cycle") return { ok: false, error: "That would create a conversion loop" };
+  if (resolves !== "ok") return { ok: false, error: "Unit must ultimately convert to the item's base unit" };
 
   const { error: unitError } = await supabase
     .from("units")

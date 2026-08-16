@@ -76,6 +76,7 @@ export function ItemUsageTabs({
   purchaseUnitQty,
   canManualAdjust = false,
   showReserved = true,
+  units = [],
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
@@ -89,6 +90,7 @@ export function ItemUsageTabs({
   purchaseUnitQty?: number | null;
   canManualAdjust?: boolean;
   showReserved?: boolean;
+  units?: string[];
 }) {
   const hasRecipeTab = usedInRecipes !== undefined;
   const hasConversionTab = unitConversions !== undefined && itemId !== undefined;
@@ -136,6 +138,7 @@ export function ItemUsageTabs({
           itemUnit={itemUnit}
           conversions={unitConversions}
           canEdit={canEditConversions}
+          units={units}
         />
       ) : null}
     </div>

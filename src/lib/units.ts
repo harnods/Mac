@@ -107,14 +107,20 @@ export function convertToItemUnit(
     purchase_unit_qty?: number | null;
     item_unit_conversions?: ItemUnitConversion[] | null;
   },
+  _seen: Set<string> = new Set(),
 ): number {
   if (from === item.unit) return value;
   const viaGroup = convert(value, from, item.unit);
   if (viaGroup != null) return viaGroup;
+  if (_seen.has(from)) return value; // guard against a conversion cycle
+  _seen.add(from);
   const custom = item.item_unit_conversions?.find((conversion) => conversion.from_unit === from);
   if (custom) {
     const qtyInTargetUnit = value * Number(custom.factor);
-    return convert(qtyInTargetUnit, custom.to_unit, item.unit) ?? qtyInTargetUnit;
+    // to_unit may be the base unit, a group-compatible unit, OR another custom
+    // conversion unit (e.g. "1 karton = 12 box", "1 box = 1000 ml") — resolve
+    // the chain recursively until we reach the item's base unit.
+    return convertToItemUnit(qtyInTargetUnit, custom.to_unit, item, _seen);
   }
   if (item.purchase_unit && from === item.purchase_unit && item.purchase_unit_qty) {
     return value * item.purchase_unit_qty;

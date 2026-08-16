@@ -34,6 +34,7 @@ import {
   STICKY_ACTION_HEAD,
   STICKY_ACTION_CELL,
 } from "@/components/ui/table";
+import { UnitCombobox } from "@/components/inventory/unit-combobox";
 import { createItemUnitConversion, deleteItemUnitConversion } from "@/app/actions/inventory";
 import { compatibleUnits, formatNum, parseDecimal } from "@/lib/units";
 import type { UnitCode } from "@/lib/supabase/types";
@@ -50,11 +51,14 @@ export function UnitConversionsPanel({
   itemUnit,
   conversions,
   canEdit,
+  units = [],
 }: {
   itemId: string;
   itemUnit: UnitCode;
   conversions: UnitConversionRow[];
   canEdit: boolean;
+  /** Master unit codes for the conversion-unit picker (supports inline create). */
+  units?: string[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -63,7 +67,10 @@ export function UnitConversionsPanel({
   const [fromUnit, setFromUnit] = useState("");
   const [factor, setFactor] = useState("");
   const [toUnit, setToUnit] = useState(itemUnit);
-  const toUnitOptions = compatibleUnits(itemUnit);
+  const [unitList, setUnitList] = useState<string[]>(units);
+  // Target unit can be the base unit / a group unit, OR an existing conversion
+  // unit (nested chains, e.g. "1 karton = 12 box" where "1 box = 1000 ml").
+  const toUnitOptions = [...new Set([...compatibleUnits(itemUnit), ...conversions.map((c) => c.from_unit)])];
 
   function resetForm() {
     setFromUnit("");
@@ -136,11 +143,12 @@ export function UnitConversionsPanel({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Conversion unit</Label>
-                  <Input
+                  <UnitCombobox
+                    units={unitList}
+                    onUnitsChange={setUnitList}
                     value={fromUnit}
-                    onChange={(event) => setFromUnit(event.target.value)}
-                    maxLength={30}
-                    autoFocus
+                    onChange={setFromUnit}
+                    placeholder="Select or create unit"
                   />
                 </div>
                 <div className="flex items-end gap-2">
@@ -149,13 +157,13 @@ export function UnitConversionsPanel({
                     <DecimalInput
                       value={factor}
                       onValueChange={setFactor}
-                      className="text-right"
+                      className="h-10 text-right"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Base unit</Label>
+                  <div className="w-24 space-y-1.5">
+                    <Label>Unit</Label>
                     <Select value={toUnit} onValueChange={setToUnit}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -168,6 +176,9 @@ export function UnitConversionsPanel({
                     </Select>
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  1 {fromUnit || "unit"} = {factor.trim() || "0"} {toUnit}
+                </p>
                 <DialogFooter>
                   <DialogClose asChild>
                     <Button type="button" variant="ghost">Cancel</Button>

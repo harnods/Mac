@@ -7,7 +7,6 @@ import { ImagePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupAddon, InputGroupText } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,7 +14,7 @@ import { CategoryCombobox } from "./category-combobox";
 import { LocationCombobox } from "./location-combobox";
 import { UnitCombobox } from "./unit-combobox";
 import { ITEM_TYPE_CONFIG } from "@/lib/item-types";
-import { compatibleUnits, parseDecimal } from "@/lib/units";
+import { compatibleUnits, convert, parseDecimal } from "@/lib/units";
 import { createItem, updateItem } from "@/app/actions/inventory";
 import { createClient } from "@/lib/supabase/client";
 import type { Category, Item, Location } from "@/lib/supabase/types";
@@ -66,6 +65,10 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
   const [purchaseUnitQty, setPurchaseUnitQty] = useState(
     item?.purchase_unit_qty != null ? String(item.purchase_unit_qty) : "",
   );
+  // Unit the purchase-unit quantity is entered in — must be compatible with the
+  // item's base unit (e.g. base g → enter "1 pack = 2 kg" or "2000 g"). Stored
+  // back in the base unit on save.
+  const [purchaseUnitQtyUnit, setPurchaseUnitQtyUnit] = useState<string>(item?.unit ?? defaultUnitFor());
   const [units, setUnits] = useState(initialUnits);
   const [imageUrl, setImageUrl] = useState<string | null>(item?.image_url ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -112,6 +115,10 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
   ];
   const selectedDefaultCostUnit = costUnitOptions.includes(defaultCostUnit) ? defaultCostUnit : unit;
 
+  // Units the purchase-unit quantity may be entered in (base unit + same group).
+  const purchaseQtyUnitOptions = compatibleUnits(unit as UnitCode);
+  const selectedPurchaseQtyUnit = purchaseQtyUnitOptions.includes(purchaseUnitQtyUnit) ? purchaseUnitQtyUnit : unit;
+
   function handleUsePurchaseUnitChange(checked: boolean) {
     setUsePurchaseUnit(checked);
     if (!checked) {
@@ -133,7 +140,10 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
         default_purchase_cost: showDefaultCost && defaultCost.trim() ? parseDecimal(defaultCost) : null,
         default_purchase_cost_unit: showDefaultCost && defaultCost.trim() ? selectedDefaultCostUnit : null,
         purchase_unit: usePurchaseUnit && purchaseUnit ? purchaseUnit : null,
-        purchase_unit_qty: usePurchaseUnit && purchaseUnit && purchaseUnitQty.trim() ? parseDecimal(purchaseUnitQty) : null,
+        // Store the ratio in the item's base unit (convert from the entered unit).
+        purchase_unit_qty: usePurchaseUnit && purchaseUnit && purchaseUnitQty.trim()
+          ? (convert(parseDecimal(purchaseUnitQty), selectedPurchaseQtyUnit as UnitCode, unit as UnitCode) ?? parseDecimal(purchaseUnitQty))
+          : null,
         image_url: showPhoto ? imageUrl : null,
         location_id: showLocation ? locationId : null,
       };
@@ -260,14 +270,25 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
                           />
                         </div>
                         <span className="text-sm text-muted-foreground shrink-0">=</span>
-                        <InputGroup className="h-10 w-32 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <DecimalInput
                             value={purchaseUnitQty}
                             onValueChange={setPurchaseUnitQty}
-                            className="flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0"
+                            className="h-10 w-24 text-right"
                           />
-                          <InputGroupAddon align="inline-end"><InputGroupText>{unit || "unit"}</InputGroupText></InputGroupAddon>
-                        </InputGroup>
+                          {purchaseQtyUnitOptions.length > 1 ? (
+                            <Select value={selectedPurchaseQtyUnit} onValueChange={setPurchaseUnitQtyUnit}>
+                              <SelectTrigger className="h-10 w-20 shrink-0"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {purchaseQtyUnitOptions.map((u) => (
+                                  <SelectItem key={u} value={u}>{u}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-sm text-muted-foreground shrink-0">{unit || "unit"}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}

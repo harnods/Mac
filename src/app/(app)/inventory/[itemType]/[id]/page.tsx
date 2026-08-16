@@ -100,6 +100,10 @@ export default async function ItemDetailPage({
   const viewCost = canViewCost(profile);
   const ledger = (ledgerData ?? []) as LedgerRow[];
   const unitConversions = (conversionData ?? []) as UnitConversionRow[];
+  // Master units for the conversion-unit picker (ingredients only).
+  const unitCodes = config.dbType === "ingredient"
+    ? (((await supabase.from("units").select("code").order("is_system", { ascending: false }).order("code")).data ?? []) as { code: string }[]).map((u) => u.code)
+    : [];
   const setItems = (setItemsData ?? []) as unknown as { product_id: string; qty: number; product: { id: string; name: string; unit: string } | null }[];
   const usedInRecipes = ((usageData ?? []) as unknown as {
     quantity: number;
@@ -246,6 +250,7 @@ export default async function ItemDetailPage({
           purchaseUnitQty={item.purchase_unit_qty}
           canManualAdjust={isAdmin && (config.dbType === "ingredient" || config.dbType === "supply")}
           showReserved={config.stockMode === "full"}
+          units={unitCodes}
         />
       )}
     </div>
