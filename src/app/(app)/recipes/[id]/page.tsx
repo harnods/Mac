@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P, canAccessRecipeStation, canViewCost } from "@/lib/permissions";
 import { convertToPieces, formatNum } from "@/lib/units";
 import { formatRp, formatDate, updaterName } from "@/lib/format";
-import { Button } from "@/components/ui/button";
 import { Qty } from "@/components/ui/qty";
 import { DetailSection, DetailRow } from "@/components/ui/detail-list";
 import { RecipeDetailActions } from "@/components/recipes/recipe-detail-actions";
@@ -69,9 +68,7 @@ export default async function RecipeDetailPage({
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2">
-            <Link href="/recipes"><ArrowLeft className="size-4" /></Link>
-          </Button>
+          <DetailBackButton href="/recipes" />
           <h1 className="text-2xl font-semibold tracking-tight">{recipe.name}</h1>
         </div>
         {isAdmin && <RecipeDetailActions id={id} name={recipe.name} />}

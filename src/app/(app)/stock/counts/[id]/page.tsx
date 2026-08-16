@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft } from "lucide-react";
+import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { formatId, formatDateTime, updaterName } from "@/lib/format";
 import type { Updater } from "@/lib/supabase/types";
 import { CountWorkspace } from "@/components/stock/count-workspace";
@@ -95,11 +93,7 @@ export default async function StockCountDetailPage({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild className="-ml-2">
-            <Link href="/stock/counts">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
+          <DetailBackButton href="/stock/counts" />
           <h1 className="text-2xl font-semibold tracking-tight">
             Stock count {formatId(count.id)}
           </h1>
