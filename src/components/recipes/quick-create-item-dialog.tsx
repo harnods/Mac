@@ -39,7 +39,7 @@ type Props = {
 
 const TYPE_LABELS: Record<string, string> = {
   ingredient: "Ingredient",
-  supply: "Supply",
+  supply: "Asset",
   prep_item: "Prep item",
 };
 

@@ -11,7 +11,7 @@ type ActionResult = { ok: true } | { ok: false; error: string };
 export async function renameUnit(oldCode: string, raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.UNITS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = z.object({ code: z.string().trim().min(1).max(20) }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -55,7 +55,7 @@ export async function renameUnit(oldCode: string, raw: unknown): Promise<ActionR
 export async function createUnit(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.UNITS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = z.object({ code: z.string().trim().min(1).max(20) }).safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -71,7 +71,7 @@ export async function createUnit(raw: unknown): Promise<ActionResult> {
 export async function deleteUnit(code: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.UNITS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 

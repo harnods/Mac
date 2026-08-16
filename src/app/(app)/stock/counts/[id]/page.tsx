@@ -65,7 +65,8 @@ export default async function StockCountDetailPage({
   const { view } = await searchParams;
   const viewOnly = view === "1";
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.STOCK_WRITE);
+  if (!can(profile, P.STOCK_COUNTS_READ)) notFound();
+  const isAdmin = can(profile, P.STOCK_COUNTS_WRITE);
   const supabase = await createClient();
 
   const { data } = await supabase

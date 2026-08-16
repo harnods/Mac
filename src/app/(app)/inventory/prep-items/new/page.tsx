@@ -15,7 +15,7 @@ export default async function NewPrepItemPage() {
 
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (!can(profile, P.INVENTORY_WRITE)) redirect("/inventory/prep-items");
+  if (!can(profile, P.PREP_ITEMS_WRITE)) redirect("/inventory/prep-items");
 
   const supabase = await createClient();
   const { data: units } = await supabase

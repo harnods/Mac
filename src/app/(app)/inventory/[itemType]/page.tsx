@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, canViewCost, itemWritePermission, allowedRecipeStations, type RecipeStationKey } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission, itemReadPermission, allowedRecipeStations, type RecipeStationKey } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { formatQty } from "@/lib/units";
@@ -36,6 +37,7 @@ export default async function ItemTypePage({
   if (!config) notFound();
 
   const profile = await getCurrentProfile();
+  if (!can(profile, itemReadPermission(config.dbType))) return <AccessDenied label={config.label} />;
   const supabase = await createClient();
   const isAdmin = can(profile, itemWritePermission(config.dbType));
   // Cost is confidential — only the Super admin role may see it. Non-super-admins
@@ -78,10 +80,13 @@ export default async function ItemTypePage({
     if (hidden.length) query = query.not("id", "in", `(${hidden.join(",")})`);
   }
 
-  const [{ data: items, count }, { data: categories }] = await Promise.all([
+  const [{ data: items, count }, { data: categories }, { data: locationsData }] = await Promise.all([
     query,
     config.hasCategories
       ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
+      : Promise.resolve({ data: [] }),
+    config.dbType === "supply"
+      ? supabase.from("locations").select("id,name").order("name")
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -97,6 +102,7 @@ export default async function ItemTypePage({
         default_purchase_cost_unit: null,
       }));
   const cats = (categories ?? []) as Category[];
+  const locs = (locationsData ?? []) as { id: string; name: string }[];
   const linkedRecipeProductIds = new Set(productRecipes.map((r) => r.product_id));
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
@@ -162,6 +168,7 @@ export default async function ItemTypePage({
           <ItemBulkTable
             items={list}
             categories={cats}
+            locations={locs}
             isAdmin={isAdmin}
             itemTypeSlug={itemType as ItemTypeSlug}
             showPhoto={config.showPhoto}

@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, itemWritePermission } from "@/lib/permissions";
+import { can, P } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { CategoryManager } from "@/components/inventory/category-manager";
 import { AddCategoryButton } from "@/components/inventory/add-category-button";
 import { CategoriesFilter } from "@/components/inventory/categories-filter";
@@ -25,6 +26,7 @@ export default async function SettingsCategoryTypePage({
   if (!config) notFound();
 
   const profile = await getCurrentProfile();
+  if (!can(profile, P.CATEGORIES_READ)) return <AccessDenied label={config.label} />;
   const supabase = await createClient();
 
   let query = supabase
@@ -43,7 +45,7 @@ export default async function SettingsCategoryTypePage({
       .eq("type", config.dbType)
       .is("deleted_at", null),
   ]);
-  const isAdmin = can(profile, itemWritePermission(config.dbType));
+  const isAdmin = can(profile, P.CATEGORIES_WRITE);
 
   const itemCounts: Record<string, number> = {};
   for (const row of itemCategoryRows ?? []) {

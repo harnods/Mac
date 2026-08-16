@@ -46,7 +46,7 @@ export type CompletedCountItem = {
 
 const TYPE_LABEL: Record<string, string> = {
   ingredient: "Ingredient",
-  supply: "Supply",
+  supply: "Asset",
   product: "Product",
   prep_item: "Prep item",
 };

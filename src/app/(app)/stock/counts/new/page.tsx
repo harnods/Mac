@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function NewStockCountPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (!can(profile, P.STOCK_WRITE)) redirect("/stock/counts");
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) redirect("/stock/counts");
 
   const options = await getStockCountOptions();
   if (!options.ok) redirect("/stock/counts");

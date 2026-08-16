@@ -21,7 +21,7 @@ export default async function EditPrepItemPage({
 
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (!can(profile, P.INVENTORY_WRITE)) redirect(`/inventory/prep-items/${id}`);
+  if (!can(profile, P.PREP_ITEMS_WRITE)) redirect(`/inventory/prep-items/${id}`);
 
   const supabase = await createClient();
   const [{ data: item }, { data: units }, ...txResults] = await Promise.all([

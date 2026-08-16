@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { Suspense } from "react";
 import { AddUnitForm } from "@/components/inventory/add-unit-form";
 import { UnitsFilter } from "@/components/inventory/units-filter";
@@ -19,7 +20,8 @@ export default async function SettingsUnitsPage({
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
   const PAGE_SIZE = parsePageSize(rawSizeStr);
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  if (!can(profile, P.UNITS_READ)) return <AccessDenied label="Units" />;
+  const isAdmin = can(profile, P.UNITS_WRITE);
   const supabase = await createClient();
 
   let unitsQuery = supabase

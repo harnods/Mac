@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { CountsFilter } from "@/components/stock/counts-filter";
@@ -24,7 +25,8 @@ export default async function StockCountsPage({
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.STOCK_WRITE);
+  if (!can(profile, P.STOCK_COUNTS_READ)) return <AccessDenied label="Stock count" />;
+  const isAdmin = can(profile, P.STOCK_COUNTS_WRITE);
   const supabase = await createClient();
 
   let query = supabase

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, canViewCost, itemWritePermission, canAccessRecipeStation } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission, itemReadPermission, canAccessRecipeStation } from "@/lib/permissions";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
 import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import { LinkedRecipeIngredientsTable } from "@/components/inventory/linked-recipe-ingredients-table";
@@ -85,6 +85,7 @@ export default async function ItemDetailPage({
   ]);
 
   if (error || !data) notFound();
+  if (!can(profile, itemReadPermission(config.dbType))) notFound();
   // A product tied to a recipe station this role can't access is hidden entirely.
   if (
     config.dbType === "product" &&

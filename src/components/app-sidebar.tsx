@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ComponentType, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
+import { P, type PermissionKey } from "@/lib/permissions";
 import { OrderShiftSidebar } from "@/components/orders/order-shift-sidebar";
 import {
   ChevronRight,
@@ -31,31 +32,31 @@ import {
 
 type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
-type Leaf = { label: string; href: string };
+type Leaf = { label: string; href: string; perm?: PermissionKey };
 type Heading = { heading: string };
 type Child = Leaf | "divider" | Heading;
 type MenuNode =
-  | { label: string; icon: NavIcon; href: string; children?: undefined }
+  | { label: string; icon: NavIcon; href: string; perm?: PermissionKey; children?: undefined }
   | { label: string; icon: NavIcon; href?: undefined; children: Child[] };
 
 const MENU: MenuNode[] = [
-  { label: "Products", icon: ProductsIcon, href: "/inventory/products" },
+  { label: "Products", icon: ProductsIcon, href: "/inventory/products", perm: P.PRODUCTS_READ },
   {
     label: "Inventory",
     icon: InventoryIcon,
     children: [
-      { label: "Ingredients", href: "/inventory/ingredients" },
-      { label: "Supplies", href: "/inventory/supplies" },
-      { label: "Prep items", href: "/inventory/prep-items" },
+      { label: "Ingredients", href: "/inventory/ingredients", perm: P.INGREDIENTS_READ },
+      { label: "Assets", href: "/inventory/supplies", perm: P.ASSETS_READ },
+      { label: "Prep items", href: "/inventory/prep-items", perm: P.PREP_ITEMS_READ },
       "divider",
-      { label: "Stock adjustments", href: "/stock/adjustments" },
-      { label: "Stock count", href: "/stock/counts" },
+      { label: "Stock adjustments", href: "/stock/adjustments", perm: P.STOCK_ADJUSTMENTS_READ },
+      { label: "Stock count", href: "/stock/counts", perm: P.STOCK_COUNTS_READ },
       "divider",
-      { label: "Ingredients categories", href: "/inventory/categories/ingredients" },
-      { label: "Supplies categories", href: "/inventory/categories/supplies" },
-      { label: "Product categories", href: "/inventory/categories/products" },
-      { label: "Units", href: "/inventory/units" },
-      { label: "Locations", href: "/inventory/locations" },
+      { label: "Ingredients categories", href: "/inventory/categories/ingredients", perm: P.CATEGORIES_READ },
+      { label: "Asset categories", href: "/inventory/categories/supplies", perm: P.CATEGORIES_READ },
+      { label: "Product categories", href: "/inventory/categories/products", perm: P.CATEGORIES_READ },
+      { label: "Units", href: "/inventory/units", perm: P.UNITS_READ },
+      { label: "Locations", href: "/inventory/locations", perm: P.LOCATIONS_READ },
     ],
   },
   { label: "Recipes", icon: RecipesIcon, href: "/recipes" },
@@ -142,13 +143,48 @@ function isNodeActive(pathname: string, node: MenuNode) {
   return isLeafActive(pathname, node.href);
 }
 
-export function AppSidebar({ canHr = true }: { canHr?: boolean }) {
+function allowedLeaf(perm: string | undefined, permissions: string[]) {
+  return !perm || permissions.includes(perm);
+}
+
+/** Drop leading/trailing dividers and collapse consecutive ones. */
+function cleanChildren(children: Child[]): Child[] {
+  const out: Child[] = [];
+  for (const c of children) {
+    if (c === "divider" && (out.length === 0 || out[out.length - 1] === "divider")) continue;
+    out.push(c);
+  }
+  while (out.length && out[out.length - 1] === "divider") out.pop();
+  return out;
+}
+
+/** Hide leaves the role can't read; drop groups left with no visible leaf. */
+export function filterMenu(menu: MenuNode[], permissions: string[]): MenuNode[] {
+  const result: MenuNode[] = [];
+  for (const node of menu) {
+    if (node.children) {
+      const kids = node.children.filter((c) =>
+        c === "divider" || "heading" in c ? true : allowedLeaf(c.perm, permissions),
+      );
+      const cleaned = cleanChildren(kids);
+      if (cleaned.some((c) => c !== "divider" && !("heading" in c))) {
+        result.push({ ...node, children: cleaned });
+      }
+    } else if (allowedLeaf(node.perm, permissions)) {
+      result.push(node);
+    }
+  }
+  return result;
+}
+
+export function AppSidebar({ canHr = true, permissions = [] }: { canHr?: boolean; permissions?: string[] }) {
   const pathname = usePathname();
   const rail = RAIL.filter((r) => r.label !== "HR" || canHr);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const isOrders = pathname.startsWith("/orders");
   const isHr = pathname.startsWith("/hr");
-  const menu = isOrders ? ORDERS_MENU : isHr ? HR_MENU : MENU;
+  const rawMenu = isOrders ? ORDERS_MENU : isHr ? HR_MENU : MENU;
+  const menu = filterMenu(rawMenu, permissions);
   const title = "Mac";
   const homeHref = isOrders ? "/orders" : isHr ? "/hr/crew" : "/inventory/ingredients";
 

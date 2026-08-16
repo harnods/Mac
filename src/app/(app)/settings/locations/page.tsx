@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { Suspense } from "react";
 import { AddLocationForm } from "@/components/inventory/add-location-form";
 import { LocationsFilter } from "@/components/inventory/locations-filter";
@@ -20,7 +21,8 @@ export default async function SettingsLocationsPage({
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
   const PAGE_SIZE = parsePageSize(rawSizeStr);
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  if (!can(profile, P.LOCATIONS_READ)) return <AccessDenied label="Locations" />;
+  const isAdmin = can(profile, P.LOCATIONS_WRITE);
   const supabase = await createClient();
 
   let query = supabase.from("locations").select("id, name").order("name");

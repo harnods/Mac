@@ -26,6 +26,7 @@ type Category = { id: string; name: string };
 type Props = {
   items: ItemWithCategory[];
   categories: Category[];
+  locations?: { id: string; name: string }[];
   isAdmin: boolean;
   itemTypeSlug: ItemTypeSlug;
   showPhoto?: boolean;
@@ -41,13 +42,14 @@ type Props = {
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, isAdmin, itemTypeSlug, showPhoto = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
+  items, categories, locations = [], isAdmin, itemTypeSlug, showPhoto = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editCategoryId, setEditCategoryId] = useState<string>("");
+  const [editLocationId, setEditLocationId] = useState<string>("");
   const [pending, startTransition] = useTransition();
   const columns = getItemColumns({
     showCategory, showLocation, stockMode, showCost, showSellable, showDefaultCost,
@@ -94,6 +96,8 @@ export function ItemBulkTable({
     const patch: Record<string, unknown> = {};
     if (editCategoryId === NONE) patch.category_id = null;
     else if (editCategoryId) patch.category_id = editCategoryId;
+    if (editLocationId === NONE) patch.location_id = null;
+    else if (editLocationId) patch.location_id = editLocationId;
     if (!Object.keys(patch).length) { toast.error("Nothing to change"); return; }
 
     startTransition(async () => {
@@ -103,6 +107,7 @@ export function ItemBulkTable({
       setSelected(new Set());
       setEditOpen(false);
       setEditCategoryId("");
+      setEditLocationId("");
       router.refresh();
     });
   }
@@ -120,8 +125,8 @@ export function ItemBulkTable({
             <X className="size-3.5" />
           </button>
           <div className="flex gap-2 ml-auto">
-            {showCategory && categories.length > 0 && (
-              <Button size="sm" variant="outline" onClick={() => { setEditCategoryId(""); setEditOpen(true); }}>
+            {((showCategory && categories.length > 0) || showLocation) && (
+              <Button size="sm" variant="outline" onClick={() => { setEditCategoryId(""); setEditLocationId(""); setEditOpen(true); }}>
                 <Pencil className="size-3.5" /> Edit
               </Button>
             )}
@@ -223,25 +228,44 @@ export function ItemBulkTable({
             <DialogTitle>Edit {selected.size} item{selected.size !== 1 ? "s" : ""}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-1">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Category</label>
-              <Select value={editCategoryId || "__unchanged__"} onValueChange={(v) => setEditCategoryId(v === "__unchanged__" ? "" : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="— Keep unchanged —" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__unchanged__">— Keep unchanged —</SelectItem>
-                  <SelectItem value={NONE}>Uncategorized</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {showCategory && categories.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Category</label>
+                <Select value={editCategoryId || "__unchanged__"} onValueChange={(v) => setEditCategoryId(v === "__unchanged__" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="— Keep unchanged —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unchanged__">— Keep unchanged —</SelectItem>
+                    <SelectItem value={NONE}>Uncategorized</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {showLocation && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Location</label>
+                <Select value={editLocationId || "__unchanged__"} onValueChange={(v) => setEditLocationId(v === "__unchanged__" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="— Keep unchanged —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unchanged__">— Keep unchanged —</SelectItem>
+                    <SelectItem value={NONE}>No location</SelectItem>
+                    {locations.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleBulkEdit} disabled={pending || !editCategoryId}>
+            <Button onClick={handleBulkEdit} disabled={pending || (!editCategoryId && !editLocationId)}>
               {pending ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>

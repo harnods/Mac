@@ -1,9 +1,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
-import { canAccessHr } from "@/lib/permissions";
+import { createClient } from "@/lib/supabase/server";
+import { canAccessHr, isSuperRole } from "@/lib/permissions";
 import { NoAccessScreen } from "@/components/no-access-screen";
 import { UserMenu } from "@/components/user-menu";
+import { ViewAsBanner } from "@/components/view-as-banner";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MainNavMobile } from "@/components/main-nav-mobile";
 import { PerfBadge } from "@/components/perf-badge";
@@ -27,18 +29,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const canHr = canAccessHr(profile);
 
+  // Roles list for the Super admin "View as" preview switcher.
+  const isRealSuperAdmin = !!profile.viewingAsRole || isSuperRole(profile.role);
+  let roleNames: string[] = [];
+  if (isRealSuperAdmin) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("roles").select("name").order("name");
+    roleNames = (data ?? []).map((r: { name: string }) => r.name);
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafe]">
-      <AppSidebar canHr={canHr} />
+      <AppSidebar canHr={canHr} permissions={profile.permissions} />
 
       <div className="flex-1 flex flex-col min-w-0">
+        {profile.viewingAsRole && <ViewAsBanner role={profile.viewingAsRole} />}
         <header className="h-[72px] shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3 md:hidden">
-            <MainNavMobile canHr={canHr} />
+            <MainNavMobile canHr={canHr} permissions={profile.permissions} />
             <span className="text-2xl font-bold tracking-tight text-[#0a0a0a]">Mac</span>
           </div>
           <div className="ml-auto">
-            <UserMenu profile={profile} />
+            <UserMenu profile={profile} roles={roleNames} viewingAsRole={profile.viewingAsRole ?? null} />
           </div>
         </header>
 

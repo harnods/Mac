@@ -23,7 +23,7 @@ type ItemTypeConfig = {
 
 export const ITEM_TYPE_CONFIG: Record<ItemTypeSlug, ItemTypeConfig> = {
   ingredients:  { dbType: 'ingredient', label: 'Ingredients', singular: 'Ingredient', hasCategories: true,  stockMode: 'full',      showCost: true,  showSellable: false, showDefaultCost: true,  showPhoto: false, catSlug: 'ingredients' },
-  supplies:     { dbType: 'supply',     label: 'Supplies',    singular: 'Supply',     hasCategories: true,  stockMode: 'available', showCost: true,  showSellable: false, showDefaultCost: false, showPhoto: true,  catSlug: 'supplies' },
+  supplies:     { dbType: 'supply',     label: 'Assets',      singular: 'Asset',      hasCategories: true,  stockMode: 'available', showCost: true,  showSellable: false, showDefaultCost: false, showPhoto: true,  catSlug: 'supplies' },
   products:     { dbType: 'product',    label: 'Products',    singular: 'Product',    hasCategories: true,  stockMode: 'none',      showCost: false, showSellable: true,  showDefaultCost: false, showPhoto: true,  catSlug: 'products' },
   'prep-items': { dbType: 'prep_item',  label: 'Prep items',  singular: 'Prep item',  hasCategories: false, stockMode: 'available', showCost: false, showSellable: false, showDefaultCost: false, showPhoto: false, catSlug: null },
 };
@@ -36,7 +36,7 @@ type CategoryTypeConfig = {
 
 export const CATEGORY_TYPE_CONFIG: Record<CategoryTypeSlug, CategoryTypeConfig> = {
   ingredients: { dbType: 'ingredient', label: 'Ingredients categories', itemSlug: 'ingredients' },
-  supplies:    { dbType: 'supply',     label: 'Supply categories',      itemSlug: 'supplies' },
+  supplies:    { dbType: 'supply',     label: 'Asset categories',       itemSlug: 'supplies' },
   products:    { dbType: 'product',    label: 'Product categories',     itemSlug: 'products' },
 };
 

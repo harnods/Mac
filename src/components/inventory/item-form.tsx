@@ -315,7 +315,7 @@ export function ItemForm({ categories, units: initialUnits, locations = [], item
               <div className="size-32 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
                 {imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt={name || "Supply"} className="size-full object-cover" />
+                  <img src={imageUrl} alt={name || "Asset"} className="size-full object-cover" />
                 ) : (
                   <ImagePlus className="size-7 text-muted-foreground" />
                 )}

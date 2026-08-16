@@ -36,7 +36,7 @@ const ALL_TYPES = "__all__";
 
 const TYPE_LABEL: Record<string, string> = {
   ingredient: "Ingredient",
-  supply: "Supply",
+  supply: "Asset",
   prep_item: "Prep item",
 };
 
@@ -163,7 +163,7 @@ export function CountForm({
               <SelectContent>
                 <SelectItem value={ALL_TYPES}>All types</SelectItem>
                 <SelectItem value="ingredient">Ingredients</SelectItem>
-                <SelectItem value="supply">Supplies</SelectItem>
+                <SelectItem value="supply">Assets</SelectItem>
                 <SelectItem value="prep_item">Prep items</SelectItem>
               </SelectContent>
             </Select>

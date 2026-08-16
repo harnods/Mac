@@ -10,8 +10,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { P } from "@/lib/permissions";
 
-export function MainNavMobile({ canHr = true }: { canHr?: boolean }) {
+export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: boolean; permissions?: string[] }) {
+  const has = (perm: string) => permissions.includes(perm);
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -38,36 +40,57 @@ export function MainNavMobile({ canHr = true }: { canHr?: boolean }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Inventory</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/inventory/ingredients" className="cursor-pointer">Ingredients</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/inventory/supplies" className="cursor-pointer">Supplies</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/inventory/products" className="cursor-pointer">Products</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/inventory/prep-items" className="cursor-pointer">Prep items</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/stock/adjustments" className="cursor-pointer">Stock adjustment</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
-        </DropdownMenuItem>
+        {has(P.INGREDIENTS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/inventory/ingredients" className="cursor-pointer">Ingredients</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.ASSETS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/inventory/supplies" className="cursor-pointer">Assets</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.PRODUCTS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/inventory/products" className="cursor-pointer">Products</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.PREP_ITEMS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/inventory/prep-items" className="cursor-pointer">Prep items</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.STOCK_ADJUSTMENTS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/stock/adjustments" className="cursor-pointer">Stock adjustment</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.STOCK_COUNTS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.CATEGORIES_READ) && (<>
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Asset categories</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
+          </DropdownMenuItem>
+        </>)}
+        {has(P.UNITS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
+          </DropdownMenuItem>
+        )}
+        {has(P.LOCATIONS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/settings/locations" className="cursor-pointer">Locations</Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Recipes</DropdownMenuLabel>
         <DropdownMenuItem asChild>
@@ -88,18 +111,6 @@ export function MainNavMobile({ canHr = true }: { canHr?: boolean }) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/categories/ingredients" className="cursor-pointer">Ingredients categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/categories/supplies" className="cursor-pointer">Supplies categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/categories/products" className="cursor-pointer">Products categories</Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/settings/units" className="cursor-pointer">Units</Link>
-        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/settings/roles" className="cursor-pointer">Roles &amp; permissions</Link>
         </DropdownMenuItem>

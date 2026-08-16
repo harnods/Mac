@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AdjustmentsFilter } from "@/components/stock/adjustments-filter";
@@ -22,7 +23,8 @@ export default async function StockAdjustmentsPage({
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
   const PAGE_SIZE = parsePageSize(rawSizeStr);
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.STOCK_WRITE);
+  if (!can(profile, P.STOCK_ADJUSTMENTS_READ)) return <AccessDenied label="Stock adjustments" />;
+  const isAdmin = can(profile, P.STOCK_ADJUSTMENTS_WRITE);
   const supabase = await createClient();
 
   let query = supabase

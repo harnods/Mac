@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function NewStockAdjustmentPage() {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
-  if (!can(profile, P.STOCK_WRITE)) redirect("/stock/adjustments");
+  if (!can(profile, P.STOCK_ADJUSTMENTS_WRITE)) redirect("/stock/adjustments");
 
   const supabase = await createClient();
 

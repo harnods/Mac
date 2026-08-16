@@ -62,7 +62,7 @@ const createAdjustmentSchema = z.object({
 export async function createStockAdjustment(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_ADJUSTMENTS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = createAdjustmentSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -162,7 +162,7 @@ export async function getStockCountOptions(): Promise<
 > {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const [{ data: items }, { data: categories }, { data: completedCounts }] = await Promise.all([
@@ -209,7 +209,7 @@ export async function getStockCountOptions(): Promise<
 export async function createStockCount(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = createCountSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -297,7 +297,7 @@ const updateCountSchema = z.object({
 export async function startStockCount(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 
@@ -330,7 +330,7 @@ export async function startStockCount(id: string): Promise<ActionResult> {
 export async function saveStockCountDraft(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = updateCountSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -379,7 +379,7 @@ export async function saveStockCountDraft(raw: unknown): Promise<ActionResult> {
 export async function finishStockCount(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = updateCountSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -481,7 +481,7 @@ export async function completeStockCount(id: string): Promise<ActionResult> {
 export async function deleteStockCount(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { data: count } = await supabase.from("stock_counts").select("id, status").eq("id", id).maybeSingle();
@@ -500,7 +500,7 @@ export async function deleteStockCount(id: string): Promise<ActionResult> {
 export async function updateCountItemNote(itemId: string, note: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.STOCK_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
   const { data: it } = await supabase.from("stock_count_items").select("id, count_id").eq("id", itemId).maybeSingle();

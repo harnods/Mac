@@ -13,7 +13,7 @@ const locationSchema = z.object({ name: z.string().trim().min(1).max(80) });
 export async function createLocation(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.LOCATIONS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = locationSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -34,7 +34,7 @@ export async function createLocation(raw: unknown): Promise<ActionResult> {
 export async function updateLocation(id: string, raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.LOCATIONS_WRITE)) return { ok: false, error: "No permission" };
 
   const parsed = locationSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -54,7 +54,7 @@ export async function updateLocation(id: string, raw: unknown): Promise<ActionRe
 export async function deleteLocation(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.INVENTORY_WRITE)) return { ok: false, error: "No permission" };
+  if (!can(profile, P.LOCATIONS_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
 

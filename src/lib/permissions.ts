@@ -1,9 +1,24 @@
 // Permission key constants — use these everywhere instead of bare strings
 export const P = {
-  INVENTORY_READ:       'inventory:read',
-  INVENTORY_WRITE:      'inventory:write',
+  // Inventory is split per sub-module — each has its own View/Manage pair.
+  INGREDIENTS_READ:     'ingredients:read',
+  INGREDIENTS_WRITE:    'ingredients:write',
+  ASSETS_READ:          'assets:read',
+  ASSETS_WRITE:         'assets:write',
+  PREP_ITEMS_READ:      'prep_items:read',
+  PREP_ITEMS_WRITE:     'prep_items:write',
   PRODUCTS_READ:        'products:read',
   PRODUCTS_WRITE:       'products:write',
+  CATEGORIES_READ:      'categories:read',
+  CATEGORIES_WRITE:     'categories:write',
+  UNITS_READ:           'units:read',
+  UNITS_WRITE:          'units:write',
+  LOCATIONS_READ:       'locations:read',
+  LOCATIONS_WRITE:      'locations:write',
+  STOCK_ADJUSTMENTS_READ:  'stock_adjustments:read',
+  STOCK_ADJUSTMENTS_WRITE: 'stock_adjustments:write',
+  STOCK_COUNTS_READ:    'stock_counts:read',
+  STOCK_COUNTS_WRITE:   'stock_counts:write',
   RECIPES_READ:         'recipes:read',
   RECIPES_WRITE:        'recipes:write',
   RECIPES_BAR:          'recipes:bar',
@@ -17,8 +32,6 @@ export const P = {
   PURCHASING_REQUEST:   'purchasing:request',
   PURCHASING_PURCHASE:  'purchasing:purchase',
   PURCHASING_APPROVE:   'purchasing:approve',
-  STOCK_READ:           'stock:read',
-  STOCK_WRITE:          'stock:write',
   EMPLOYEES_READ:       'employees:read',
   EMPLOYEES_WRITE:      'employees:write',
   EMPLOYEES_ACCESS:     'employees:access',
@@ -50,22 +63,42 @@ export function roleLabel(roleName: string | null | undefined): string {
 
 // Groups for the settings UI
 export const PERMISSION_MODULES = [
-  { module: 'inventory',   label: 'Inventory',   keys: [P.INVENTORY_READ, P.INVENTORY_WRITE] },
-  { module: 'products',    label: 'Products',    keys: [P.PRODUCTS_READ, P.PRODUCTS_WRITE] },
+  { module: 'ingredients',       label: 'Ingredients',       keys: [P.INGREDIENTS_READ, P.INGREDIENTS_WRITE] },
+  { module: 'assets',            label: 'Assets',            keys: [P.ASSETS_READ, P.ASSETS_WRITE] },
+  { module: 'prep_items',        label: 'Prep items',        keys: [P.PREP_ITEMS_READ, P.PREP_ITEMS_WRITE] },
+  { module: 'products',          label: 'Products',          keys: [P.PRODUCTS_READ, P.PRODUCTS_WRITE] },
+  { module: 'categories',        label: 'Categories',        keys: [P.CATEGORIES_READ, P.CATEGORIES_WRITE] },
+  { module: 'units',             label: 'Units',             keys: [P.UNITS_READ, P.UNITS_WRITE] },
+  { module: 'locations',         label: 'Locations',         keys: [P.LOCATIONS_READ, P.LOCATIONS_WRITE] },
+  { module: 'stock_adjustments', label: 'Stock adjustments', keys: [P.STOCK_ADJUSTMENTS_READ, P.STOCK_ADJUSTMENTS_WRITE] },
+  { module: 'stock_counts',      label: 'Stock counts',      keys: [P.STOCK_COUNTS_READ, P.STOCK_COUNTS_WRITE] },
   { module: 'recipes',     label: 'Recipes',     keys: [P.RECIPES_READ, P.RECIPES_WRITE, P.RECIPES_BAR, P.RECIPES_KITCHEN] },
   { module: 'prep_orders', label: 'Prep Orders', keys: [P.PREP_ORDERS_READ, P.PREP_ORDERS_WRITE, P.PREP_ORDERS_COMPLETE] },
   { module: 'sales',       label: 'Sales',       keys: [P.SALES_READ, P.SALES_WRITE] },
   { module: 'purchasing',  label: 'Purchasing',  keys: [P.PURCHASING_READ, P.PURCHASING_REQUEST, P.PURCHASING_PURCHASE, P.PURCHASING_APPROVE] },
-  { module: 'stock',       label: 'Stock',       keys: [P.STOCK_READ, P.STOCK_WRITE] },
   { module: 'employees',   label: 'Employees',   keys: [P.EMPLOYEES_READ, P.EMPLOYEES_WRITE, P.EMPLOYEES_ACCESS, P.EMPLOYEES_COMPENSATION] },
   { module: 'settings',    label: 'Settings',    keys: [P.SETTINGS_ROLES] },
 ] as const;
 
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
-  'inventory:read':       'View',
-  'inventory:write':      'Add / edit / delete',
+  'ingredients:read':     'View',
+  'ingredients:write':    'Add / edit / delete',
+  'assets:read':          'View',
+  'assets:write':         'Add / edit / delete',
+  'prep_items:read':      'View',
+  'prep_items:write':     'Add / edit / delete',
   'products:read':        'View',
   'products:write':       'Add / edit / delete',
+  'categories:read':      'View',
+  'categories:write':     'Add / edit / delete',
+  'units:read':           'View',
+  'units:write':          'Add / edit / delete',
+  'locations:read':       'View',
+  'locations:write':      'Add / edit / delete',
+  'stock_adjustments:read':  'View',
+  'stock_adjustments:write': 'Create adjustments',
+  'stock_counts:read':    'View',
+  'stock_counts:write':   'Create & edit counts',
   'recipes:read':         'View',
   'recipes:write':        'Add / edit / delete',
   'recipes:bar':          'Limit to Bar recipes',
@@ -79,8 +112,6 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'purchasing:request':   'Create requests',
   'purchasing:purchase':  'Record purchases',
   'purchasing:approve':   'Approve / reject',
-  'stock:read':           'View',
-  'stock:write':          'Adjustments & counts',
   'employees:read':       'View',
   'employees:write':      'Add / edit / delete',
   'employees:access':     'Grant / revoke login',
@@ -97,16 +128,31 @@ export function can(
 }
 
 /**
- * Item write/read is governed by two modules: Products has its own permission,
- * everything else (ingredients, supplies, prep items) falls under Inventory.
- * `dbType` is the item's `type` column ('product' | 'ingredient' | 'supply' |
- * 'prep_item'). Use these so a page/action picks the right permission by type.
+ * Each inventory item type has its own View/Manage permission. `dbType` is the
+ * item's `type` column ('ingredient' | 'supply' | 'prep_item' | 'product').
+ * ('supply' surfaces to users as "Assets".)
  */
-export function itemWritePermission(dbType: string | null | undefined): PermissionKey {
-  return dbType === 'product' ? P.PRODUCTS_WRITE : P.INVENTORY_WRITE;
+export function itemWritePermission(dbType?: string | null): PermissionKey {
+  switch (dbType) {
+    case 'supply':    return P.ASSETS_WRITE;
+    case 'prep_item': return P.PREP_ITEMS_WRITE;
+    case 'product':   return P.PRODUCTS_WRITE;
+    default:          return P.INGREDIENTS_WRITE;
+  }
 }
-export function itemReadPermission(dbType: string | null | undefined): PermissionKey {
-  return dbType === 'product' ? P.PRODUCTS_READ : P.INVENTORY_READ;
+export function itemReadPermission(dbType?: string | null): PermissionKey {
+  switch (dbType) {
+    case 'supply':    return P.ASSETS_READ;
+    case 'prep_item': return P.PREP_ITEMS_READ;
+    case 'product':   return P.PRODUCTS_READ;
+    default:          return P.INGREDIENTS_READ;
+  }
+}
+export function canReadItemType(
+  profile: { permissions: string[] } | null | undefined,
+  dbType: string | null | undefined,
+): boolean {
+  return can(profile, itemReadPermission(dbType));
 }
 export function canWriteItemType(
   profile: { permissions: string[] } | null | undefined,

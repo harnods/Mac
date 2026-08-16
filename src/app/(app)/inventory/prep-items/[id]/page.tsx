@@ -32,7 +32,8 @@ export default async function PrepItemDetailPage({
 }) {
   const { id } = await params;
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  if (!can(profile, P.PREP_ITEMS_READ)) notFound();
+  const isAdmin = can(profile, P.PREP_ITEMS_WRITE);
   const supabase = await createClient();
 
   const [{ data: itemData, error }, { data: ordersData }, { data: recipeData }] =

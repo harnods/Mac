@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { AccessDenied } from "@/components/access-denied";
 import { Button } from "@/components/ui/button";
 import { ImportItemsButton } from "@/components/inventory/import-items-button";
 import { ItemsFilter } from "@/components/inventory/items-filter";
@@ -37,7 +38,8 @@ export default async function PrepItemsPage({
   const to = from + PAGE_SIZE - 1;
 
   const profile = await getCurrentProfile();
-  const isAdmin = can(profile, P.INVENTORY_WRITE);
+  if (!can(profile, P.PREP_ITEMS_READ)) return <AccessDenied label="Prep items" />;
+  const isAdmin = can(profile, P.PREP_ITEMS_WRITE);
   const supabase = await createClient();
 
   let itemsQuery = supabase
