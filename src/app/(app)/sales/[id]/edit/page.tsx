@@ -22,11 +22,13 @@ export default async function EditSalesEntryPage({
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("sales_entries")
-    .select("id, entry_date, shift, notes, total_discount, gross_sales")
+    .select("id, entry_date, shift, notes, total_discount, gross_sales, sales_entry_payments(method, amount)")
     .eq("id", id)
     .maybeSingle();
 
   if (error || !data) notFound();
+  const payments = ((data as unknown as { sales_entry_payments?: { method: string; amount: number }[] }).sales_entry_payments ?? [])
+    .map((p) => ({ method: p.method, amount: Number(p.amount) }));
 
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">
@@ -44,6 +46,7 @@ export default async function EditSalesEntryPage({
           shift: data.shift ?? "",
           notes: data.notes ?? "",
           total_discount: Number(data.total_discount ?? 0),
+          payments,
         }}
       />
     </div>

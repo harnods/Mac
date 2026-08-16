@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { parseDecimal } from "@/lib/units";
 import { formatRp } from "@/lib/format";
 import { updateSalesEntry } from "@/app/actions/sales";
@@ -22,7 +24,7 @@ export function SalesEditForm({
 }: {
   id: string;
   grossSales: number;
-  initial: { entry_date: string; shift: string; notes: string; total_discount: number };
+  initial: { entry_date: string; shift: string; notes: string; total_discount: number; payments: { method: string; amount: number }[] };
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -30,18 +32,30 @@ export function SalesEditForm({
   const [shift, setShift] = useState(initial.shift);
   const [notes, setNotes] = useState(initial.notes);
   const [discountText, setDiscountText] = useState(initial.total_discount ? String(initial.total_discount) : "");
+  const [payments, setPayments] = useState<{ key: string; method: string; amount: string }[]>(
+    initial.payments.length
+      ? initial.payments.map((p) => ({ key: crypto.randomUUID(), method: p.method, amount: String(p.amount) }))
+      : [{ key: crypto.randomUUID(), method: "", amount: "" }],
+  );
 
   const discount = Math.min(discountText.trim() ? parseDecimal(discountText) : 0, grossSales);
   const serviceCharge = Math.round(grossSales * SERVICE_CHARGE_RATE);
   const taxTotal = Math.round((grossSales - discount + serviceCharge) * TAX_RATE);
   const netSales = grossSales - discount + serviceCharge + taxTotal;
 
+  const filledPayments = payments.filter((p) => p.method.trim() && p.amount.trim());
+  const allocated = filledPayments.reduce((s, p) => s + parseDecimal(p.amount), 0);
+  const paymentRemaining = netSales - allocated;
+  const paymentsBalanced = filledPayments.length === 0 || Math.round(allocated) === Math.round(netSales);
+
   function handleSubmit() {
+    if (!paymentsBalanced) { toast.error("Payment total must equal net sales"); return; }
     start(async () => {
       const res = await updateSalesEntry(id, {
         entry_date: entryDate,
         shift: shift || undefined,
         total_discount: discountText.trim() ? parseDecimal(discountText) : 0,
+        payments: filledPayments.map((p) => ({ method: p.method.trim(), amount: parseDecimal(p.amount) })),
         notes: notes || undefined,
       });
       if (!res.ok) { toast.error(res.error); return; }
@@ -99,9 +113,46 @@ export function SalesEditForm({
         </p>
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold">Payment methods</h2>
+        <div className="space-y-2">
+          {payments.map((p) => (
+            <div key={p.key} className="flex items-center gap-2">
+              <Input
+                value={p.method}
+                onChange={(e) => setPayments((prev) => prev.map((x) => (x.key === p.key ? { ...x, method: e.target.value } : x)))}
+                placeholder="e.g. EDC Bank Mandiri, QRIS, Cash"
+                maxLength={60}
+                className="flex-1"
+              />
+              <div className="w-40">
+                <DecimalInput
+                  value={p.amount}
+                  onValueChange={(v) => setPayments((prev) => prev.map((x) => (x.key === p.key ? { ...x, amount: v } : x)))}
+                  className="h-10 text-right"
+                />
+              </div>
+              <Button type="button" variant="ghost" size="icon" className="shrink-0 text-destructive hover:text-destructive"
+                onClick={() => setPayments((prev) => (prev.length > 1 ? prev.filter((x) => x.key !== p.key) : prev))}>
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => setPayments((prev) => [...prev, { key: crypto.randomUUID(), method: "", amount: "" }])}>
+          <Plus className="size-4" /> Add payment method
+        </Button>
+        <div className={cn("flex items-center justify-between text-sm rounded-md px-3 py-2", paymentsBalanced ? "bg-muted/40" : "bg-destructive/10 text-destructive")}>
+          <span>Allocated {formatRp(allocated)} / Net {formatRp(netSales)}</span>
+          <span className="tabular-nums font-medium">
+            {paymentRemaining === 0 ? "Balanced" : `${paymentRemaining > 0 ? "Remaining" : "Over"} ${formatRp(Math.abs(paymentRemaining))}`}
+          </span>
+        </div>
+      </section>
+
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={() => router.push(`/sales/${id}`)} disabled={pending}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={pending}>{pending ? "Saving..." : "Save changes"}</Button>
+        <Button onClick={handleSubmit} disabled={pending || !paymentsBalanced}>{pending ? "Saving..." : "Save changes"}</Button>
       </div>
     </div>
   );

@@ -14,10 +14,16 @@ type ActionResult = { ok: true; id: string } | { ok: false; error: string };
 const SERVICE_CHARGE_RATE = 0.05;
 const TAX_RATE = 0.10;
 
+const paymentSchema = z.object({
+  method: z.string().trim().min(1, "Payment method is required").max(60),
+  amount: z.coerce.number().nonnegative(),
+});
+
 const createSalesEntrySchema = z.object({
   entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   shift: z.string().trim().max(60).optional(),
   total_discount: z.coerce.number().nonnegative().optional().default(0),
+  payments: z.array(paymentSchema).optional().default([]),
   notes: z.string().max(500).optional(),
   items: z.array(
     z.object({
@@ -35,7 +41,7 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
 
   const parsed = createSalesEntrySchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { entry_date, shift, total_discount, notes, items } = parsed.data;
+  const { entry_date, shift, total_discount, payments, notes, items } = parsed.data;
 
   // Check for duplicate products
   const productIds = items.map((i) => i.product_id);
@@ -55,6 +61,13 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
   const taxTotal = Math.round((grossSales - discount + serviceCharge) * TAX_RATE);
   const netSales = grossSales - discount + serviceCharge + taxTotal;
 
+  // Payments (how net sales was collected) must reconcile to net sales.
+  if (payments.length) {
+    const paySum = payments.reduce((s, p) => s + p.amount, 0);
+    if (Math.round(paySum) !== Math.round(netSales))
+      return { ok: false, error: `Payments (Rp ${Math.round(paySum).toLocaleString("id-ID")}) must equal net sales (Rp ${Math.round(netSales).toLocaleString("id-ID")})` };
+  }
+
   // Create the sales entry
   const { data: entry, error: entryError } = await supabase
     .from("sales_entries")
@@ -73,6 +86,14 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
     .single();
 
   if (entryError || !entry) return { ok: false, error: entryError?.message ?? "Failed to create sales entry" };
+
+  // Payment split
+  if (payments.length) {
+    const { error: payError } = await supabase
+      .from("sales_entry_payments")
+      .insert(payments.map((p) => ({ entry_id: entry.id, method: p.method, amount: p.amount })));
+    if (payError) return { ok: false, error: payError.message };
+  }
 
   // Insert line items
   const { error: lineError } = await supabase
@@ -216,6 +237,7 @@ const updateSalesEntrySchema = z.object({
   entry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   shift: z.string().trim().max(60).optional(),
   total_discount: z.coerce.number().nonnegative().optional().default(0),
+  payments: z.array(paymentSchema).optional().default([]),
   notes: z.string().max(500).optional(),
 });
 
@@ -231,7 +253,7 @@ export async function updateSalesEntry(id: string, raw: unknown): Promise<Action
 
   const parsed = updateSalesEntrySchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { entry_date, shift, total_discount, notes } = parsed.data;
+  const { entry_date, shift, total_discount, payments, notes } = parsed.data;
 
   const supabase = await createClient();
   const { data: existing } = await supabase
@@ -247,6 +269,12 @@ export async function updateSalesEntry(id: string, raw: unknown): Promise<Action
   const taxTotal = Math.round((grossSales - discount + serviceCharge) * TAX_RATE);
   const netSales = grossSales - discount + serviceCharge + taxTotal;
 
+  if (payments.length) {
+    const paySum = payments.reduce((s, p) => s + p.amount, 0);
+    if (Math.round(paySum) !== Math.round(netSales))
+      return { ok: false, error: `Payments (Rp ${Math.round(paySum).toLocaleString("id-ID")}) must equal net sales (Rp ${Math.round(netSales).toLocaleString("id-ID")})` };
+  }
+
   const { error } = await supabase
     .from("sales_entries")
     .update({
@@ -260,6 +288,15 @@ export async function updateSalesEntry(id: string, raw: unknown): Promise<Action
     })
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  // Replace the payment split.
+  await supabase.from("sales_entry_payments").delete().eq("entry_id", id);
+  if (payments.length) {
+    const { error: payError } = await supabase
+      .from("sales_entry_payments")
+      .insert(payments.map((p) => ({ entry_id: id, method: p.method, amount: p.amount })));
+    if (payError) return { ok: false, error: payError.message };
+  }
 
   revalidatePath("/sales");
   revalidatePath(`/sales/${id}`);

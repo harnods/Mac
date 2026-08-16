@@ -31,6 +31,7 @@ type SalesEntryDetail = {
     unit: string;
     product: { id: string; name: string } | null;
   }[];
+  sales_entry_payments: { id: string; method: string; amount: number }[];
 };
 
 export default async function SalesEntryDetailPage({
@@ -47,7 +48,8 @@ export default async function SalesEntryDetailPage({
     .select(`
       id, entry_date, shift, notes, gross_sales, total_discount, service_charge, tax_total, net_sales, created_at,
       creator:profiles!created_by(full_name,email),
-      sales_entry_items(id, qty, unit, product:items!product_id(id,name))
+      sales_entry_items(id, qty, unit, product:items!product_id(id,name)),
+      sales_entry_payments(id, method, amount)
     `)
     .eq("id", id)
     .maybeSingle();
@@ -95,6 +97,14 @@ export default async function SalesEntryDetailPage({
             <DetailRow label="Tax (PB1 10%)" value={<span className="tabular-nums">{formatRp(entry.tax_total)}</span>} />
             <DetailRow label="Net sales" value={<span className="tabular-nums font-semibold">{formatRp(entry.net_sales)}</span>} />
           </DetailSection>
+
+          {entry.sales_entry_payments.length > 0 && (
+            <DetailSection title="Payment methods">
+              {entry.sales_entry_payments.map((p) => (
+                <DetailRow key={p.id} label={p.method} value={<span className="tabular-nums">{formatRp(p.amount)}</span>} />
+              ))}
+            </DetailSection>
+          )}
         </div>
       </div>
 
