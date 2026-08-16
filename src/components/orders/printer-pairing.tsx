@@ -84,12 +84,16 @@ export function PrinterPairing() {
   const [pairing, setPairing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [connectedIds, setConnectedIds] = useState<Set<string>>(new Set());
+  // Web Bluetooth support and paired printers are both client-only. Compute them
+  // after mount so SSR and the first client render agree (avoids hydration errors).
+  const [mounted, setMounted] = useState(false);
   const supported = typeof navigator !== "undefined" && "bluetooth" in navigator;
 
   // Live GATT connections kept open after pairing so printing needs no re-pair.
   const connectionsRef = useRef<Map<string, { device: any; char: any }>>(new Map());
 
   useEffect(() => {
+    setMounted(true);
     setPrinters(loadPrinters());
   }, []);
 
@@ -196,6 +200,12 @@ export function PrinterPairing() {
     connectionsRef.current.delete(deviceId);
     markConnected(deviceId, false);
     persist(printers.filter((p) => p.deviceId !== deviceId));
+  }
+
+  // Until mounted, render a stable placeholder matching the server output so
+  // hydration sees identical markup regardless of the client's capabilities.
+  if (!mounted) {
+    return <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">Loading printers…</div>;
   }
 
   if (!supported) {
