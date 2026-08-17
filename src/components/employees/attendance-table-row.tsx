@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Smartphone, Monitor, Pencil } from "lucide-react";
+import { MoreHorizontal, Smartphone, Monitor, Pencil, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -51,6 +51,7 @@ export function AttendanceTableRow({
   showDuration = true,
   showStatus = true,
   showSource = true,
+  showLocation = false,
   showRecordedBy = true,
   showLastUpdated = true,
 }: {
@@ -66,6 +67,7 @@ export function AttendanceTableRow({
   showDuration?: boolean;
   showStatus?: boolean;
   showSource?: boolean;
+  showLocation?: boolean;
   showRecordedBy?: boolean;
   showLastUpdated?: boolean;
 }) {
@@ -149,6 +151,27 @@ export function AttendanceTableRow({
               {record.source === "mobile" ? <Smartphone className="size-3.5" /> : <Monitor className="size-3.5" />}
               {record.source === "mobile" ? "Mobile" : "Web"}
             </span>
+          </TableCell>
+        )}
+        {showLocation && (
+          <TableCell className="text-sm">
+            {record.clock_in_ip || (record.clock_in_lat != null && record.clock_in_lng != null) ? (
+              <div className="space-y-0.5">
+                {record.clock_in_ip && <div className="font-mono text-xs text-muted-foreground">{record.clock_in_ip}</div>}
+                {record.clock_in_lat != null && record.clock_in_lng != null && (
+                  <a
+                    href={`https://maps.google.com/?q=${record.clock_in_lat},${record.clock_in_lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    <MapPin className="size-3" /> View on map
+                  </a>
+                )}
+              </div>
+            ) : (
+              <span className="text-muted-foreground">{dash}</span>
+            )}
           </TableCell>
         )}
         {showRecordedBy && (

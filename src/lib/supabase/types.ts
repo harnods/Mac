@@ -426,6 +426,12 @@ export type Attendance = {
   breaks: BreakInterval[];
   note: string | null;
   source: AttendanceSource;
+  clock_in_ip: string | null;
+  clock_out_ip: string | null;
+  clock_in_lat: number | null;
+  clock_in_lng: number | null;
+  clock_out_lat: number | null;
+  clock_out_lng: number | null;
   created_by: string | null;
   updated_by: string | null;
   updated_at: string;
