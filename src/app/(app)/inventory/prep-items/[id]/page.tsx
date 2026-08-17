@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Qty } from "@/components/ui/qty";
 import { formatDate, updaterName } from "@/lib/format";
 import { PrepOrderHistoryTable } from "@/components/inventory/prep-order-history-table";
+import { ItemUsageTabs, type LedgerRow, type UsedInRecipeRow } from "@/components/inventory/item-usage-tabs";
 import type { Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export default async function PrepItemDetailPage({
   const isAdmin = can(profile, P.PREP_ITEMS_WRITE);
   const supabase = await createClient();
 
-  const [{ data: itemData, error }, { data: ordersData }, { data: recipeData }, { data: catData }, { data: unitData }] =
+  const [{ data: itemData, error }, { data: ordersData }, { data: recipeData }, { data: catData }, { data: unitData }, { data: ledgerData }, { data: usageData }] =
     await Promise.all([
       supabase
         .from("items")
@@ -56,6 +57,16 @@ export default async function PrepItemDetailPage({
         .maybeSingle(),
       supabase.from("categories").select("id, name").eq("type", "product").order("name"),
       supabase.from("units").select("code").order("is_system", { ascending: false }).order("code"),
+      supabase
+        .from("stock_ledger")
+        .select("id, type, ref_id, qty_delta, on_hand_after, reserved_after, note, created_at")
+        .eq("item_id", id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      supabase
+        .from("recipe_items")
+        .select("quantity, unit, recipe:recipes(id, name, recipe_type, product:items!product_id(id, name, type, unit))")
+        .eq("item_id", id),
     ]);
 
   if (error || !itemData) notFound();
@@ -72,6 +83,21 @@ export default async function PrepItemDetailPage({
   const recipe = recipeData as { id: string; name: string } | null;
   const productCategories = (catData ?? []) as { id: string; name: string }[];
   const unitList = (unitData ?? []).map((u: { code: string }) => u.code);
+  const ledger = (ledgerData ?? []) as LedgerRow[];
+  const usedInRecipes = ((usageData ?? []) as unknown as {
+    quantity: number;
+    unit: string;
+    recipe: { id: string; name: string; recipe_type: string; product: { id: string; name: string; type: string; unit: string } | null } | null;
+  }[])
+    .filter((row) => row.recipe)
+    .map((row) => ({
+      id: row.recipe!.id,
+      name: row.recipe!.name,
+      recipeType: row.recipe!.recipe_type,
+      quantity: row.quantity,
+      unit: row.unit,
+      product: row.recipe!.product,
+    })) satisfies UsedInRecipeRow[];
 
   const available = Number(item.on_hand) - Number(item.reserved);
 
@@ -133,6 +159,15 @@ export default async function PrepItemDetailPage({
           </DetailSection>
         </div>
       </div>
+
+      {/* Stock history + used-in-recipes tabs (same as ingredients) */}
+      <ItemUsageTabs
+        ledger={ledger}
+        itemUnit={item.unit}
+        usedInRecipes={usedInRecipes}
+        onHand={Number(item.on_hand)}
+        showReserved
+      />
 
       {/* Prep orders */}
       <section className="space-y-2">
