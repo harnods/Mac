@@ -64,6 +64,29 @@ class Builder {
     return this.raw(GS, 0x56, 0x00);
   }
 
+  /**
+   * Native ESC/POS QR code (GS ( k), supported by virtually all modern thermal
+   * printers. moduleSize is the dot size per QR cell (1-16); ec is the error-
+   * correction level: 0=L, 1=M, 2=Q, 3=H.
+   */
+  qr(data: string, moduleSize = 6, ec: 0 | 1 | 2 | 3 = 1) {
+    const storeLen = data.length + 3;
+    const pL = storeLen & 0xff;
+    const pH = (storeLen >> 8) & 0xff;
+    // Select model 2
+    this.raw(GS, 0x28, 0x6b, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00);
+    // Module size
+    this.raw(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x43, Math.max(1, Math.min(16, moduleSize)));
+    // Error correction level (48 + level)
+    this.raw(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x45, 48 + ec);
+    // Store the data in the symbol buffer
+    this.raw(GS, 0x28, 0x6b, pL, pH, 0x31, 0x50, 0x30);
+    for (let i = 0; i < data.length; i++) this.raw(data.charCodeAt(i) & 0xff);
+    // Print the buffered symbol
+    this.raw(GS, 0x28, 0x6b, 0x03, 0x00, 0x31, 0x51, 0x30);
+    return this;
+  }
+
   build(): Uint8Array {
     return new Uint8Array(this.bytes);
   }
@@ -104,6 +127,20 @@ export function buildDocket(order: DocketOrder): Uint8Array {
   }
 
   b.feed(1).align("center").line("Terima kasih!");
+  b.feed(3).cut();
+  return b.build();
+}
+
+/** A table-tent docket: table name + a scannable QR to the customer order page. */
+export function buildTableQrDocket(tableName: string, url: string): Uint8Array {
+  const b = new Builder();
+  b.init().align("center");
+  b.size(true).bold(true).line(tableName).bold(false).size(false);
+  b.feed(1);
+  b.qr(url, 6, 1);
+  b.feed(1);
+  b.bold(true).line("Scan untuk pesan").bold(false);
+  b.line("Menu & order dari HP");
   b.feed(3).cut();
   return b.build();
 }
