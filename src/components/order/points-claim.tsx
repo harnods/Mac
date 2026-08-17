@@ -93,7 +93,7 @@ export function PointsClaim({
       <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-5 py-4 flex items-center gap-3">
         <Loader2 className="size-4 animate-spin text-amber-500 shrink-0" />
         <p className="text-sm">
-          {state.type === "loading" ? "Mengecek points kamu..." : "Mengklaim points..."}
+          {state.type === "loading" ? "Checking your points…" : "Claiming points…"}
         </p>
       </div>
     );
@@ -101,8 +101,8 @@ export function PointsClaim({
 
   if (state.type === "done") {
     const billLabel = state.billPoints > points
-      ? `+${state.billPoints} points dari tagihan ini`
-      : `+${state.billPoints} points ditambahkan!`;
+      ? `+${state.billPoints} points from this bill`
+      : `+${state.billPoints} points added!`;
     return (
       <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-5 py-4 space-y-1">
         <div className="flex items-center gap-2">
@@ -115,7 +115,7 @@ export function PointsClaim({
         </p>
         {state.billPoints > points && (
           <p className="text-xs text-muted-foreground pl-7">
-            Termasuk points dari semua pesanan di meja ini yang belum diklaim
+            Includes unclaimed points from every order at this table
           </p>
         )}
       </div>
@@ -128,12 +128,12 @@ export function PointsClaim({
       <div className="flex items-center gap-2">
         <Star className="size-5 fill-amber-400 text-amber-400 shrink-0" />
         <p className="text-sm font-semibold">
-          Pesanan ini mendapat{" "}
+          This order earned{" "}
           <span className="text-amber-600 dark:text-amber-400">{points} points</span>!
         </p>
       </div>
       <p className="text-sm text-muted-foreground">
-        Masukkan ID Instagram kamu untuk mengumpulkan points. Bisa diredeem di kasir.
+        Enter your Instagram handle to collect points. Redeemable at the cashier.
       </p>
       <div className="flex gap-2">
         <div className="relative flex-1">
@@ -148,7 +148,7 @@ export function PointsClaim({
           />
         </div>
         <Button onClick={handleClaim} disabled={!igInput.trim()} className="h-10 shrink-0">
-          Klaim
+          Claim
         </Button>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -157,7 +157,7 @@ export function PointsClaim({
         onClick={() => setState({ type: "skipped" })}
         className="text-xs text-muted-foreground hover:underline underline-offset-2"
       >
-        Lewati
+        Skip
       </button>
     </div>
   );

@@ -16,7 +16,7 @@ export default function OrderStartPage() {
     e.preventDefault();
     const digits = phone.replace(/[^\d]/g, "");
     if (digits.length < 8) {
-      setError("Masukkan nomor WhatsApp yang valid");
+      setError("Enter a valid WhatsApp number");
       return;
     }
     sessionStorage.setItem("order_phone", phone.trim());
@@ -26,16 +26,20 @@ export default function OrderStartPage() {
 
   return (
     <div className="flex flex-1 flex-col justify-center px-6 py-10">
-      <div className="space-y-2 mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Pesan</h1>
-        <p className="text-sm text-muted-foreground">
-          Masukkan nomor WhatsApp untuk mulai memesan.
-        </p>
+      <div className="mb-8 space-y-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/machimoto-logotype.svg" alt="Machimoto" className="h-7 w-auto" />
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">Order</h1>
+          <p className="text-sm text-muted-foreground">
+            Enter your WhatsApp number to start ordering.
+          </p>
+        </div>
       </div>
 
       <form onSubmit={start} className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="phone">No. WhatsApp</Label>
+          <Label htmlFor="phone">WhatsApp number</Label>
           <Input
             id="phone"
             type="tel"
@@ -53,7 +57,7 @@ export default function OrderStartPage() {
 
         <div className="space-y-2">
           <Label htmlFor="name">
-            Nama <span className="text-muted-foreground font-normal">(opsional)</span>
+            Name <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
           <Input
             id="name"
@@ -64,7 +68,7 @@ export default function OrderStartPage() {
         </div>
 
         <Button type="submit" className="w-full h-12 text-base">
-          Lihat Menu
+          View menu
         </Button>
       </form>
     </div>

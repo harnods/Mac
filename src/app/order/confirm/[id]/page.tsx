@@ -40,17 +40,19 @@ export default async function ConfirmPage({ params }: { params: Promise<{ id: st
   return (
     <div className="flex flex-1 flex-col px-6 py-10 gap-6">
       <div className="flex flex-col items-center text-center space-y-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/machimoto-logotype.svg" alt="Machimoto" className="h-6 w-auto" />
         <CheckCircle2 className="size-14 text-green-600" />
-        <h1 className="text-2xl font-semibold tracking-tight">Pesanan diterima</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Order received</h1>
         <p className="text-sm text-muted-foreground">
-          {order.customer_name ? `Terima kasih, ${order.customer_name}. ` : ""}
-          Pesananmu sedang disiapkan.
+          {order.customer_name ? `Thank you, ${order.customer_name}. ` : ""}
+          Your order is being prepared.
         </p>
         {order.table_name_snapshot && (
           <p className="text-sm font-medium">{order.table_name_snapshot}</p>
         )}
         <div className="mt-2 rounded-lg bg-muted px-6 py-3">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">No. Pesanan</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Order no.</div>
           <div className="text-3xl font-bold tabular-nums tracking-tight">{order.order_number}</div>
         </div>
       </div>
@@ -94,7 +96,7 @@ export default async function ConfirmPage({ params }: { params: Promise<{ id: st
 
       <Button asChild variant="outline" className="h-12">
         <Link href={order.tables?.code ? `/order/t/${order.tables.code}` : "/order"}>
-          Pesan lagi
+          Order again
         </Link>
       </Button>
     </div>

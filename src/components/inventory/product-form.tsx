@@ -67,12 +67,13 @@ export function ProductForm({
   const [setProducts, setSetProducts] = useState<SetProductEntry[]>(initialSetProducts);
   const [productOpen, setProductOpen] = useState(false);
 
-  const itemAny = item as (Item & { is_sellable?: boolean; sell_price?: number | null; is_addon?: boolean }) | undefined;
+  const itemAny = item as (Item & { is_sellable?: boolean; sell_price?: number | null; is_addon?: boolean; station?: "bar" | "kitchen" | null }) | undefined;
   const [isSellable, setIsSellable] = useState(itemAny?.is_sellable ?? false);
   const [sellPrice, setSellPrice] = useState(
     itemAny?.sell_price != null ? String(itemAny.sell_price) : "",
   );
   const [isAddon, setIsAddon] = useState(itemAny?.is_addon ?? false);
+  const [station, setStation] = useState<"bar" | "kitchen" | "">(itemAny?.station ?? "");
   const [imageUrl, setImageUrl] = useState<string | null>(item?.image_url ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
 

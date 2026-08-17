@@ -58,6 +58,7 @@ export type Item = {
   image_url: string | null;
   description: string | null;
   location_id: string | null;
+  station: RecipeStation | null;
 };
 
 export type Location = {

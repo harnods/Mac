@@ -31,16 +31,20 @@ function SheetContent({
   children,
   side = "right",
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { side?: "right" | "left" }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { side?: "right" | "left" | "bottom" }) {
   return (
     <SheetPortal>
       <SheetOverlay />
       <DialogPrimitive.Content
         className={cn(
-          "fixed top-0 z-50 flex h-full w-full max-w-md flex-col gap-0 bg-background shadow-xl duration-200 outline-none",
-          side === "right"
-            ? "right-0 data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right"
-            : "left-0 data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left",
+          "fixed z-50 flex flex-col gap-0 bg-background shadow-xl duration-200 outline-none",
+          side === "bottom"
+            ? "inset-x-0 bottom-0 mx-auto max-h-[92dvh] w-full max-w-md rounded-t-2xl data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom"
+            : "top-0 h-full w-full max-w-md",
+          side === "right" &&
+            "right-0 data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right",
+          side === "left" &&
+            "left-0 data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left",
           className
         )}
         {...props}

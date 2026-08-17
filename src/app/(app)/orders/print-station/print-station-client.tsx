@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRp, formatDateTime } from "@/lib/format";
-import { buildTableChecker, buildTestDocket, type TableChecker } from "@/lib/escpos";
+import { buildStationDocket, buildTableChecker, buildTestDocket, type TableChecker } from "@/lib/escpos";
 import { getPairedPrinters, printToPaired } from "@/lib/printer";
 import { markOrderPrinted } from "@/app/actions/orders";
 
+type OrderItem = { id: string; name_snapshot: string; qty: number; item_id: string | null; item: { station: string | null } | null };
 type OrderRow = {
   id: string;
   seq: number;
@@ -24,17 +25,21 @@ type OrderRow = {
   notes: string | null;
   printed_at: string | null;
   created_at: string;
-  order_items: { id: string; name_snapshot: string; qty: number }[];
+  order_items: OrderItem[];
 };
 
 const ORDER_SELECT =
-  "id, seq, order_number, status, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty)";
+  "id, seq, order_number, status, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty, item_id, item:items!item_id(station))";
 
 const LOCATION_KEY = "machitori.print_location";
-const AUTOPRINT_KEY = "machitori.print_autoprint";
+const DOCKET_KEY = "machitori.print_auto_docket";
+const CHECKER_KEY = "machitori.print_auto_checker";
 
-/** Running order number for the day (Jakarta): how many orders share today up
- *  to and including this one. */
+/** Unassigned products default to the bar. */
+function itemStation(it: OrderItem): "bar" | "kitchen" {
+  return it.item?.station === "kitchen" ? "kitchen" : "bar";
+}
+
 function jakartaDayStartIso(): string {
   const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
   return new Date(`${day}T00:00:00+07:00`).toISOString();
@@ -46,24 +51,28 @@ export function PrintStationClient() {
   const [secure] = useState(() => (typeof window === "undefined" ? true : window.isSecureContext));
   const [printerName, setPrinterName] = useState<string | null>(null);
   const [location, setLocation] = useState("Bar");
-  const [autoPrint, setAutoPrint] = useState(true);
+  const [autoDocket, setAutoDocket] = useState(true);
+  const [autoChecker, setAutoChecker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<OrderRow[]>([]);
 
-  const autoPrintRef = useRef(autoPrint);
   const locationRef = useRef(location);
-  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  const docketRef = useRef(autoDocket);
+  const checkerRef = useRef(autoChecker);
   useEffect(() => { locationRef.current = location; }, [location]);
+  useEffect(() => { docketRef.current = autoDocket; }, [autoDocket]);
+  useEffect(() => { checkerRef.current = autoChecker; }, [autoChecker]);
 
-  // Client-only settings, read after mount to keep SSR/CSR markup identical.
   useEffect(() => {
     setMounted(true);
     setPrinterName(getPairedPrinters()[0]?.name ?? null);
     try {
-      const savedLoc = localStorage.getItem(LOCATION_KEY);
-      if (savedLoc) setLocation(savedLoc);
-      const savedAuto = localStorage.getItem(AUTOPRINT_KEY);
-      if (savedAuto != null) setAutoPrint(savedAuto === "1");
+      const loc = localStorage.getItem(LOCATION_KEY);
+      if (loc) setLocation(loc);
+      const d = localStorage.getItem(DOCKET_KEY);
+      if (d != null) setAutoDocket(d === "1");
+      const c = localStorage.getItem(CHECKER_KEY);
+      if (c != null) setAutoChecker(c === "1");
     } catch {
       /* ignore */
     }
@@ -73,9 +82,8 @@ export function PrintStationClient() {
     setLocation(v);
     try { localStorage.setItem(LOCATION_KEY, v); } catch { /* ignore */ }
   }
-  function changeAutoPrint(v: boolean) {
-    setAutoPrint(v);
-    try { localStorage.setItem(AUTOPRINT_KEY, v ? "1" : "0"); } catch { /* ignore */ }
+  function persistToggle(key: string, v: boolean) {
+    try { localStorage.setItem(key, v ? "1" : "0"); } catch { /* ignore */ }
   }
 
   const fetchOrders = useCallback(async () => {
@@ -88,33 +96,67 @@ export function PrintStationClient() {
     setOrders((data ?? []) as unknown as OrderRow[]);
   }, []);
 
-  const printOrder = useCallback(async (order: OrderRow, silent = false) => {
-    try {
-      // Daily queue number.
-      const { count } = await supabase.current
-        .from("orders")
-        .select("id", { count: "exact", head: true })
-        .gte("created_at", jakartaDayStartIso())
-        .lte("seq", order.seq);
+  const dailyQueue = useCallback(async (seq: number): Promise<number | null> => {
+    const { count } = await supabase.current
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", jakartaDayStartIso())
+      .lte("seq", seq);
+    return count ?? null;
+  }, []);
 
-      const checker: TableChecker = {
-        orderNumber: order.order_number,
-        tableName: order.table_name_snapshot,
-        createdAt: order.created_at,
-        orderType: "DINE IN",
-        items: order.order_items.map((i) => ({ qty: i.qty, name: i.name_snapshot })),
-        queue: count ?? null,
-        location: locationRef.current,
-      };
-      await printToPaired(buildTableChecker(checker));
-      await markOrderPrinted(order.id);
-      if (!silent) toast.success(`Tercetak: ${order.order_number}`);
-      fetchOrders();
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (!silent) toast.error(`Gagal print: ${msg}`);
-    }
-  }, [fetchOrders]);
+  /** Print whatever this station is responsible for: its station docket and/or
+   *  the full table checker, per the toggles. */
+  const printOrder = useCallback(
+    async (order: OrderRow, opts: { docket: boolean; checker: boolean; silent?: boolean }) => {
+      const loc = locationRef.current.toLowerCase() as "bar" | "kitchen";
+      const stationItems = order.order_items.filter((i) => itemStation(i) === loc);
+
+      if (opts.docket && stationItems.length === 0 && !opts.checker) {
+        if (!opts.silent) toast.info(`Tidak ada item ${locationRef.current} di ${order.order_number}`);
+        return;
+      }
+
+      try {
+        const queue = await dailyQueue(order.seq);
+        const base: TableChecker = {
+          orderNumber: order.order_number,
+          tableName: order.table_name_snapshot,
+          createdAt: order.created_at,
+          orderType: "DINE IN",
+          items: [],
+          queue,
+          location: locationRef.current,
+        };
+
+        if (opts.docket && stationItems.length > 0) {
+          await printToPaired(
+            buildStationDocket({
+              ...base,
+              station: locationRef.current,
+              items: stationItems.map((i) => ({ qty: i.qty, name: i.name_snapshot })),
+            }),
+          );
+        }
+        if (opts.checker) {
+          await printToPaired(
+            buildTableChecker({
+              ...base,
+              items: order.order_items.map((i) => ({ qty: i.qty, name: i.name_snapshot })),
+            }),
+          );
+        }
+
+        await markOrderPrinted(order.id);
+        if (!opts.silent) toast.success(`Tercetak: ${order.order_number}`);
+        fetchOrders();
+      } catch (err) {
+        const msg = (err as Error).message;
+        if (!opts.silent) toast.error(`Gagal print: ${msg}`);
+      }
+    },
+    [dailyQueue, fetchOrders],
+  );
 
   // Initial load + realtime auto-print on new orders.
   useEffect(() => {
@@ -131,13 +173,9 @@ export function PrintStationClient() {
           const row = payload.new as { id?: string } | null;
           if (payload.eventType === "INSERT" && row?.id && !known.has(row.id)) {
             known.add(row.id);
-            if (!autoPrintRef.current) return;
-            const { data } = await supabase.current
-              .from("orders")
-              .select(ORDER_SELECT)
-              .eq("id", row.id)
-              .maybeSingle();
-            if (data) printOrder(data as unknown as OrderRow, true);
+            if (!docketRef.current && !checkerRef.current) return;
+            const { data } = await supabase.current.from("orders").select(ORDER_SELECT).eq("id", row.id).maybeSingle();
+            if (data) printOrder(data as unknown as OrderRow, { docket: docketRef.current, checker: checkerRef.current, silent: true });
           }
         },
       )
@@ -192,30 +230,35 @@ export function PrintStationClient() {
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label>Lokasi printer</Label>
-            <Select value={location} onValueChange={changeLocation}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Bar">Bar</SelectItem>
-                <SelectItem value="Kitchen">Kitchen</SelectItem>
-              </SelectContent>
-            </Select>
+        <div className="space-y-1.5">
+          <Label>Lokasi printer</Label>
+          <Select value={location} onValueChange={changeLocation}>
+            <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Bar">Bar</SelectItem>
+              <SelectItem value="Kitchen">Kitchen</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-3 rounded-lg bg-muted/40 p-3">
+          <div className="flex items-center gap-2">
+            <Switch id="docket" checked={autoDocket} onCheckedChange={(v) => { setAutoDocket(v); persistToggle(DOCKET_KEY, v); }} />
+            <Label htmlFor="docket" className="text-sm cursor-pointer">
+              Auto-print docket <span className="text-muted-foreground">(hanya item {location})</span>
+            </Label>
           </div>
-          <div className="flex items-end">
-            <div className="flex items-center gap-2">
-              <Switch id="auto" checked={autoPrint} onCheckedChange={changeAutoPrint} />
-              <Label htmlFor="auto" className="text-sm cursor-pointer">
-                Auto-print pesanan masuk
-              </Label>
-            </div>
+          <div className="flex items-center gap-2">
+            <Switch id="checker" checked={autoChecker} onCheckedChange={(v) => { setAutoChecker(v); persistToggle(CHECKER_KEY, v); }} />
+            <Label htmlFor="checker" className="text-sm cursor-pointer">
+              Auto-print table checker <span className="text-muted-foreground">(seluruh order — nyalakan di 1 station saja)</span>
+            </Label>
           </div>
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Biarkan halaman ini tetap terbuka di tablet {location.toLowerCase()}. Setiap pesanan baru
-          (dari QR customer maupun manual) otomatis dicetak sebagai Table Checker.
+          Biarkan halaman ini terbuka di tablet {location.toLowerCase()}. Setiap pesanan baru (QR
+          customer maupun manual) otomatis dicetak. Produk tanpa station dianggap Bar.
         </p>
       </div>
 
@@ -241,7 +284,7 @@ export function PrintStationClient() {
                     {o.order_items.length} item · {formatRp(o.total)} · {formatDateTime(o.created_at)}
                   </div>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => printOrder(o)} disabled={busy}>
+                <Button size="sm" variant="outline" onClick={() => printOrder(o, { docket: true, checker: autoChecker })} disabled={busy}>
                   <Printer className="size-4" /> Print
                 </Button>
               </div>

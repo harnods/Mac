@@ -179,6 +179,39 @@ export function buildTableChecker(c: TableChecker): Uint8Array {
   return b.build();
 }
 
+/** A station production docket (Bar/Kitchen): only that station's items. */
+export function buildStationDocket(c: TableChecker & { station: string }): Uint8Array {
+  const b = new Builder();
+  const time = new Date(c.createdAt).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  });
+
+  b.init().align("center");
+  b.bold(true).size(true).line(c.station.toUpperCase()).size(false).bold(false);
+  b.bold(true).line(c.tableName ?? "-").bold(false);
+  b.line(c.orderNumber);
+  b.line(time);
+  b.bold(true).line(c.orderType).bold(false);
+  b.align("left").line("--------------------------------");
+
+  for (const it of c.items) {
+    b.size(true).bold(true).text(`${it.qty}x `).bold(false).line(it.name).size(false);
+  }
+  b.line("--------------------------------");
+
+  if (c.queue != null) b.align("center").line(`Queue: ${c.queue}`);
+  b.feed(1).align("center").line(CHECKER_FOOTER);
+  b.feed(3).cut();
+  return b.build();
+}
+
 /** A table-tent docket: table name + a scannable QR to the customer order page. */
 export function buildTableQrDocket(tableName: string, url: string): Uint8Array {
   const b = new Builder();
