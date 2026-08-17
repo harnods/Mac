@@ -17,7 +17,7 @@ export default async function NewPurchasePage() {
 
   const supabase = await createClient();
 
-  const [{ data: ingredients }, { data: requests }] = await Promise.all([
+  const [{ data: ingredients }, { data: requests }, { data: suppliers }] = await Promise.all([
     supabase
       .from("items")
       .select("id, name, unit, on_hand, reserved, purchase_unit, item_unit_conversions(from_unit, factor, to_unit)")
@@ -33,6 +33,7 @@ export default async function NewPurchasePage() {
       `)
       .eq("status", "approved")
       .order("created_at", { ascending: false }),
+    supabase.from("suppliers").select("id, name").order("name"),
   ]);
 
   type RawPR = {
@@ -95,6 +96,7 @@ export default async function NewPurchasePage() {
       <PurchaseForm
         ingredients={ingredients ?? []}
         approvedRequests={approvedRequests}
+        suppliers={suppliers ?? []}
       />
     </div>
   );

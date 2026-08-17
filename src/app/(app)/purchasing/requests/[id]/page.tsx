@@ -32,6 +32,7 @@ type RequestDetail = {
   reviewed_at: string | null;
   creator: Updater | null;
   reviewer: Updater | null;
+  supplier: { id: string; name: string } | null;
   purchase_request_items: {
     id: string;
     qty: number;
@@ -56,6 +57,7 @@ export default async function PurchaseRequestDetailPage({
       id, status, note, created_by, created_at, reviewed_at,
       creator:profiles!created_by(full_name,email),
       reviewer:profiles!reviewed_by(full_name,email),
+      supplier:suppliers(id,name),
       purchase_request_items(id, qty, unit, item:items(id,name,unit,on_hand,reserved,deleted_at)),
       purchases(id, transaction_date, created_at)
     `)
@@ -101,6 +103,7 @@ export default async function PurchaseRequestDetailPage({
           <DetailSection title="Details">
             <DetailRow label="Requested date" value={formatDateTime(req.created_at)} />
             <DetailRow label="Requested by" value={updaterName(req.creator)} />
+            {req.supplier && <DetailRow label="Supplier" value={req.supplier.name} />}
             {req.reviewer && (
               <>
                 <DetailRow

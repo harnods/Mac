@@ -61,6 +61,7 @@ const MENU: MenuNode[] = [
     children: [
       { label: "Purchase requests", href: "/purchasing/requests" },
       { label: "Purchases", href: "/purchasing/purchases" },
+      { label: "Suppliers", href: "/purchasing/suppliers" },
     ],
   },
   { label: "Sales", icon: Calculator, href: "/sales" },

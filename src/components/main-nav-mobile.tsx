@@ -88,6 +88,9 @@ export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: bool
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/purchasing/purchases" className="cursor-pointer">Purchases</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/purchasing/suppliers" className="cursor-pointer">Suppliers</Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Settings</DropdownMenuLabel>
         <DropdownMenuItem asChild>

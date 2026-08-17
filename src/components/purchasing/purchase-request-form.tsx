@@ -17,6 +17,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { unitOptionsForItem } from "@/lib/units";
 import { ItemQty } from "@/components/ui/item-qty";
 import { createPurchaseRequest, updatePurchaseRequest } from "@/app/actions/purchasing";
@@ -60,15 +61,18 @@ function newRow(): RequestRow {
 
 type Props = {
   items: ItemStock[];
+  suppliers?: { id: string; name: string }[];
   requestId?: string;
   initialNote?: string;
+  initialSupplierId?: string | null;
   initialRows?: { item_id: string; qty: string; unit: string }[];
 };
 
-export function PurchaseRequestForm({ items, requestId, initialNote, initialRows }: Props) {
+export function PurchaseRequestForm({ items, suppliers = [], requestId, initialNote, initialSupplierId, initialRows }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [note, setNote] = useState(initialNote ?? "");
+  const [supplierId, setSupplierId] = useState<string>(initialSupplierId ?? "");
   const [rows, setRows] = useState<RequestRow[]>(
     initialRows && initialRows.length > 0
       ? [...initialRows.map((r) => ({ key: crypto.randomUUID(), item_id: r.item_id, qty: r.qty, unit: r.unit })), newRow()]
@@ -140,6 +144,7 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
     e.preventDefault();
     const payload = {
       note: note.trim() || undefined,
+      supplier_id: supplierId || null,
       items: rows
         .filter((r) => r.item_id)
         .map((r) => ({
@@ -162,6 +167,19 @@ export function PurchaseRequestForm({ items, requestId, initialNote, initialRows
 
   return (
     <form onSubmit={(e) => submit(e, draftMode)} className="flex flex-col flex-1 gap-6">
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold">Supplier</h2>
+        <Select value={supplierId || "none"} onValueChange={(v) => setSupplierId(v === "none" ? "" : v)}>
+          <SelectTrigger className="sm:w-72"><SelectValue placeholder="Pilih supplier (opsional)" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Tanpa supplier</SelectItem>
+            {suppliers.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </section>
+
       <section className="space-y-4">
         <h2 className="text-sm font-semibold">Items to purchase</h2>
         <div className="space-y-6">

@@ -13,13 +13,16 @@ export default async function NewPurchaseRequestPage() {
   if (!profile) redirect("/login");
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("items")
-    .select("id, name, unit, on_hand, reserved, type, purchase_unit, item_unit_conversions(from_unit, factor, to_unit)")
-    .in("type", ["ingredient", "supply"])
-    .is("deleted_at", null)
-    .order("type")
-    .order("name");
+  const [{ data }, { data: suppliers }] = await Promise.all([
+    supabase
+      .from("items")
+      .select("id, name, unit, on_hand, reserved, type, purchase_unit, item_unit_conversions(from_unit, factor, to_unit)")
+      .in("type", ["ingredient", "supply"])
+      .is("deleted_at", null)
+      .order("type")
+      .order("name"),
+    supabase.from("suppliers").select("id, name").order("name"),
+  ]);
 
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">
@@ -29,7 +32,7 @@ export default async function NewPurchaseRequestPage() {
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">New purchase request</h1>
       </div>
-      <PurchaseRequestForm items={data ?? []} />
+      <PurchaseRequestForm items={data ?? []} suppliers={suppliers ?? []} />
     </div>
   );
 }

@@ -17,6 +17,7 @@ const requestItemSchema = z.object({
 
 const createRequestSchema = z.object({
   note: z.string().max(500).optional(),
+  supplier_id: z.string().uuid().nullable().optional(),
   items: z.array(requestItemSchema).min(1, "Add at least one item"),
   draft: z.boolean().optional(),
 });
@@ -28,7 +29,7 @@ export async function createPurchaseRequest(raw: unknown): Promise<ActionResult>
 
   const parsed = createRequestSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { note, items, draft } = parsed.data;
+  const { note, supplier_id, items, draft } = parsed.data;
 
   const itemIds = items.map((i) => i.item_id);
   if (new Set(itemIds).size !== itemIds.length)
@@ -43,6 +44,7 @@ export async function createPurchaseRequest(raw: unknown): Promise<ActionResult>
     .from("purchase_requests")
     .insert({
       note: note || null,
+      supplier_id: supplier_id ?? null,
       status: draft ? "draft" : "pending",
       created_by: profile.id,
       updated_by: profile.id,
@@ -69,7 +71,7 @@ export async function updatePurchaseRequest(id: string, raw: unknown): Promise<A
 
   const parsed = createRequestSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { note, items, draft } = parsed.data;
+  const { note, supplier_id, items, draft } = parsed.data;
 
   const itemIds = items.map((i) => i.item_id);
   if (new Set(itemIds).size !== itemIds.length)
@@ -107,6 +109,7 @@ export async function updatePurchaseRequest(id: string, raw: unknown): Promise<A
     .from("purchase_requests")
     .update({
       note: note || null,
+      supplier_id: supplier_id ?? null,
       status: draft ? "draft" : "pending",
       updated_by: profile.id,
     })
@@ -185,6 +188,7 @@ const createPurchaseSchema = z.object({
   purchase_request_ids: z.array(z.string().uuid()).optional(),
   transaction_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   note: z.string().max(500).optional(),
+  supplier_id: z.string().uuid().nullable().optional(),
   items: z.array(purchaseItemSchema).min(1, "Add at least one item"),
 });
 
@@ -195,7 +199,7 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
 
   const parsed = createPurchaseSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-  const { purchase_request_ids, transaction_date, note, items } = parsed.data;
+  const { purchase_request_ids, transaction_date, note, supplier_id, items } = parsed.data;
 
   const supabase = await createClient();
 
@@ -204,6 +208,7 @@ export async function createPurchase(raw: unknown): Promise<ActionResult> {
     .insert({
       transaction_date,
       note: note || null,
+      supplier_id: supplier_id ?? null,
       updated_by: profile.id,
     })
     .select("id")

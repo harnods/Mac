@@ -20,10 +20,10 @@ export default async function EditPurchaseRequestPage({
 
   const supabase = await createClient();
 
-  const [{ data: req }, { data: itemsData }] = await Promise.all([
+  const [{ data: req }, { data: itemsData }, { data: suppliers }] = await Promise.all([
     supabase
       .from("purchase_requests")
-      .select("id, status, note, created_by, purchase_request_items(item_id, qty, unit)")
+      .select("id, status, note, supplier_id, created_by, purchase_request_items(item_id, qty, unit)")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -33,6 +33,7 @@ export default async function EditPurchaseRequestPage({
       .is("deleted_at", null)
       .order("type")
       .order("name"),
+    supabase.from("suppliers").select("id, name").order("name"),
   ]);
 
   if (!req) notFound();
@@ -56,8 +57,10 @@ export default async function EditPurchaseRequestPage({
       </div>
       <PurchaseRequestForm
         items={itemsData ?? []}
+        suppliers={suppliers ?? []}
         requestId={id}
         initialNote={req.note ?? ""}
+        initialSupplierId={(req as { supplier_id?: string | null }).supplier_id ?? null}
         initialRows={initialRows}
       />
     </div>

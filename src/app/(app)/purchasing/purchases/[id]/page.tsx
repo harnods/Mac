@@ -18,6 +18,7 @@ type PurchaseDetail = {
   transaction_date: string;
   created_at: string;
   updater: Updater | null;
+  supplier: { id: string; name: string } | null;
   purchase_purchase_requests: { purchase_request_id: string }[];
   purchase_items: {
     id: string;
@@ -48,6 +49,7 @@ export default async function PurchaseDetailPage({
     .select(`
       id, note, transaction_date, created_at,
       updater:profiles!updated_by(full_name,email),
+      supplier:suppliers(id,name),
       purchase_purchase_requests(purchase_request_id),
       purchase_items(id, qty_requested, requested_unit, qty_purchased, unit, cost_per_unit, cost_total, row_note, item:items(id,name,unit,deleted_at))
     `)
@@ -78,6 +80,7 @@ export default async function PurchaseDetailPage({
         <div className="col-span-12 space-y-8 lg:col-span-6">
           <DetailSection title="Details">
             <DetailRow label="Transaction date" value={formatDate(purchase.transaction_date)} />
+            {purchase.supplier && <DetailRow label="Supplier" value={purchase.supplier.name} />}
             <DetailRow label="Recorded" value={formatDateTime(purchase.created_at)} />
             <DetailRow label="Recorded by" value={updaterName(purchase.updater)} />
           </DetailSection>

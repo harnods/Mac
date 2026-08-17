@@ -24,6 +24,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -101,9 +102,11 @@ function today() {
 export function PurchaseForm({
   ingredients,
   approvedRequests,
+  suppliers = [],
 }: {
   ingredients: Ingredient[];
   approvedRequests: ApprovedRequest[];
+  suppliers?: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -111,6 +114,7 @@ export function PurchaseForm({
   const [prOpen, setPrOpen] = useState(false);
   const [expandedPrs, setExpandedPrs] = useState<Set<string>>(new Set());
   const [transactionDate, setTransactionDate] = useState(today());
+  const [supplierId, setSupplierId] = useState<string>("");
   const [rows, setRows] = useState<PurchaseRow[]>([newRow()]);
 
   function handlePrToggle(requestId: string) {
@@ -178,6 +182,7 @@ export function PurchaseForm({
     const payload = {
       purchase_request_ids: prIds.length > 0 ? prIds : undefined,
       transaction_date: transactionDate,
+      supplier_id: supplierId || null,
       items: validRows.map((r) => {
         const qty = parseDecimal(r.qty_purchased);
         const costVal = r.cost ? parseDecimal(r.cost) : null;
@@ -399,6 +404,19 @@ export function PurchaseForm({
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Supplier (optional)</Label>
+            <Select value={supplierId || "none"} onValueChange={(v) => setSupplierId(v === "none" ? "" : v)}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanpa supplier</SelectItem>
+                {suppliers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </section>
