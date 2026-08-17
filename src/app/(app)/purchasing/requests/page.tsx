@@ -20,7 +20,8 @@ type RequestRow = {
   created_by: string | null;
   created_at: string;
   creator: Updater | null;
-  purchase_request_items: { id: string }[];
+  supplier: { name: string } | null;
+  purchase_request_items: { id: string; qty: number; unit: string; item: { name: string; unit: string } | null }[];
 };
 
 export default async function PurchaseRequestsPage({
@@ -39,7 +40,7 @@ export default async function PurchaseRequestsPage({
 
   let query = supabase
     .from("purchase_requests")
-    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), purchase_request_items(id)", { count: "exact" })
+    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), supplier:suppliers(name), purchase_request_items(id, qty, unit, item:items(name, unit))", { count: "exact" })
     .order("updated_at", { ascending: false })
     .range(from, to);
 
