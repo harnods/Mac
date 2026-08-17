@@ -26,6 +26,7 @@ const createOrderSchema = z.object({
       z.object({
         item_id: z.string().uuid(),
         qty: z.coerce.number().int().positive(),
+        note: z.string().trim().max(200).optional(),
       }),
     )
     .min(1, "Add at least one product"),
@@ -47,10 +48,12 @@ export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResu
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const { phone, name, notes, tableId, items } = parsed.data;
 
-  // Merge duplicate item rows defensively.
+  // Merge duplicate item rows defensively; keep the last non-empty per-item note.
   const qtyByItem = new Map<string, number>();
+  const noteByItem = new Map<string, string>();
   for (const it of items) {
     qtyByItem.set(it.item_id, (qtyByItem.get(it.item_id) ?? 0) + it.qty);
+    if (it.note) noteByItem.set(it.item_id, it.note);
   }
   const itemIds = [...qtyByItem.keys()];
 
@@ -99,6 +102,7 @@ export async function createCustomerOrder(raw: unknown): Promise<CreateOrderResu
       qty,
       unit_price: unitPrice,
       line_total: unitPrice * qty,
+      note: noteByItem.get(p.id) ?? null,
     };
   });
   const subtotal = lines.reduce((sum, l) => sum + l.line_total, 0);

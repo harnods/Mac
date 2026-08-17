@@ -4,7 +4,7 @@
 const ESC = 0x1b;
 const GS = 0x1d;
 
-type DocketLine = { qty: number; name: string };
+type DocketLine = { qty: number; name: string; note?: string | null };
 export type DocketOrder = {
   orderNumber: string;
   tableName: string | null;
@@ -117,6 +117,7 @@ export function buildDocket(order: DocketOrder): Uint8Array {
 
   for (const it of order.items) {
     b.bold(true).text(`${it.qty}x `).bold(false).line(it.name);
+    if (it.note) b.line(`  * ${it.note}`);
   }
   b.line("--------------------------------");
 

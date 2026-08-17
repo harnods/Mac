@@ -36,6 +36,7 @@ export function MenuClient({
     return sessionStorage.getItem("order_name") ?? "";
   });
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
   const [view, setView] = useState<"menu" | "review">("menu");
   const [submitting, startSubmit] = useTransition();
@@ -98,7 +99,7 @@ export function MenuClient({
         name: name || undefined,
         tableId: table?.id,
         notes: notes.trim() || undefined,
-        items: lines.map(([item_id, qty]) => ({ item_id, qty })),
+        items: lines.map(([item_id, qty]) => ({ item_id, qty, note: itemNotes[item_id] || undefined })),
       });
       if (!res.ok) {
         toast.error(res.error);
@@ -145,6 +146,9 @@ export function MenuClient({
                     <div className="text-sm font-medium truncate">{item.name}</div>
                     {item.price > 0 && (
                       <div className="text-sm text-muted-foreground tabular-nums">{formatRp(item.price)}</div>
+                    )}
+                    {itemNotes[id] && (
+                      <div className="mt-0.5 text-xs text-muted-foreground truncate">Note: {itemNotes[id]}</div>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -292,14 +296,21 @@ export function MenuClient({
         item={sheetItem}
         addons={addons}
         onClose={() => setSheetItem(null)}
-        onAdd={(itemQty, addonQty) => {
+        onAdd={(itemQty, addonQty, note) => {
           if (!sheetItem) return;
+          const id = sheetItem.id;
           setCart((prev) => {
             const copy = { ...prev };
-            copy[sheetItem.id] = (copy[sheetItem.id] ?? 0) + itemQty;
+            copy[id] = (copy[id] ?? 0) + itemQty;
             for (const [aid, aq] of Object.entries(addonQty)) {
               if (aq > 0) copy[aid] = (copy[aid] ?? 0) + aq;
             }
+            return copy;
+          });
+          setItemNotes((prev) => {
+            const copy = { ...prev };
+            if (note) copy[id] = note;
+            else delete copy[id];
             return copy;
           });
           setSheetItem(null);
@@ -375,15 +386,17 @@ function ItemSheet({
   item: MenuItem | null;
   addons: MenuAddon[];
   onClose: () => void;
-  onAdd: (itemQty: number, addonQty: Record<string, number>) => void;
+  onAdd: (itemQty: number, addonQty: Record<string, number>, note: string) => void;
 }) {
   const [qty, setQty] = useState(1);
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
+  const [note, setNote] = useState("");
 
   // Reset local state whenever a new item opens.
   useEffect(() => {
     setQty(1);
     setAddonQty({});
+    setNote("");
   }, [item?.id]);
 
   const addonTotal = addons.reduce((s, a) => s + a.price * (addonQty[a.id] ?? 0), 0);
@@ -403,7 +416,7 @@ function ItemSheet({
       <SheetContent side="bottom" className="p-0">
         {item && (
           <>
-            <div className="relative aspect-[16/10] w-full bg-muted">
+            <div className="relative aspect-square w-full bg-muted">
               {item.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
@@ -416,8 +429,8 @@ function ItemSheet({
 
             <div className="flex-1 overflow-y-auto px-5 py-4">
               <h2 className="text-lg font-semibold tracking-tight">{item.name}</h2>
-              <p className="mt-0.5 text-base font-semibold tabular-nums">{item.price > 0 ? formatRp(item.price) : "—"}</p>
-              {item.description && <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>}
+              {item.description && <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>}
+              <p className="mt-2 text-base font-semibold tabular-nums">{item.price > 0 ? formatRp(item.price) : "—"}</p>
 
               {addons.length > 0 && (
                 <div className="mt-5">
@@ -449,6 +462,20 @@ function ItemSheet({
                   </div>
                 </div>
               )}
+
+              <div className="mt-5 space-y-2">
+                <p className="text-sm font-semibold">
+                  Note <span className="font-normal text-muted-foreground">(optional)</span>
+                </p>
+                <Textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  maxLength={200}
+                  placeholder="e.g. no onion, extra spicy — sent to the kitchen/bar"
+                  className="resize-none text-sm"
+                />
+              </div>
             </div>
 
             <div className="border-t px-5 py-3 flex items-center gap-3">
@@ -461,7 +488,7 @@ function ItemSheet({
                   <Plus className="size-4" />
                 </Button>
               </div>
-              <Button className="h-11 flex-1 justify-between text-base" onClick={() => onAdd(qty, addonQty)}>
+              <Button className="h-11 flex-1 justify-between text-base" onClick={() => onAdd(qty, addonQty, note.trim())}>
                 <span>Add</span>
                 <span className="tabular-nums">{formatRp(lineTotal)}</span>
               </Button>

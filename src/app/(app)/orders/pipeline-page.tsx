@@ -15,7 +15,7 @@ export async function OrdersPipelinePage({ view }: Props) {
   const { data } = await supabase
     .from("orders")
     .select(
-      "id, order_number, status, customer_name, customer_phone, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty, line_total, item:items!item_id(id, name, categories(name)))",
+      "id, order_number, status, customer_name, customer_phone, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty, line_total, note, item:items!item_id(id, name, categories(name)))",
     )
     .in("status", ["new", "preparing", "ready"])
     .order("created_at", { ascending: true });

@@ -29,6 +29,7 @@ type OrderItem = {
   name_snapshot: string;
   qty: number;
   line_total: number;
+  note: string | null;
   item: {
     id: string;
     name: string;
@@ -187,11 +188,14 @@ export function OrdersBoard({ initialOrders, view = "all" }: { initialOrders: Or
 
                   <ul className="space-y-0.5 text-sm">
                     {order.order_items.map((li) => (
-                      <li key={li.id} className="flex justify-between gap-2">
-                        <span className="min-w-0 truncate">
+                      <li key={li.id} className="min-w-0">
+                        <span className="block truncate">
                           <span className="tabular-nums text-muted-foreground">{li.qty}×</span>{" "}
                           {li.name_snapshot}
                         </span>
+                        {li.note && (
+                          <span className="block pl-5 text-xs text-amber-600 dark:text-amber-400">↳ {li.note}</span>
+                        )}
                       </li>
                     ))}
                   </ul>

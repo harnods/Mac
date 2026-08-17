@@ -14,7 +14,7 @@ import { buildStationDocket, buildTableChecker, buildTestDocket, type TableCheck
 import { getPairedPrinters, printToPaired } from "@/lib/printer";
 import { markOrderPrinted } from "@/app/actions/orders";
 
-type OrderItem = { id: string; name_snapshot: string; qty: number; item_id: string | null; item: { station: string | null } | null };
+type OrderItem = { id: string; name_snapshot: string; qty: number; note: string | null; item_id: string | null; item: { station: string | null } | null };
 type OrderRow = {
   id: string;
   seq: number;
@@ -29,7 +29,7 @@ type OrderRow = {
 };
 
 const ORDER_SELECT =
-  "id, seq, order_number, status, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty, item_id, item:items!item_id(station))";
+  "id, seq, order_number, status, table_name_snapshot, total, notes, printed_at, created_at, order_items(id, name_snapshot, qty, note, item_id, item:items!item_id(station))";
 
 const LOCATION_KEY = "machitori.print_location";
 const DOCKET_KEY = "machitori.print_auto_docket";
@@ -134,7 +134,7 @@ export function PrintStationClient() {
             buildStationDocket({
               ...base,
               station: locationRef.current,
-              items: stationItems.map((i) => ({ qty: i.qty, name: i.name_snapshot })),
+              items: stationItems.map((i) => ({ qty: i.qty, name: i.name_snapshot, note: i.note })),
             }),
           );
         }
@@ -142,7 +142,7 @@ export function PrintStationClient() {
           await printToPaired(
             buildTableChecker({
               ...base,
-              items: order.order_items.map((i) => ({ qty: i.qty, name: i.name_snapshot })),
+              items: order.order_items.map((i) => ({ qty: i.qty, name: i.name_snapshot, note: i.note })),
             }),
           );
         }
