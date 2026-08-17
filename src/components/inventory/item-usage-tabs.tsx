@@ -359,7 +359,6 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
           <TableRow>
             <TableHead className="w-[240px]">Recipe</TableHead>
             <TableHead className="w-[160px]">Type</TableHead>
-            <TableHead className="w-[160px]">Output</TableHead>
             <TableHead className="w-[160px] text-right">Qty</TableHead>
           </TableRow>
         </TableHeader>
@@ -387,18 +386,6 @@ function UsedInRecipesTable({ recipes }: { recipes: UsedInRecipeRow[] }) {
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
                 {recipe.recipeType === "product" ? "Product" : "Prep item"}
-              </TableCell>
-              <TableCell className="text-sm">
-                {recipe.product ? (
-                  <Link
-                    href={`/inventory/${recipe.product.type === "product" ? "products" : "prep-items"}/${recipe.product.id}`}
-                    className="hover:underline"
-                  >
-                    {recipe.product.name}
-                  </Link>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
               </TableCell>
               <TableCell className="text-sm tabular-nums text-right">
                 <Qty value={recipe.quantity} unit={recipe.unit} />
