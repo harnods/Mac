@@ -578,6 +578,85 @@ export async function setItemSellable(id: string, is_sellable: boolean): Promise
   return { ok: true };
 }
 
+// ─── Sellable prep items (menu presentation) ───────────────────────────────────
+
+const prepSaleSchema = z.object({
+  sell_price: z.coerce.number().nonnegative(),
+  station: z.enum(["bar", "kitchen"]),
+});
+
+/** Mark a prep item for sale, capturing its selling price + docket station. */
+export async function setPrepItemSale(id: string, input: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PREP_ITEMS_WRITE)) return { ok: false, error: "No permission" };
+  const parsed = prepSaleSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("items")
+    .update({ is_sellable: true, sell_price: parsed.data.sell_price, station: parsed.data.station, updated_by: profile.id })
+    .eq("id", id)
+    .eq("type", "prep_item");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inventory", "layout");
+  return { ok: true };
+}
+
+const prepMenuSchema = z.object({
+  description: z.string().trim().max(500).nullable().optional(),
+  category_id: z.string().uuid().nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  unit: z.string().min(1),
+  sell_price: z.coerce.number().nonnegative().nullable().optional(),
+  station: z.enum(["bar", "kitchen"]).nullable().optional(),
+});
+
+/** Update the menu-presentation fields of a sellable prep item (like a product):
+ *  description, category (product/menu), photo, unit, selling price, station. */
+export async function updatePrepItemMenu(id: string, input: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PREP_ITEMS_WRITE)) return { ok: false, error: "No permission" };
+  const parsed = prepMenuSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { description, category_id, image_url, unit, sell_price, station } = parsed.data;
+
+  const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("items")
+    .select("unit, on_hand, reserved")
+    .eq("id", id)
+    .eq("type", "prep_item")
+    .maybeSingle();
+  if (!current) return { ok: false, error: "Prep item not found" };
+
+  const patch: Record<string, unknown> = {
+    description: description || null,
+    category_id: category_id || null,
+    image_url: image_url || null,
+    unit,
+    sell_price: sell_price ?? null,
+    station: station ?? null,
+    updated_by: profile.id,
+  };
+
+  // Convert stock when the base unit changes (e.g. 1000 g → 1 kg).
+  if (current.unit !== unit) {
+    const nOn = convert(Number(current.on_hand), current.unit as UnitCode, unit as UnitCode);
+    if (nOn != null) patch.on_hand = nOn;
+    const nRes = convert(Number(current.reserved), current.unit as UnitCode, unit as UnitCode);
+    if (nRes != null) patch.reserved = nRes;
+  }
+
+  const { error } = await supabase.from("items").update(patch).eq("id", id).eq("type", "prep_item");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/inventory", "layout");
+  revalidatePath(`/inventory/prep-items/${id}`);
+  return { ok: true };
+}
+
 // ─── Product drawer ───────────────────────────────────────────────────────────
 
 export type ProductDrawerData = {

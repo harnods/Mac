@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P, canAccessRecipeStation } from "@/lib/permissions";
 import { ItemDetailActions } from "@/components/inventory/item-detail-actions";
-import { SellableToggleButton } from "@/components/inventory/sellable-toggle-button";
+import { PrepItemSaleSection } from "@/components/inventory/prep-item-sale-section";
 import { RecipeDrawerTrigger } from "@/components/recipes/recipe-drawer";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { DetailSection, DetailRow } from "@/components/ui/detail-list";
@@ -36,11 +36,11 @@ export default async function PrepItemDetailPage({
   const isAdmin = can(profile, P.PREP_ITEMS_WRITE);
   const supabase = await createClient();
 
-  const [{ data: itemData, error }, { data: ordersData }, { data: recipeData }] =
+  const [{ data: itemData, error }, { data: ordersData }, { data: recipeData }, { data: catData }, { data: unitData }] =
     await Promise.all([
       supabase
         .from("items")
-        .select("id, name, unit, on_hand, reserved, is_sellable, updated_at, updater:profiles!updated_by(full_name,email)")
+        .select("id, name, unit, on_hand, reserved, is_sellable, sell_price, station, description, category_id, image_url, updated_at, updater:profiles!updated_by(full_name,email)")
         .eq("id", id)
         .eq("type", "prep_item")
         .maybeSingle(),
@@ -54,15 +54,24 @@ export default async function PrepItemDetailPage({
         .select("id, name, station")
         .eq("product_id", id)
         .maybeSingle(),
+      supabase.from("categories").select("id, name").eq("type", "product").order("name"),
+      supabase.from("units").select("code").order("is_system", { ascending: false }).order("code"),
     ]);
 
   if (error || !itemData) notFound();
   // Station scope: hide a prep item whose producing recipe is outside this role's station.
   if (!canAccessRecipeStation(profile, (recipeData as { station?: string | null } | null)?.station ?? null)) notFound();
 
-  const item = itemData as unknown as { id: string; name: string; unit: string; on_hand: number; reserved: number; is_sellable: boolean; updated_at: string; updater: Updater | null };
+  const item = itemData as unknown as {
+    id: string; name: string; unit: string; on_hand: number; reserved: number;
+    is_sellable: boolean; sell_price: number | null; station: string | null;
+    description: string | null; category_id: string | null; image_url: string | null;
+    updated_at: string; updater: Updater | null;
+  };
   const orders = (ordersData ?? []) as PrepOrder[];
   const recipe = recipeData as { id: string; name: string } | null;
+  const productCategories = (catData ?? []) as { id: string; name: string }[];
+  const unitList = (unitData ?? []).map((u: { code: string }) => u.code);
 
   const available = Number(item.on_hand) - Number(item.reserved);
 
@@ -76,17 +85,31 @@ export default async function PrepItemDetailPage({
           <Badge variant="secondary">Prep item</Badge>
         </div>
         {isAdmin && (
-          <div className="flex gap-2">
-            <SellableToggleButton id={item.id} isSellable={item.is_sellable} />
-            <ItemDetailActions
-              itemTypeSlug="prep-items"
-              itemId={item.id}
-              name={item.name}
-              backUrl="/inventory/prep-items"
-            />
-          </div>
+          <ItemDetailActions
+            itemTypeSlug="prep-items"
+            itemId={item.id}
+            name={item.name}
+            backUrl="/inventory/prep-items"
+          />
         )}
       </div>
+
+      {isAdmin && (
+        <PrepItemSaleSection
+          item={{
+            id: item.id,
+            is_sellable: item.is_sellable,
+            sell_price: item.sell_price,
+            station: item.station,
+            description: item.description,
+            category_id: item.category_id,
+            image_url: item.image_url,
+            unit: item.unit,
+          }}
+          categories={productCategories}
+          units={unitList}
+        />
+      )}
 
       {/* Details */}
       <div className="grid grid-cols-12 gap-8">
