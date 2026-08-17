@@ -131,6 +131,54 @@ export function buildDocket(order: DocketOrder): Uint8Array {
   return b.build();
 }
 
+export type TableChecker = {
+  orderNumber: string;
+  tableName: string | null;
+  createdAt: string;
+  orderType: string; // e.g. "DINE IN"
+  items: DocketLine[];
+  queue: number | null; // running order number for the day
+  location: string | null; // "Bar" | "Kitchen"
+};
+
+/** Footer branding printed at the bottom of every checker. */
+export const CHECKER_FOOTER = "Powered by Mac";
+
+/** The kitchen/bar "table checker" auto-printed when an order comes in. */
+export function buildTableChecker(c: TableChecker): Uint8Array {
+  const b = new Builder();
+  const time = new Date(c.createdAt).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  });
+
+  b.init().align("center");
+  b.bold(true).line("TABLE CHECKER").bold(false);
+  b.size(true).line(c.tableName ?? "-").size(false);
+  b.line(c.orderNumber);
+  b.line(time);
+  b.bold(true).line(c.orderType).bold(false);
+  b.align("left").line("--------------------------------");
+
+  for (const it of c.items) {
+    b.bold(true).text(`${it.qty}x `).bold(false).line(it.name);
+  }
+  b.line("--------------------------------");
+
+  if (c.queue != null) b.line(`Queue: ${c.queue}`);
+  if (c.location) b.line(`Printer location: ${c.location}`);
+
+  b.feed(1).align("center").line(CHECKER_FOOTER);
+  b.feed(3).cut();
+  return b.build();
+}
+
 /** A table-tent docket: table name + a scannable QR to the customer order page. */
 export function buildTableQrDocket(tableName: string, url: string): Uint8Array {
   const b = new Builder();
