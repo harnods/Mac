@@ -15,10 +15,22 @@ import {
 } from "@/components/ui/select";
 import { useState } from "react";
 import { clockIn, clockOut, breakStart, breakEnd } from "@/app/actions/crew-self";
-import type { MyContext } from "@/app/actions/crew-self";
+import type { MyContext, PunchGeo } from "@/app/actions/crew-self";
 
 function hhmm(t: string | null | undefined) {
   return t ? t.slice(0, 5) : "";
+}
+
+/** Best-effort current GPS position; resolves null if unavailable or denied. */
+function getGeo(): Promise<PunchGeo> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
+    );
+  });
 }
 
 export function ClockCard({ context }: { context: MyContext }) {
@@ -98,7 +110,7 @@ export function ClockCard({ context }: { context: MyContext }) {
               </SelectContent>
             </Select>
           </div>
-          <Button className="h-14 w-full text-base" disabled={pending || blocked || !shiftId} onClick={() => run(() => clockIn(shiftId), "Clocked in")}>
+          <Button className="h-14 w-full text-base" disabled={pending || blocked || !shiftId} onClick={() => run(async () => clockIn(shiftId, await getGeo()), "Clocked in")}>
             Clock in
           </Button>
           {completed && <p className="text-center text-xs text-muted-foreground">Clocking in again starts a new session.</p>}
@@ -114,7 +126,7 @@ export function ClockCard({ context }: { context: MyContext }) {
               Start break
             </Button>
           )}
-          <Button variant="secondary" className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(clockOut, "Clocked out")}>
+          <Button variant="secondary" className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(async () => clockOut(await getGeo()), "Clocked out")}>
             Clock out
           </Button>
         </div>

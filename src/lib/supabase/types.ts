@@ -399,6 +399,12 @@ export type AttendanceSettings = {
   early_leave_grace_minutes: number;
   working_days_per_week: number;
   allowed_ips: string | null;
+  store_lat: number | null;
+  store_lng: number | null;
+  geofence_radius_m: number | null;
+  require_location: boolean;
+  clock_in_earliest: string | null;
+  clock_in_latest: string | null;
   updated_by: string | null;
   updated_at: string;
 };

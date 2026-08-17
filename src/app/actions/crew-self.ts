@@ -41,6 +41,68 @@ async function networkError(): Promise<string | null> {
   return isIpAllowed(ip, settings?.allowed_ips) ? null : "Clock in/out hanya bisa saat terhubung ke wifi toko.";
 }
 
+export type PunchGeo = { lat: number; lng: number } | null | undefined;
+
+/** Great-circle distance between two lat/lng points, in metres. */
+function distanceMetres(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/**
+ * Validates a clock punch against the store network (IP allowlist), geofence
+ * (GPS within radius of the store), and — for clock-in — the allowed time
+ * window. Returns the IP and coordinates to record on the attendance row.
+ */
+async function punchGuard(
+  geo: PunchGeo,
+  opts: { checkTimeWindow: boolean },
+): Promise<{ error?: string; ip: string | null; lat: number | null; lng: number | null }> {
+  const supabase = await createClient();
+  const { data: s } = await supabase
+    .from("attendance_settings")
+    .select("allowed_ips, store_lat, store_lng, geofence_radius_m, require_location, clock_in_earliest, clock_in_latest")
+    .limit(1)
+    .maybeSingle();
+  const ip = clientIp(await headers());
+  const lat = geo?.lat ?? null;
+  const lng = geo?.lng ?? null;
+
+  if (!isIpAllowed(ip, s?.allowed_ips)) {
+    return { error: "Clock in/out hanya bisa saat terhubung ke wifi toko.", ip, lat, lng };
+  }
+
+  const hasGeofence = s?.store_lat != null && s?.store_lng != null && s?.geofence_radius_m != null;
+  if (hasGeofence) {
+    if (lat == null || lng == null) {
+      if (s?.require_location) return { error: "Aktifkan izin lokasi (GPS) untuk clock in/out.", ip, lat, lng };
+    } else {
+      const dist = distanceMetres(lat, lng, Number(s!.store_lat), Number(s!.store_lng));
+      if (dist > Number(s!.geofence_radius_m)) {
+        return { error: `Kamu ~${Math.round(dist)} m dari toko — clock in/out hanya bisa di toko (radius ${s!.geofence_radius_m} m).`, ip, lat, lng };
+      }
+    }
+  } else if (s?.require_location && (lat == null || lng == null)) {
+    return { error: "Aktifkan izin lokasi (GPS) untuk clock in/out.", ip, lat, lng };
+  }
+
+  if (opts.checkTimeWindow && (s?.clock_in_earliest || s?.clock_in_latest)) {
+    const now = jakartaTime(); // "HH:MM:SS"
+    if (s?.clock_in_earliest && now < s.clock_in_earliest) {
+      return { error: `Clock in paling awal jam ${String(s.clock_in_earliest).slice(0, 5)}.`, ip, lat, lng };
+    }
+    if (s?.clock_in_latest && now > s.clock_in_latest) {
+      return { error: `Clock in paling akhir jam ${String(s.clock_in_latest).slice(0, 5)}.`, ip, lat, lng };
+    }
+  }
+
+  return { ip, lat, lng };
+}
+
 export type MyContext = {
   employee: { id: string; name: string; photo_url: string | null } | null;
   today: AttendanceWithRelations | null;
@@ -93,14 +155,14 @@ export async function getMyContext(): Promise<MyContext | null> {
   };
 }
 
-export async function clockIn(shiftId: string): Promise<ActionResult> {
+export async function clockIn(shiftId: string, geo?: PunchGeo): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   const empId = await myEmployeeId(profile.id);
   if (!empId) return { ok: false, error: "No crew profile linked to this account." };
   if (!shiftId) return { ok: false, error: "Please choose your shift." };
-  const net = await networkError();
-  if (net) return { ok: false, error: net };
+  const guard = await punchGuard(geo, { checkTimeWindow: true });
+  if (guard.error) return { ok: false, error: guard.error };
 
   const supabase = await createClient();
   const today = jakartaDate();
@@ -119,6 +181,9 @@ export async function clockIn(shiftId: string): Promise<ActionResult> {
     work_date: today,
     shift_id: shiftId,
     clock_in: jakartaTime(),
+    clock_in_ip: guard.ip,
+    clock_in_lat: guard.lat,
+    clock_in_lng: guard.lng,
     source: "mobile",
     created_by: profile.id,
     updated_by: profile.id,
@@ -141,13 +206,13 @@ async function openRecord(empId: string) {
   return data;
 }
 
-export async function clockOut(): Promise<ActionResult> {
+export async function clockOut(geo?: PunchGeo): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   const empId = await myEmployeeId(profile.id);
   if (!empId) return { ok: false, error: "No crew profile linked to this account." };
-  const net = await networkError();
-  if (net) return { ok: false, error: net };
+  const guard = await punchGuard(geo, { checkTimeWindow: false });
+  if (guard.error) return { ok: false, error: guard.error };
 
   const open = await openRecord(empId);
   if (!open) return { ok: false, error: "You haven't clocked in." };
@@ -162,7 +227,7 @@ export async function clockOut(): Promise<ActionResult> {
 
   const { error } = await serviceClient()
     .from("attendance")
-    .update({ clock_out: now, break_minutes: breakMin, break_start: null, breaks, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .update({ clock_out: now, clock_out_ip: guard.ip, clock_out_lat: guard.lat, clock_out_lng: guard.lng, break_minutes: breakMin, break_start: null, breaks, updated_by: profile.id, updated_at: new Date().toISOString() })
     .eq("id", open.id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/me");

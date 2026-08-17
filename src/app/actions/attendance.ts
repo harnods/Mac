@@ -252,19 +252,26 @@ export async function getAttendanceFormData(): Promise<AttendanceFormData | null
 
 // ─── Attendance settings (grace periods) ────────────────────────────────────
 
+const timeOrEmpty = z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional().or(z.literal(""));
 const attendanceSettingsSchema = z.object({
   working_days_per_week: z.coerce.number().int().min(1).max(7),
   allowed_ips: z.string().trim().max(500).optional().or(z.literal("")),
   late_grace_minutes: z.coerce.number().int().min(0).max(240),
   late_tolerance_direction: z.enum(["before", "after"]),
   early_leave_grace_minutes: z.coerce.number().int().min(0).max(240),
+  store_lat: z.coerce.number().min(-90).max(90).nullable().optional(),
+  store_lng: z.coerce.number().min(-180).max(180).nullable().optional(),
+  geofence_radius_m: z.coerce.number().int().min(10).max(5000).nullable().optional(),
+  require_location: z.coerce.boolean().optional().default(false),
+  clock_in_earliest: timeOrEmpty,
+  clock_in_latest: timeOrEmpty,
 });
 
 export async function getAttendanceSettings(): Promise<AttendanceSettings | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("attendance_settings")
-    .select("id,late_grace_minutes,late_tolerance_direction,early_leave_grace_minutes,working_days_per_week,allowed_ips,updated_by,updated_at")
+    .select("id,late_grace_minutes,late_tolerance_direction,early_leave_grace_minutes,working_days_per_week,allowed_ips,store_lat,store_lng,geofence_radius_m,require_location,clock_in_earliest,clock_in_latest,updated_by,updated_at")
     .limit(1)
     .maybeSingle();
   return (data ?? null) as AttendanceSettings | null;
@@ -287,6 +294,12 @@ export async function updateAttendanceSettings(id: string, input: unknown): Prom
       late_grace_minutes: parsed.data.late_grace_minutes,
       late_tolerance_direction: parsed.data.late_tolerance_direction,
       early_leave_grace_minutes: parsed.data.early_leave_grace_minutes,
+      store_lat: parsed.data.store_lat ?? null,
+      store_lng: parsed.data.store_lng ?? null,
+      geofence_radius_m: parsed.data.geofence_radius_m ?? null,
+      require_location: parsed.data.require_location,
+      clock_in_earliest: parsed.data.clock_in_earliest?.trim() ? parsed.data.clock_in_earliest : null,
+      clock_in_latest: parsed.data.clock_in_latest?.trim() ? parsed.data.clock_in_latest : null,
       updated_by: profile.id,
       updated_at: new Date().toISOString(),
     })

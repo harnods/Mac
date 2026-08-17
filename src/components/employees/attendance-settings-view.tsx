@@ -52,6 +52,12 @@ export function AttendanceSettingsView({
   const [earlyGrace, setEarlyGrace] = useState(String(settings?.early_leave_grace_minutes ?? 15));
   const [workingDays, setWorkingDays] = useState(String(settings?.working_days_per_week ?? 6));
   const [allowedIps, setAllowedIps] = useState(settings?.allowed_ips ?? "");
+  const [storeLat, setStoreLat] = useState(settings?.store_lat != null ? String(settings.store_lat) : "");
+  const [storeLng, setStoreLng] = useState(settings?.store_lng != null ? String(settings.store_lng) : "");
+  const [radius, setRadius] = useState(settings?.geofence_radius_m != null ? String(settings.geofence_radius_m) : "");
+  const [requireLocation, setRequireLocation] = useState(settings?.require_location ?? false);
+  const [earliest, setEarliest] = useState(settings?.clock_in_earliest?.slice(0, 5) ?? "");
+  const [latest, setLatest] = useState(settings?.clock_in_latest?.slice(0, 5) ?? "");
 
   const workDays = settings?.working_days_per_week ?? 6;
   const late = settings?.late_grace_minutes ?? 15;
@@ -65,6 +71,12 @@ export function AttendanceSettingsView({
     setEarlyGrace(String(settings.early_leave_grace_minutes));
     setWorkingDays(String(settings.working_days_per_week));
     setAllowedIps(settings.allowed_ips ?? "");
+    setStoreLat(settings.store_lat != null ? String(settings.store_lat) : "");
+    setStoreLng(settings.store_lng != null ? String(settings.store_lng) : "");
+    setRadius(settings.geofence_radius_m != null ? String(settings.geofence_radius_m) : "");
+    setRequireLocation(settings.require_location);
+    setEarliest(settings.clock_in_earliest?.slice(0, 5) ?? "");
+    setLatest(settings.clock_in_latest?.slice(0, 5) ?? "");
     setOpen(true);
   }
 
@@ -78,6 +90,12 @@ export function AttendanceSettingsView({
         late_grace_minutes: Number(lateGrace),
         late_tolerance_direction: lateDir,
         early_leave_grace_minutes: Number(earlyGrace),
+        store_lat: storeLat.trim() ? Number(storeLat) : null,
+        store_lng: storeLng.trim() ? Number(storeLng) : null,
+        geofence_radius_m: radius.trim() ? Number(radius) : null,
+        require_location: requireLocation,
+        clock_in_earliest: earliest,
+        clock_in_latest: latest,
       });
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Attendance settings saved");
@@ -125,6 +143,22 @@ export function AttendanceSettingsView({
                 : "No restriction — crew can clock in/out from any network. Set the store's public IP(s) to lock it down."
             }
           />
+          <DetailRow
+            label="Store location (geofence)"
+            value={settings.store_lat != null && settings.store_lng != null && settings.geofence_radius_m != null
+              ? <span className="tabular-nums">{settings.store_lat}, {settings.store_lng} · {settings.geofence_radius_m} m{settings.require_location ? " · required" : ""}</span>
+              : "Not set"}
+            hint={settings.store_lat != null
+              ? "Clock-in must be within this radius of the store (by phone GPS)."
+              : "No geofence — set the store's coordinates + radius to require clock-in at the store."}
+          />
+          <DetailRow
+            label="Clock-in time window"
+            value={settings.clock_in_earliest || settings.clock_in_latest
+              ? `${settings.clock_in_earliest?.slice(0, 5) ?? "—"} to ${settings.clock_in_latest?.slice(0, 5) ?? "—"}`
+              : "Any time"}
+            hint="Clock-in outside this window is blocked."
+          />
         </dl>
       ) : (
         <p className="text-sm text-muted-foreground">Attendance settings are not available.</p>
@@ -155,6 +189,35 @@ export function AttendanceSettingsView({
               <p className="text-xs text-muted-foreground">
                 Store&rsquo;s public IP address(es) or CIDR range(s), comma-separated. Crew can only clock in/out from these. Leave empty to allow any network.
               </p>
+              <p className="text-xs text-amber-600">
+                Tip: use the store&rsquo;s exact public IP, not a broad /24 — an ISP block can let crew on the same provider clock in from home.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Store location (geofence)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Input value={storeLat} onChange={(e) => setStoreLat(e.target.value)} placeholder="Latitude" />
+                <Input value={storeLng} onChange={(e) => setStoreLng(e.target.value)} placeholder="Longitude" />
+                <Input type="number" min="10" max="5000" value={radius} onChange={(e) => setRadius(e.target.value)} placeholder="Radius m" />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={requireLocation} onChange={(e) => setRequireLocation(e.target.checked)} className="size-4" />
+                Require GPS location to clock in/out
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Set the store&rsquo;s coordinates + radius (metres) to only allow clock-in within that circle. Tip: open Google Maps at the store, right-click → copy the lat, long.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Clock-in time window</Label>
+              <div className="flex items-center gap-2">
+                <Input type="time" value={earliest} onChange={(e) => setEarliest(e.target.value)} className="w-32" />
+                <span className="text-sm text-muted-foreground">to</span>
+                <Input type="time" value={latest} onChange={(e) => setLatest(e.target.value)} className="w-32" />
+              </div>
+              <p className="text-xs text-muted-foreground">Clock-in is blocked outside this window. Leave empty for no limit.</p>
             </div>
             <div className="space-y-2">
               <Label>Late tolerance</Label>
