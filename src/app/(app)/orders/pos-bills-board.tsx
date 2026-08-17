@@ -4,16 +4,24 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { closeOrderItems, closeTableBill } from "@/app/actions/orders";
+import { settleOrderItems, settleTableBill } from "@/app/actions/orders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { formatRp } from "@/lib/format";
 import { calculateOrderCharges, formatRate, PBJT_RATE, SERVICE_CHARGE_RATE } from "@/lib/order-charges";
+import { NewOrderModal } from "./new-order-modal";
 
 const OPEN_STATUSES = ["new", "preparing", "ready"];
+
+export type PosTable = {
+  id: string;
+  name: string;
+  code: string;
+};
 
 export type PosBillOrder = {
   id: string;
@@ -186,22 +194,31 @@ function BillCard({
   bill,
   closed = false,
   onView,
+  paymentMethods,
 }: {
   bill: PosBill;
   closed?: boolean;
   onView: (bill: PosBill) => void;
+  paymentMethods: string[];
 }) {
-  const [closing, startClose] = useTransition();
+  const [settling, startSettle] = useTransition();
+  const [settleOpen, setSettleOpen] = useState(false);
+  const [method, setMethod] = useState(paymentMethods[0] ?? "");
   const router = useRouter();
 
-  function closeBill() {
-    startClose(async () => {
-      const res = await closeTableBill(bill.tableId);
+  function settle() {
+    if (!method) {
+      toast.error("Pilih metode pembayaran");
+      return;
+    }
+    startSettle(async () => {
+      const res = await settleTableBill(bill.tableId, method);
       if (!res.ok) {
         toast.error(res.error);
         return;
       }
-      toast.success(`Bill ${bill.tableName} closed`);
+      toast.success(`Bill ${bill.tableName} lunas — tercatat di Sales`);
+      setSettleOpen(false);
       router.refresh();
     });
   }
@@ -227,17 +244,62 @@ function BillCard({
             View details
           </Button>
           {!closed && (
-            <Button size="sm" className="h-8 text-xs" onClick={closeBill} disabled={closing}>
-              {closing ? "Closing..." : "Close Bill"}
+            <Button size="sm" className="h-8 text-xs" onClick={() => setSettleOpen(true)}>
+              Settle &amp; pay
             </Button>
           )}
         </div>
       </div>
+
+      <Dialog open={settleOpen} onOpenChange={setSettleOpen}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Settle {bill.tableName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+              <span className="text-sm text-muted-foreground">Total</span>
+              <span className="text-lg font-bold tabular-nums">{formatRp(bill.total)}</span>
+            </div>
+            {paymentMethods.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Belum ada metode pembayaran. Tambahkan di Settings → Payment methods.
+              </p>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Metode pembayaran</label>
+                <Select value={method} onValueChange={setMethod}>
+                  <SelectTrigger><SelectValue placeholder="Pilih metode" /></SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSettleOpen(false)}>Batal</Button>
+            <Button onClick={settle} disabled={settling || paymentMethods.length === 0 || !method}>
+              {settling ? "Memproses..." : "Settle & pay"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[] }) {
+export function PosBillsBoard({
+  initialOrders,
+  tables = [],
+  paymentMethods = [],
+}: {
+  initialOrders: PosBillOrder[];
+  tables?: PosTable[];
+  paymentMethods?: string[];
+}) {
   const router = useRouter();
   const supabase = useRef(createClient());
   const [selectedBill, setSelectedBill] = useState<PosBill | null>(null);
@@ -245,8 +307,10 @@ export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[]
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [closingSelected, startCloseSelected] = useTransition();
+  const [splitMethod, setSplitMethod] = useState(paymentMethods[0] ?? "");
   const openBills = useMemo(() => groupOpenBills(initialOrders), [initialOrders]);
   const closedBills = useMemo(() => groupClosedBills(initialOrders), [initialOrders]);
+  const occupiedTableIds = useMemo(() => new Set(openBills.map((bill) => bill.tableId)), [openBills]);
 
   useEffect(() => {
     const client = supabase.current;
@@ -301,15 +365,19 @@ export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[]
     });
   }
 
-  function closeSelectedItems() {
+  function settleSelectedItems() {
+    if (!splitMethod) {
+      toast.error("Pilih metode pembayaran");
+      return;
+    }
     const ids = [...selectedItemIds];
     startCloseSelected(async () => {
-      const res = await closeOrderItems(ids);
+      const res = await settleOrderItems(ids, splitMethod);
       if (!res.ok) {
         toast.error(res.error);
         return;
       }
-      toast.success("Selected items closed");
+      toast.success("Item terpilih lunas — tercatat di Sales");
       setSelectedBill(null);
       router.refresh();
     });
@@ -317,6 +385,11 @@ export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[]
 
   return (
     <>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">POS</h1>
+        <NewOrderModal tables={tables} occupiedTableIds={occupiedTableIds} />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -331,7 +404,9 @@ export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[]
                 No open bills.
               </div>
             ) : (
-              openBills.map((bill) => <BillCard key={bill.id} bill={bill} onView={openBillDetails} />)
+              openBills.map((bill) => (
+                <BillCard key={bill.id} bill={bill} onView={openBillDetails} paymentMethods={paymentMethods} />
+              ))
             )}
           </div>
         </section>
@@ -350,7 +425,7 @@ export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[]
               </div>
             ) : (
               closedBills.map((bill) => (
-                <BillCard key={bill.id} bill={bill} closed onView={openBillDetails} />
+                <BillCard key={bill.id} bill={bill} closed onView={openBillDetails} paymentMethods={paymentMethods} />
               ))
             )}
           </div>
@@ -436,15 +511,31 @@ export function PosBillsBoard({ initialOrders }: { initialOrders: PosBillOrder[]
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={printBill} disabled={canSplit && selectedItemIds.size === 0}>
-              <Printer className="size-4" /> {canSplit ? "Print selected" : "Print"}
-            </Button>
-            {canSplit && (
-              <Button onClick={closeSelectedItems} disabled={selectedItemIds.size === 0 || closingSelected}>
-                {closingSelected ? "Closing..." : "Close selected"}
-              </Button>
+          <DialogFooter className="sm:flex-col sm:items-stretch sm:space-x-0 sm:gap-2">
+            {canSplit && paymentMethods.length > 0 && (
+              <Select value={splitMethod} onValueChange={setSplitMethod}>
+                <SelectTrigger><SelectValue placeholder="Metode pembayaran" /></SelectTrigger>
+                <SelectContent>
+                  {paymentMethods.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={printBill} disabled={canSplit && selectedItemIds.size === 0}>
+                <Printer className="size-4" /> {canSplit ? "Print selected" : "Print"}
+              </Button>
+              {canSplit && (
+                <Button
+                  className="flex-1"
+                  onClick={settleSelectedItems}
+                  disabled={selectedItemIds.size === 0 || closingSelected || paymentMethods.length === 0 || !splitMethod}
+                >
+                  {closingSelected ? "Memproses..." : "Settle selected"}
+                </Button>
+              )}
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

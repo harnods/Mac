@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { convert } from "@/lib/units";
+import { applySalesConsumption } from "@/lib/sales-stock";
 
 type ActionResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -107,126 +108,13 @@ export async function createSalesEntry(raw: unknown): Promise<ActionResult> {
 
   if (lineError) return { ok: false, error: lineError.message };
 
-  // Fetch recipes for all sold products
-  const { data: recipes } = await supabase
-    .from("recipes")
-    .select(`
-      product_id, yield_qty, recipe_type,
-      recipe_items(item_id, quantity, unit, item:items(id, unit, type, on_hand, reserved))
-    `)
-    .in("product_id", productIds);
-
-  // Build map: product_id → recipe
-  type RecipeRow = {
-    product_id: string;
-    yield_qty: number;
-    recipe_type: string;
-    recipe_items: {
-      item_id: string;
-      quantity: number;
-      unit: string;
-      item: { id: string; unit: string; type: string; on_hand: number; reserved: number } | null;
-    }[];
-  };
-  const recipeMap = new Map<string, RecipeRow>();
-  for (const r of (recipes ?? []) as unknown as RecipeRow[]) {
-    recipeMap.set(r.product_id, r);
-  }
-
-  // Fetch the sold products' own stock — needed for WIP prep items, whose
-  // already-prepped on_hand gets drawn down directly (see below).
-  const { data: soldItems } = await supabase
-    .from("items")
-    .select("id, unit, on_hand, reserved")
-    .in("id", productIds);
-  const soldItemMap = new Map((soldItems ?? []).map((i) => [i.id, i]));
-
-  // Accumulate deductions per ingredient (multiple products may share ingredients)
-  const deductions = new Map<string, {
-    item: { id: string; unit: string; type: string; on_hand: number; reserved: number };
-    totalDelta: number; // in item's base unit
-  }>();
-
-  for (const it of items) {
-    const recipe = recipeMap.get(it.product_id);
-    if (!recipe || !recipe.yield_qty) continue; // no recipe → skip deduction
-
-    // qty sold in the product's base unit
-    const qtyInBase = it.qty; // already in the unit the user entered
-
-    // A WIP recipe (prep item) was already cooked and stocked via a prep
-    // order — selling it draws down that already-prepped stock directly,
-    // it does NOT re-consume the WIP recipe's raw ingredients again.
-    if (recipe.recipe_type === "wip") {
-      const soldItem = soldItemMap.get(it.product_id);
-      if (!soldItem) continue;
-
-      const neededInBase = convert(it.qty, it.unit, soldItem.unit) ?? qtyInBase;
-      const existing = deductions.get(it.product_id);
-      if (existing) {
-        existing.totalDelta += neededInBase;
-      } else {
-        deductions.set(it.product_id, {
-          item: {
-            id: soldItem.id,
-            unit: soldItem.unit,
-            type: "prep_item",
-            on_hand: Number(soldItem.on_hand),
-            reserved: Number(soldItem.reserved),
-          },
-          totalDelta: neededInBase,
-        });
-      }
-      continue;
-    }
-
-    for (const ri of recipe.recipe_items) {
-      if (!ri.item) continue;
-
-      // qty of this ingredient needed per 1 sold unit = recipe_qty / yield_qty
-      // total needed = (recipe_qty / yield_qty) × qty_sold
-      const recipeQtyInBase = convert(ri.quantity, ri.unit, ri.item.unit) ?? ri.quantity;
-      const neededInBase = (recipeQtyInBase / recipe.yield_qty) * qtyInBase;
-
-      const existing = deductions.get(ri.item_id);
-      if (existing) {
-        existing.totalDelta += neededInBase;
-      } else {
-        deductions.set(ri.item_id, {
-          item: {
-            id: ri.item.id,
-            unit: ri.item.unit,
-            type: ri.item.type,
-            on_hand: Number(ri.item.on_hand),
-            reserved: Number(ri.item.reserved),
-          },
-          totalDelta: neededInBase,
-        });
-      }
-    }
-  }
-
-  // Apply deductions
-  for (const [itemId, { item, totalDelta }] of deductions) {
-    const newOnHand = item.on_hand - totalDelta;
-    const currentReserved = item.reserved;
-
-    await supabase
-      .from("items")
-      .update({ on_hand: newOnHand, updated_by: profile.id })
-      .eq("id", itemId);
-
-    await supabase.from("stock_ledger").insert({
-      item_id: itemId,
-      type: "sales_consumption",
-      ref_id: entry.id,
-      qty_delta: -totalDelta,
-      on_hand_after: newOnHand,
-      reserved_after: currentReserved,
-      note: `Sales entry ${entry_date}`,
-      created_by: profile.id,
-    });
-  }
+  // Deduct ingredient stock consumed by the sold products (shared with POS settle).
+  await applySalesConsumption(supabase, {
+    entryId: entry.id,
+    items,
+    profileId: profile.id,
+    note: `Sales entry ${entry_date}`,
+  });
 
   revalidatePath("/sales");
   revalidatePath("/inventory", "layout");
