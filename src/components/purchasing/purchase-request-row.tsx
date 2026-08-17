@@ -292,7 +292,7 @@ function RequestItemRow({
       {/* Status + per-item approve/reject */}
       <td className="py-1.5 pl-3">
         <div className="flex items-center justify-end gap-2">
-          {statusBadge(item.status)}
+          {item.status !== "pending" && statusBadge(item.status)}
           {canApprove && (
             <div className="flex gap-1.5">
               <Button
