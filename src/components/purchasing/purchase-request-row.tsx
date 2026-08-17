@@ -76,6 +76,24 @@ function statusBadge(status: ItemStatus | PurchaseRequestStatus) {
   );
 }
 
+/** Request-level display derived from per-item statuses. Adds a "Partial" state
+ *  when some items are decided but others are still pending. */
+function requestStatusDisplay(status: PurchaseRequestStatus, items: RequestRowItem[]) {
+  const total = items.length;
+  if (status === "draft" || total === 0) {
+    return { label: STATUS_LABEL[status], variant: status === "draft" ? "outline" as const : "secondary" as const, note: null as string | null };
+  }
+  const approved = items.filter((i) => i.status === "approved").length;
+  const rejected = items.filter((i) => i.status === "rejected").length;
+  const pending = total - approved - rejected;
+  const note = total > 1 ? `${approved}/${total} approved` : null;
+
+  if (pending === total) return { label: "Pending", variant: "secondary" as const, note };
+  if (rejected === total) return { label: "Rejected", variant: "destructive" as const, note: null };
+  if (pending === 0) return { label: "Approved", variant: "success" as const, note };
+  return { label: "Partial", variant: "secondary" as const, note };
+}
+
 export function PurchaseRequestRow({
   id, status, items, note, creator, createdAt, isAdmin, canApprove, suppliers, isOwn, colSpan,
   showStatus = true, showRequestor = true, showRequestDate = true, showItems = true, showNote = true,
@@ -109,7 +127,19 @@ export function PurchaseRequestRow({
           <ChevronRight className={cn("mx-auto size-4 text-muted-foreground transition-transform", open && "rotate-90")} />
         </TableCell>
         <TableCell className="font-medium tabular-nums">{formatId(id)}</TableCell>
-        {showStatus && <TableCell>{statusBadge(status)}</TableCell>}
+        {showStatus && (
+          <TableCell>
+            {(() => {
+              const d = requestStatusDisplay(status, items);
+              return (
+                <div className="flex flex-col gap-0.5">
+                  <Badge variant={d.variant} className="w-fit">{d.label}</Badge>
+                  {d.note && <span className="text-xs text-muted-foreground tabular-nums">{d.note}</span>}
+                </div>
+              );
+            })()}
+          </TableCell>
+        )}
         {showRequestor && <TableCell className="text-sm truncate">{requestorLabel}</TableCell>}
         {showRequestDate && <TableCell className="text-sm tabular-nums">{formatDate(createdAt)}</TableCell>}
         {showItems && <TableCell className="tabular-nums">{items.length}</TableCell>}
