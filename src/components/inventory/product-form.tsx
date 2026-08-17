@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DecimalInput } from "@/components/ui/decimal-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Command,
   CommandEmpty,
@@ -73,7 +74,7 @@ export function ProductForm({
     itemAny?.sell_price != null ? String(itemAny.sell_price) : "",
   );
   const [isAddon, setIsAddon] = useState(itemAny?.is_addon ?? false);
-  const [station, setStation] = useState<"bar" | "kitchen" | "">(itemAny?.station ?? "");
+  const [station, setStation] = useState<"bar" | "kitchen">(itemAny?.station ?? "bar");
   const [imageUrl, setImageUrl] = useState<string | null>(item?.image_url ?? null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
@@ -151,6 +152,7 @@ export function ProductForm({
         is_sellable: isSellable,
         sell_price: isSellable && sellPrice.trim() ? parseDecimal(sellPrice) : null,
         is_addon: isAddon,
+        station,
         image_url: imageUrl,
         description: description.trim() || null,
         set_products: productKind === "set" ? setProducts : [],
@@ -329,16 +331,29 @@ export function ProductForm({
                   </Label>
                 </div>
                 {isSellable && (
-                  <div className="space-y-2">
-                    <Label htmlFor="sell-price">Selling price</Label>
-                    <DecimalInput
-                      id="sell-price"
-                      min="0"
-                      step="100"
-                      value={sellPrice}
-                      onValueChange={setSellPrice}
-                      className="w-40"
-                    />
+                  <div className="flex flex-wrap gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="sell-price">Selling price</Label>
+                      <DecimalInput
+                        id="sell-price"
+                        min="0"
+                        step="100"
+                        value={sellPrice}
+                        onValueChange={setSellPrice}
+                        className="w-40"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="station">Station</Label>
+                      <Select value={station} onValueChange={(v) => setStation(v as "bar" | "kitchen")}>
+                        <SelectTrigger id="station" className="w-40"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bar">Bar</SelectItem>
+                          <SelectItem value="kitchen">Kitchen</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Docket dicetak di printer station ini.</p>
+                    </div>
                   </div>
                 )}
               </div>
