@@ -50,10 +50,16 @@ export default async function ItemTypePage({
   let query = supabase
     .from("items")
     .select("*, categories(id,name), location:locations(id,name), updater:profiles!updated_by(full_name,email), item_unit_conversions(from_unit, factor, to_unit)", { count: "exact" })
-    .eq("type", config.dbType)
     .is("deleted_at", null)
     .order("name")
     .range(from, to);
+
+  // The Products list also surfaces prep items that have been put up for sale.
+  if (config.dbType === "product") {
+    query = query.or("type.eq.product,and(type.eq.prep_item,is_sellable.eq.true)");
+  } else {
+    query = query.eq("type", config.dbType);
+  }
 
   if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
   if (cat) query = query.eq("category_id", cat);

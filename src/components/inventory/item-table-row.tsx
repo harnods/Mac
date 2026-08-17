@@ -85,9 +85,13 @@ export function ItemTableRow({
   const reserved = convert(Number(item.reserved), item.unit, viewUnit) ?? Number(item.reserved);
   const available = onHand - reserved;
 
+  // A row can belong to a different type than the list (e.g. a sellable prep
+  // item shown in the Products list) — route it to its own detail/edit pages.
+  const rowSlug = item.type === "prep_item" ? "prep-items" : itemTypeSlug;
+
   return (
     <>
-      <ClickableTableRow href={`/inventory/${itemTypeSlug}/${item.id}`} className={isSelected ? "bg-primary/5" : undefined}>
+      <ClickableTableRow href={`/inventory/${rowSlug}/${item.id}`} className={isSelected ? "bg-primary/5" : undefined}>
         {onToggleSelect && (
           <TableCell className="w-8 pl-2 pr-0" onClick={(e) => e.stopPropagation()}>
             <label className="flex items-center justify-start w-full py-3 cursor-pointer">
@@ -103,7 +107,7 @@ export function ItemTableRow({
         <TableCell className="font-medium">
           <span className="flex items-center gap-2 min-w-0">
             <Link
-              href={`/inventory/${itemTypeSlug}/${item.id}`}
+              href={`/inventory/${rowSlug}/${item.id}`}
               onClick={(e) => e.stopPropagation()}
               className="truncate hover:underline"
             >
@@ -206,11 +210,11 @@ export function ItemTableRow({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href={`/inventory/${itemTypeSlug}/${item.id}`}>View details</Link>
+                <Link href={`/inventory/${rowSlug}/${item.id}`}>View details</Link>
               </DropdownMenuItem>
               {isAdmin && (
                 <DropdownMenuItem asChild>
-                  <Link href={`/inventory/${itemTypeSlug}/${item.id}/edit`}>Edit</Link>
+                  <Link href={`/inventory/${rowSlug}/${item.id}/edit`}>Edit</Link>
                 </DropdownMenuItem>
               )}
               {(otherUnits.length > 0 || viewUnit !== item.unit) && (

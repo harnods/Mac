@@ -21,6 +21,15 @@ import { setItemSellable, setPrepItemSale, updatePrepItemMenu } from "@/app/acti
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+function ReadRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="space-y-0.5">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm">{value}</dd>
+    </div>
+  );
+}
+
 type PrepItem = {
   id: string;
   is_sellable: boolean;
@@ -57,6 +66,19 @@ export function PrepItemSaleSection({
   const [station, setStation] = useState(item.station ?? "");
   const [imageUrl, setImageUrl] = useState<string | null>(item.image_url);
   const [uploading, setUploading] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  function resetForm() {
+    setDescription(item.description ?? "");
+    setCategoryId(item.category_id);
+    setUnit(item.unit);
+    setSellPrice(item.sell_price != null ? String(item.sell_price) : "");
+    setStation(item.station ?? "");
+    setImageUrl(item.image_url);
+  }
+
+  const categoryName = categories.find((c) => c.id === categoryId)?.name ?? null;
+  const stationLabel = station === "bar" ? "Bar" : station === "kitchen" ? "Kitchen" : null;
 
   function handleToggle(checked: boolean) {
     if (checked) {
@@ -115,6 +137,7 @@ export function PrepItemSaleSection({
       });
       if (!res.ok) { toast.error(res.error); return; }
       toast.success("Saved");
+      setEditing(false);
       router.refresh();
     });
   }
@@ -128,66 +151,105 @@ export function PrepItemSaleSection({
 
       {item.is_sellable && (
         <div className="rounded-lg border p-4 space-y-4">
-          <h2 className="text-sm font-semibold">Menu details</h2>
-          <div className="flex flex-col gap-6 md:flex-row">
-            <div className="flex-1 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Selling price</Label>
-                  <DecimalInput value={sellPrice} onValueChange={setSellPrice} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Station</Label>
-                  <Select value={station} onValueChange={setStation}>
-                    <SelectTrigger className="w-full"><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bar">Bar</SelectItem>
-                      <SelectItem value="kitchen">Kitchen</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <CategoryCombobox categories={categories} value={categoryId} onChange={setCategoryId} catType="product" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Unit</Label>
-                  <UnitCombobox units={units} value={unit} onChange={setUnit} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="resize-none" placeholder="Shown on the customer menu" />
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold">Menu details</h2>
+            {!editing && (
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)}>Edit</Button>
+            )}
+          </div>
 
-            <div className="space-y-2 md:w-48">
-              <Label>Photo</Label>
-              <div className="aspect-square w-full overflow-hidden rounded-lg border bg-muted">
-                {imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="" className="size-full object-cover" />
-                ) : (
-                  <div className="flex size-full items-center justify-center text-muted-foreground">
-                    <ImagePlus className="size-8" />
+          {!editing ? (
+            // ── Read-only view ──────────────────────────────────────
+            <div className="flex flex-col gap-6 md:flex-row">
+              <div className="flex-1">
+                <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+                  <ReadRow label="Selling price" value={item.sell_price != null ? formatRp(item.sell_price) : "—"} />
+                  <ReadRow label="Station" value={stationLabel ?? "—"} />
+                  <ReadRow label="Category" value={categoryName ?? "—"} />
+                  <ReadRow label="Unit" value={unit} />
+                  <div className="sm:col-span-2">
+                    <ReadRow label="Description" value={description || "—"} />
                   </div>
-                )}
+                </dl>
               </div>
-              <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full cursor-pointer")}>
-                {uploading ? "Uploading…" : imageUrl ? "Change photo" : "Upload photo"}
-                <input type="file" accept="image/*" className="hidden" onChange={handleImage} disabled={uploading} />
-              </label>
-              {imageUrl && (
-                <Button type="button" variant="ghost" size="sm" className="w-full text-destructive" onClick={() => setImageUrl(null)}>
-                  Remove
-                </Button>
-              )}
+              <div className="md:w-48">
+                <div className="aspect-square w-full overflow-hidden rounded-lg border bg-muted">
+                  {imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imageUrl} alt="" className="size-full object-cover" />
+                  ) : (
+                    <div className="flex size-full items-center justify-center text-muted-foreground">
+                      <ImagePlus className="size-8" />
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            // ── Edit form ───────────────────────────────────────────
+            <>
+              <div className="flex flex-col gap-6 md:flex-row">
+                <div className="flex-1 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Selling price</Label>
+                      <DecimalInput value={sellPrice} onValueChange={setSellPrice} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Station</Label>
+                      <Select value={station} onValueChange={setStation}>
+                        <SelectTrigger className="w-full"><SelectValue placeholder="Select…" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bar">Bar</SelectItem>
+                          <SelectItem value="kitchen">Kitchen</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <CategoryCombobox categories={categories} value={categoryId} onChange={setCategoryId} catType="product" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Unit</Label>
+                      <UnitCombobox units={units} value={unit} onChange={setUnit} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="resize-none" placeholder="Shown on the customer menu" />
+                  </div>
+                </div>
 
-          <div className="flex justify-end">
-            <Button onClick={saveMenu} disabled={pending || uploading}>Save changes</Button>
-          </div>
+                <div className="space-y-2 md:w-48">
+                  <Label>Photo</Label>
+                  <div className="aspect-square w-full overflow-hidden rounded-lg border bg-muted">
+                    {imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={imageUrl} alt="" className="size-full object-cover" />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-muted-foreground">
+                        <ImagePlus className="size-8" />
+                      </div>
+                    )}
+                  </div>
+                  <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "w-full cursor-pointer")}>
+                    {uploading ? "Uploading…" : imageUrl ? "Change photo" : "Upload photo"}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImage} disabled={uploading} />
+                  </label>
+                  {imageUrl && (
+                    <Button type="button" variant="ghost" size="sm" className="w-full text-destructive" onClick={() => setImageUrl(null)}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => { resetForm(); setEditing(false); }} disabled={pending}>Cancel</Button>
+                <Button onClick={saveMenu} disabled={pending || uploading}>Save changes</Button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
