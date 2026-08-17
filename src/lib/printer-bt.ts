@@ -44,17 +44,26 @@ export async function writeBytes(characteristic: any, bytes: Uint8Array) {
  * browser supports getDevices(); otherwise prompt the user to pick it again.
  */
 export async function getDeviceForWrite(deviceId: string): Promise<any> {
+  const silent = await getDeviceForWriteSilent(deviceId);
+  if (silent) return silent;
   const bt = (navigator as any).bluetooth;
-  if (bt.getDevices) {
-    try {
-      const devices: any[] = await bt.getDevices();
-      const found = devices.find((d) => d.id === deviceId);
-      if (found) return found;
-    } catch {
-      /* fall through to prompt */
-    }
-  }
   return bt.requestDevice({ acceptAllDevices: true, optionalServices: OPTIONAL_SERVICES });
+}
+
+/**
+ * Reconnect to a previously-granted device by id WITHOUT ever showing a chooser.
+ * Returns null when the browser can't recall it (no getDevices, or not granted)
+ * — used by background auto-print/keep-alive where a prompt would fail anyway.
+ */
+export async function getDeviceForWriteSilent(deviceId: string): Promise<any | null> {
+  const bt = (navigator as any).bluetooth;
+  if (!bt?.getDevices) return null;
+  try {
+    const devices: any[] = await bt.getDevices();
+    return devices.find((d) => d.id === deviceId) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Connect to a paired printer and send raw ESC/POS bytes. */

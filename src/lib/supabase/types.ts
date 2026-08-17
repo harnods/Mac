@@ -69,6 +69,26 @@ export type Location = {
   updated_at: string;
 };
 
+export type Supplier = {
+  id: string;
+  name: string;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SupplierPic = {
+  id: string;
+  supplier_id: string;
+  name: string;
+  whatsapp: string | null;
+  created_at: string;
+};
+
+export type SupplierWithPics = Supplier & {
+  supplier_pics: SupplierPic[];
+};
+
 export type ItemWithCategory = Item & {
   categories: Pick<Category, "id" | "name"> | null;
   location?: Pick<Location, "id" | "name"> | null;
@@ -113,6 +133,7 @@ export type PurchaseRequest = {
   created_at: string;
   updated_at: string;
   updated_by: string | null;
+  supplier_id: string | null;
 };
 
 export type PurchaseRequestItem = {
@@ -132,6 +153,7 @@ export type PurchaseRequestWithItems = PurchaseRequest & {
   purchase_request_items: PurchaseRequestItemWithItem[];
   creator: Updater | null;
   reviewer: Updater | null;
+  supplier: Pick<Supplier, 'id' | 'name'> | null;
 };
 
 export type Purchase = {
@@ -141,6 +163,7 @@ export type Purchase = {
   created_at: string;
   updated_at: string;
   updated_by: string | null;
+  supplier_id: string | null;
 };
 
 export type PurchaseItem = {
@@ -165,6 +188,7 @@ export type PurchaseWithItems = Purchase & {
   purchase_items: PurchaseItemWithItem[];
   updater: Updater | null;
   purchase_request: Pick<PurchaseRequest, 'id'> | null;
+  supplier: Pick<Supplier, 'id' | 'name'> | null;
 };
 
 export type RecipeWithItems = Recipe & {

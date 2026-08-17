@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRp, formatDateTime } from "@/lib/format";
 import { buildStationDocket, buildTableChecker, buildTestDocket, type TableChecker } from "@/lib/escpos";
-import { getPairedPrinters, printToPaired } from "@/lib/printer";
+import { getPairedPrinters, printToPaired, reconnectPrinter, keepAlivePrinter, hasLivePrinter } from "@/lib/printer";
 import { markOrderPrinted } from "@/app/actions/orders";
 
 type OrderItem = { id: string; name_snapshot: string; qty: number; note: string | null; item_id: string | null; item: { station: string | null } | null };
@@ -55,6 +55,32 @@ export function PrintStationClient() {
   const [autoChecker, setAutoChecker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [connected, setConnected] = useState(false);
+  // Orders whose auto-print failed (printer was disconnected) — staff must know.
+  const [failed, setFailed] = useState<OrderRow[]>([]);
+  const audioRef = useRef<AudioContext | null>(null);
+
+  function alarm() {
+    try {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!audioRef.current) audioRef.current = new AC();
+      const ctx = audioRef.current;
+      ctx.resume?.();
+      for (let i = 0; i < 3; i++) {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.frequency.value = 880;
+        g.gain.value = 0.08;
+        const t = ctx.currentTime + i * 0.4;
+        o.start(t);
+        o.stop(t + 0.25);
+      }
+    } catch {
+      /* audio not available */
+    }
+  }
 
   const locationRef = useRef(location);
   const docketRef = useRef(autoDocket);
@@ -108,7 +134,8 @@ export function PrintStationClient() {
   /** Print whatever this station is responsible for: its station docket and/or
    *  the full table checker, per the toggles. */
   const printOrder = useCallback(
-    async (order: OrderRow, opts: { docket: boolean; checker: boolean; silent?: boolean }) => {
+    async (order: OrderRow, opts: { docket: boolean; checker: boolean; silent?: boolean; allowPrompt?: boolean }) => {
+      const allowPrompt = opts.allowPrompt ?? true;
       const loc = locationRef.current.toLowerCase() as "bar" | "kitchen";
       const stationItems = order.order_items.filter((i) => itemStation(i) === loc);
 
@@ -136,6 +163,8 @@ export function PrintStationClient() {
               station: locationRef.current,
               items: stationItems.map((i) => ({ qty: i.qty, name: i.name_snapshot, note: i.note })),
             }),
+            undefined,
+            { allowPrompt },
           );
         }
         if (opts.checker) {
@@ -144,14 +173,22 @@ export function PrintStationClient() {
               ...base,
               items: order.order_items.map((i) => ({ qty: i.qty, name: i.name_snapshot, note: i.note })),
             }),
+            undefined,
+            { allowPrompt },
           );
         }
 
         await markOrderPrinted(order.id);
+        setFailed((prev) => prev.filter((o) => o.id !== order.id));
+        setConnected(hasLivePrinter());
         if (!opts.silent) toast.success(`Tercetak: ${order.order_number}`);
         fetchOrders();
       } catch (err) {
         const msg = (err as Error).message;
+        // Never let a failed print pass unnoticed: flag the order + sound the alarm.
+        setFailed((prev) => (prev.some((o) => o.id === order.id) ? prev : [order, ...prev]));
+        setConnected(hasLivePrinter());
+        alarm();
         if (!opts.silent) toast.error(`Gagal print: ${msg}`);
       }
     },
@@ -175,7 +212,7 @@ export function PrintStationClient() {
             known.add(row.id);
             if (!docketRef.current && !checkerRef.current) return;
             const { data } = await supabase.current.from("orders").select(ORDER_SELECT).eq("id", row.id).maybeSingle();
-            if (data) printOrder(data as unknown as OrderRow, { docket: docketRef.current, checker: checkerRef.current, silent: true });
+            if (data) printOrder(data as unknown as OrderRow, { docket: docketRef.current, checker: checkerRef.current, silent: true, allowPrompt: false });
           }
         },
       )
@@ -184,6 +221,40 @@ export function PrintStationClient() {
       client.removeChannel(channel);
     };
   }, [fetchOrders, printOrder]);
+
+  // Keep the printer connection warm and auto-recover from idle drops so orders
+  // keep printing. Runs while auto-print is on; also refreshes the status badge.
+  useEffect(() => {
+    let stopped = false;
+    async function tick() {
+      if (stopped) return;
+      const autoOn = docketRef.current || checkerRef.current;
+      if (autoOn) {
+        if (hasLivePrinter()) await keepAlivePrinter();
+        else await reconnectPrinter();
+      }
+      if (!stopped) setConnected(hasLivePrinter());
+    }
+    tick();
+    const id = setInterval(tick, 15000);
+    return () => { stopped = true; clearInterval(id); };
+  }, []);
+
+  async function reconnectNow() {
+    setBusy(true);
+    const ok = await reconnectPrinter();
+    setConnected(hasLivePrinter());
+    setBusy(false);
+    if (!ok) toast.error("Tidak bisa hubungkan ulang otomatis — coba Test print untuk pilih printer.");
+    else toast.success("Printer tersambung kembali");
+  }
+
+  async function reprintFailed() {
+    const list = [...failed];
+    for (const o of list) {
+      await printOrder(o, { docket: docketRef.current || true, checker: checkerRef.current, allowPrompt: true, silent: true });
+    }
+  }
 
   async function testPrint() {
     setBusy(true);
@@ -221,12 +292,26 @@ export function PrintStationClient() {
         ) : (
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="size-5 text-green-600" />
+              {connected ? (
+                <CheckCircle2 className="size-5 text-green-600" />
+              ) : (
+                <AlertTriangle className="size-5 text-amber-500" />
+              )}
               <span className="text-sm">Printer: {printerName ?? "…"}</span>
+              <Badge variant={connected ? "secondary" : "outline"} className="text-xs">
+                {connected ? "Tersambung" : "Terputus"}
+              </Badge>
             </div>
-            <Button variant="outline" onClick={testPrint} disabled={busy}>
-              <Printer className="size-4" /> {busy ? "…" : "Test print"}
-            </Button>
+            <div className="flex gap-2">
+              {!connected && (
+                <Button onClick={reconnectNow} disabled={busy}>
+                  {busy ? "…" : "Hubungkan"}
+                </Button>
+              )}
+              <Button variant="outline" onClick={testPrint} disabled={busy}>
+                <Printer className="size-4" /> {busy ? "…" : "Test print"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -261,6 +346,33 @@ export function PrintStationClient() {
           customer maupun manual) otomatis dicetak. Produk tanpa station dianggap Bar.
         </p>
       </div>
+
+      {failed.length > 0 && (
+        <div className="rounded-lg border border-destructive bg-destructive/10 p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
+            <AlertTriangle className="size-4 shrink-0" />
+            {failed.length} pesanan belum tercetak — printer terputus
+          </div>
+          <div className="divide-y rounded-lg border bg-background">
+            {failed.map((o) => (
+              <div key={o.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="min-w-0">
+                  <span className="font-bold tabular-nums">{o.order_number}</span>
+                  {o.table_name_snapshot && (
+                    <span className="ml-2 text-xs text-muted-foreground">{o.table_name_snapshot}</span>
+                  )}
+                </div>
+                <Button size="sm" onClick={() => printOrder(o, { docket: true, checker: autoChecker, allowPrompt: true })} disabled={busy}>
+                  <Printer className="size-4" /> Cetak
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={reprintFailed} disabled={busy}>
+            Coba cetak semua
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-2">
         <h2 className="text-sm font-semibold">Pesanan aktif</h2>
