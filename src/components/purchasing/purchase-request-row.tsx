@@ -26,7 +26,14 @@ const STATUS_LABEL: Record<PurchaseRequestStatus, string> = {
   rejected: "Rejected",
 };
 
-export type RequestRowItem = { id: string; qty: number; unit: string; item: { name: string; unit: string } | null };
+export type RequestRowItem = {
+  id: string;
+  qty: number;
+  unit: string;
+  available_snapshot: number | null;
+  available_unit: string | null;
+  item: { name: string; unit: string } | null;
+};
 
 type Props = {
   id: string;
@@ -35,7 +42,6 @@ type Props = {
   note: string | null;
   creator: Updater | null;
   createdAt: string;
-  supplierName: string | null;
   isAdmin: boolean;
   isOwn: boolean;
   colSpan: number;
@@ -47,7 +53,7 @@ type Props = {
 };
 
 export function PurchaseRequestRow({
-  id, status, items, note, creator, createdAt, supplierName, isAdmin, isOwn, colSpan,
+  id, status, items, note, creator, createdAt, isAdmin, isOwn, colSpan,
   showStatus = true, showRequestor = true, showRequestDate = true, showItems = true, showNote = true,
 }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -114,54 +120,35 @@ export function PurchaseRequestRow({
         <TableRow className="bg-muted/30 hover:bg-muted/30">
           <TableCell />
           <TableCell colSpan={colSpan - 1} className="py-3">
-            <div className="space-y-3 pr-4">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
-                <div>
-                  <div className="text-xs text-muted-foreground">Requestor</div>
-                  <div>{requestorLabel}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Request date</div>
-                  <div className="tabular-nums">{formatDate(createdAt)}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Supplier</div>
-                  <div>{supplierName ?? "—"}</div>
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-1 text-xs font-medium text-muted-foreground">Items ({items.length})</div>
-                {items.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">No items.</div>
-                ) : (
-                  <ul className="space-y-0.5 text-sm">
+            <div className="max-w-xl pr-4">
+              {items.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No items.</div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="py-1 pr-3 text-left font-medium">Item</th>
+                      <th className="py-1 px-3 text-right font-medium">Requested</th>
+                      <th className="py-1 pl-3 text-right font-medium">Available at request</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {items.map((it) => (
-                      <li key={it.id} className="flex items-center gap-2">
-                        <span className="tabular-nums text-muted-foreground w-24 shrink-0">
+                      <tr key={it.id} className="border-b border-dashed last:border-0">
+                        <td className="py-1.5 pr-3">{it.item?.name ?? "—"}</td>
+                        <td className="py-1.5 px-3 text-right tabular-nums">
                           {it.qty ? `${formatNum(Number(it.qty))} ${it.unit}` : "—"}
-                        </span>
-                        <span>{it.item?.name ?? "—"}</span>
-                      </li>
+                        </td>
+                        <td className="py-1.5 pl-3 text-right tabular-nums text-muted-foreground">
+                          {it.available_snapshot != null
+                            ? `${formatNum(Number(it.available_snapshot))} ${it.available_unit ?? ""}`.trim()
+                            : "—"}
+                        </td>
+                      </tr>
                     ))}
-                  </ul>
-                )}
-              </div>
-
-              {note && (
-                <div>
-                  <div className="text-xs font-medium text-muted-foreground">Note</div>
-                  <p className="whitespace-pre-wrap text-sm">{note}</p>
-                </div>
+                  </tbody>
+                </table>
               )}
-
-              <Link
-                href={`/purchasing/requests/${id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="inline-block text-sm text-primary hover:underline"
-              >
-                View full details →
-              </Link>
             </div>
           </TableCell>
         </TableRow>

@@ -74,7 +74,6 @@ export function PurchaseRequestsTable({
               note={r.note}
               creator={r.creator}
               createdAt={r.created_at}
-              supplierName={r.supplier?.name ?? null}
               isAdmin={isAdmin}
               isOwn={r.created_by === currentProfileId}
               colSpan={colSpan}

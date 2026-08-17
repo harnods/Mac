@@ -22,6 +22,39 @@ const createRequestSchema = z.object({
   draft: z.boolean().optional(),
 });
 
+type RequestItemInput = { item_id: string; qty?: number | null; unit?: string | null };
+
+/**
+ * Build purchase_request_items insert rows, snapshotting each item's available
+ * stock (on_hand - reserved, in its base unit) at request time so it never
+ * drifts as stock later changes.
+ */
+async function withAvailableSnapshot(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: string,
+  items: RequestItemInput[],
+) {
+  const itemIds = [...new Set(items.map((i) => i.item_id))];
+  const { data: stockRows } = await supabase
+    .from("items")
+    .select("id, unit, on_hand, reserved")
+    .in("id", itemIds);
+  const stock = new Map(
+    ((stockRows ?? []) as { id: string; unit: string; on_hand: number; reserved: number }[]).map((s) => [s.id, s]),
+  );
+  return items.map((it) => {
+    const s = stock.get(it.item_id);
+    return {
+      request_id: requestId,
+      item_id: it.item_id,
+      qty: it.qty ?? null,
+      unit: it.unit ?? null,
+      available_snapshot: s ? Number(s.on_hand) - Number(s.reserved) : null,
+      available_unit: s ? s.unit : null,
+    };
+  });
+}
+
 export async function createPurchaseRequest(raw: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
@@ -54,9 +87,8 @@ export async function createPurchaseRequest(raw: unknown): Promise<ActionResult>
 
   if (error || !req) return { ok: false, error: error?.message ?? "Failed to create request" };
 
-  const { error: itemsError } = await supabase
-    .from("purchase_request_items")
-    .insert(items.map((it) => ({ request_id: req.id, ...it })));
+  const rows = await withAvailableSnapshot(supabase, req.id, items);
+  const { error: itemsError } = await supabase.from("purchase_request_items").insert(rows);
 
   if (itemsError) return { ok: false, error: itemsError.message };
 
@@ -100,9 +132,8 @@ export async function updatePurchaseRequest(id: string, raw: unknown): Promise<A
     .eq("request_id", id);
   if (delError) return { ok: false, error: delError.message };
 
-  const { error: insertError } = await supabase
-    .from("purchase_request_items")
-    .insert(items.map((it) => ({ request_id: id, ...it })));
+  const rows = await withAvailableSnapshot(supabase, id, items);
+  const { error: insertError } = await supabase.from("purchase_request_items").insert(rows);
   if (insertError) return { ok: false, error: insertError.message };
 
   const { error } = await supabase
