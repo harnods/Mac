@@ -264,28 +264,24 @@ function RequestItemRow({
         <div className="flex items-center justify-end gap-2">
           {statusBadge(item.status)}
           {canApprove && (
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               <Button
                 type="button"
                 variant="outline"
-                size="icon"
-                className="size-7 text-green-600 hover:text-green-700"
+                className="text-green-600 hover:text-green-700"
                 disabled={pending || item.status === "approved"}
-                title="Approve"
                 onClick={() => save({ status: "approved" }, "Item disetujui")}
               >
-                <Check className="size-4" />
+                <Check className="size-4" /> Approve
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                size="icon"
-                className="size-7 text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive"
                 disabled={pending || item.status === "rejected"}
-                title="Reject"
                 onClick={() => save({ status: "rejected" }, "Item ditolak")}
               >
-                <X className="size-4" />
+                <X className="size-4" /> Reject
               </Button>
             </div>
           )}

@@ -20,7 +20,6 @@ import type { Updater } from "@/lib/supabase/types";
 type Props = {
   id: string;
   name: string;
-  product: string | null;
   productType: string | null;
   station: string | null;
   ingredientCount: number;
@@ -31,14 +30,13 @@ type Props = {
   onToggleSelect?: () => void;
   showType?: boolean;
   showCategory?: boolean;
-  showOutput?: boolean;
   showIngredients?: boolean;
   showLastUpdated?: boolean;
 };
 
 export function RecipeTableRowClient({
-  id, name, product, productType, station, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect,
-  showType = true, showCategory = true, showOutput = true, showIngredients = true, showLastUpdated = true,
+  id, name, productType, station, ingredientCount, updatedAt, updater, isAdmin, isSelected = false, onToggleSelect,
+  showType = true, showCategory = true, showIngredients = true, showLastUpdated = true,
 }: Props) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -79,7 +77,6 @@ export function RecipeTableRowClient({
             {station ? (station === "bar" ? "Bar" : "Kitchen") : <span className="text-muted-foreground">—</span>}
           </TableCell>
         )}
-        {showOutput && <TableCell className="truncate">{product ?? <span className="text-muted-foreground">—</span>}</TableCell>}
         {showIngredients && <TableCell className="tabular-nums">{ingredientCount}</TableCell>}
         {showLastUpdated && (
           <TableCell>
