@@ -151,14 +151,14 @@ export function PurchaseRequestRow({
               <div className="text-sm text-muted-foreground">No items.</div>
             ) : (
               <div className="overflow-x-auto pr-4">
-                <table className="w-full min-w-[640px] text-sm">
+                <table className="w-full min-w-[820px] text-sm">
                   <thead>
                     <tr className="border-b text-xs text-muted-foreground">
                       <th className="py-1 pr-3 text-left font-medium">Item</th>
                       <th className="py-1 px-3 text-right font-medium w-[150px]">Requested</th>
                       <th className="py-1 px-3 text-right font-medium w-[150px]">Available at request</th>
                       <th className="py-1 px-3 text-left font-medium w-[200px]">Supplier</th>
-                      <th className="py-1 pl-3 text-right font-medium w-[190px]">Status</th>
+                      <th className="py-1 pl-3 text-right font-medium w-[300px]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
