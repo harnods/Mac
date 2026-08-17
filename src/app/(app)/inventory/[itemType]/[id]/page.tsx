@@ -190,6 +190,7 @@ export default async function ItemDetailPage({
           conversions={unitConversions}
           showSellPrice={config.showSellable}
           sellPrice={item.sell_price}
+          station={config.dbType === "product" ? (item.station ?? "bar") : null}
           updatedAt={item.updated_at}
           updaterLabel={item.updater ? updaterName(item.updater) : null}
         />

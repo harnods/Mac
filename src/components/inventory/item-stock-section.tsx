@@ -25,6 +25,7 @@ type Props = {
   conversions?: { from_unit: string; factor: number; to_unit: string }[];
   showSellPrice?: boolean;
   sellPrice?: number | null;
+  station?: string | null;
   updatedAt: string;
   updaterLabel: string | null;
 };
@@ -46,6 +47,7 @@ export function ItemStockSection({
   conversions = [],
   showSellPrice = false,
   sellPrice = null,
+  station = null,
   updatedAt,
   updaterLabel,
 }: Props) {
@@ -92,6 +94,9 @@ export function ItemStockSection({
             label="Selling price"
             value={sellPrice != null ? <span className="tabular-nums">{formatRp(sellPrice)}</span> : undefined}
           />
+        )}
+        {station && (
+          <DetailRow label="Station" value={station === "kitchen" ? "Kitchen" : "Bar"} />
         )}
         {purchaseUnit && purchaseUnitQty != null && (
           <DetailRow label="Purchase unit" value={`1 ${purchaseUnit} = ${formatNum(purchaseUnitQty)} ${baseUnit}`} />
