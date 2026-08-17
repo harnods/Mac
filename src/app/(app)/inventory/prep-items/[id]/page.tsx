@@ -120,23 +120,6 @@ export default async function PrepItemDetailPage({
         )}
       </div>
 
-      {isAdmin && (
-        <PrepItemSaleSection
-          item={{
-            id: item.id,
-            is_sellable: item.is_sellable,
-            sell_price: item.sell_price,
-            station: item.station,
-            description: item.description,
-            category_id: item.category_id,
-            image_url: item.image_url,
-            unit: item.unit,
-          }}
-          categories={productCategories}
-          units={unitList}
-        />
-      )}
-
       {/* Details */}
       <div className="grid grid-cols-12 gap-8">
         <div className="col-span-12 space-y-8 lg:col-span-6">
@@ -160,24 +143,39 @@ export default async function PrepItemDetailPage({
         </div>
       </div>
 
-      {/* Stock history + used-in-recipes tabs (same as ingredients) */}
+      {/* Available for sale — sits under Details, before the tabs. */}
+      {isAdmin && (
+        <PrepItemSaleSection
+          item={{
+            id: item.id,
+            is_sellable: item.is_sellable,
+            sell_price: item.sell_price,
+            station: item.station,
+            description: item.description,
+            category_id: item.category_id,
+            image_url: item.image_url,
+            unit: item.unit,
+          }}
+          categories={productCategories}
+          units={unitList}
+        />
+      )}
+
+      {/* Tabs: Prep orders · Stock movements · Used in recipes */}
       <ItemUsageTabs
         ledger={ledger}
         itemUnit={item.unit}
         usedInRecipes={usedInRecipes}
         onHand={Number(item.on_hand)}
         showReserved
+        prepOrdersSlot={
+          orders.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-2">No prep orders yet.</p>
+          ) : (
+            <PrepOrderHistoryTable orders={orders} itemUnit={item.unit} />
+          )
+        }
       />
-
-      {/* Prep orders */}
-      <section className="space-y-2">
-        <h2 className="text-base font-semibold">Prep orders</h2>
-        {orders.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-2">No prep orders yet.</p>
-        ) : (
-          <PrepOrderHistoryTable orders={orders} itemUnit={item.unit} />
-        )}
-      </section>
     </div>
   );
 }

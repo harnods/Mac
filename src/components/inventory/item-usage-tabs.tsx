@@ -61,7 +61,7 @@ export type UsedInRecipeRow = {
   product: { id: string; name: string; type: string; unit: UnitCode } | null;
 };
 
-type Tab = "stock" | "recipes" | "conversions";
+type Tab = "prep" | "stock" | "recipes" | "conversions";
 
 export function ItemUsageTabs({
   ledger,
@@ -77,10 +77,13 @@ export function ItemUsageTabs({
   canManualAdjust = false,
   showReserved = true,
   units = [],
+  prepOrdersSlot,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
   usedInRecipes?: UsedInRecipeRow[];
+  /** When provided, adds a leading "Prep orders" tab (prep items only). */
+  prepOrdersSlot?: React.ReactNode;
   unitConversions?: UnitConversionRow[];
   itemId?: string;
   canEditConversions?: boolean;
@@ -94,14 +97,15 @@ export function ItemUsageTabs({
 }) {
   const hasRecipeTab = usedInRecipes !== undefined;
   const hasConversionTab = unitConversions !== undefined && itemId !== undefined;
-  const [tab, setTab] = useState<Tab>("stock");
+  const hasPrepTab = prepOrdersSlot !== undefined;
+  const [tab, setTab] = useState<Tab>(hasPrepTab ? "prep" : "stock");
 
   const movementsProps = {
     ledger, itemUnit, itemId, itemName, onHand, purchaseUnit, purchaseUnitQty,
     unitConversions, canManualAdjust, showReserved,
   };
 
-  if (!hasRecipeTab && !hasConversionTab) {
+  if (!hasRecipeTab && !hasConversionTab && !hasPrepTab) {
     return (
       <div className="space-y-2">
         <h2 className="text-sm font-medium">Stock movements</h2>
@@ -114,12 +118,19 @@ export function ItemUsageTabs({
     <div className="space-y-3">
       <div className="border-b">
         <div className="flex items-center gap-1 -ml-3">
+          {hasPrepTab && (
+            <TabButton active={tab === "prep"} onClick={() => setTab("prep")}>
+              Prep orders
+            </TabButton>
+          )}
           <TabButton active={tab === "stock"} onClick={() => setTab("stock")}>
             Stock movements
           </TabButton>
-          <TabButton active={tab === "recipes"} onClick={() => setTab("recipes")}>
-            Used in recipes
-          </TabButton>
+          {hasRecipeTab && (
+            <TabButton active={tab === "recipes"} onClick={() => setTab("recipes")}>
+              Used in recipes
+            </TabButton>
+          )}
           {hasConversionTab && (
             <TabButton active={tab === "conversions"} onClick={() => setTab("conversions")}>
               Unit conversions
@@ -128,7 +139,9 @@ export function ItemUsageTabs({
         </div>
       </div>
 
-      {tab === "stock" ? (
+      {tab === "prep" && hasPrepTab ? (
+        <>{prepOrdersSlot}</>
+      ) : tab === "stock" ? (
         <StockMovementsTable {...movementsProps} />
       ) : tab === "recipes" && hasRecipeTab ? (
         <UsedInRecipesTable recipes={usedInRecipes} />
