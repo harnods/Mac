@@ -167,12 +167,15 @@ export function RecipeForm({
       toast.success(`"${itemName}" created`);
     });
   }
-  const filteredIngredients = [
-    ...items.filter((i) => recipeType === "wip" ? i.type === "ingredient" : true),
-    ...extraIngredientItems.filter((i) => recipeType === "wip" ? i.type === "ingredient" : true),
-  ];
+  const filteredIngredients = [...items, ...extraIngredientItems].filter((i) => {
+    // An item can never be an ingredient of its own recipe.
+    if (productId && i.id === productId) return false;
+    // A prep-item recipe can use raw ingredients AND other prep items.
+    if (recipeType === "wip") return i.type === "ingredient" || i.type === "prep_item";
+    return true;
+  });
   const allowedIngredientTypes: Array<"ingredient" | "supply" | "prep_item"> =
-    recipeType === "wip" ? ["ingredient"] : ["ingredient", "supply", "prep_item"];
+    recipeType === "wip" ? ["ingredient", "prep_item"] : ["ingredient", "supply", "prep_item"];
 
   const [rows, setRows] = useState<IngredientRow[]>(() => {
     if (recipeItems && recipeItems.length > 0) {
@@ -322,7 +325,7 @@ export function RecipeForm({
         </div>
         <p className="text-xs text-muted-foreground">
           {recipeType === "wip"
-            ? "Recipe for a prep item — ingredients are raw ingredients, output is a prep item."
+            ? "Recipe for a prep item — ingredients can be raw ingredients or other prep items; output is a prep item."
             : "Recipe for a finished product — ingredients can include prep items."}
         </p>
       </div>
