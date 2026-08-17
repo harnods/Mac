@@ -41,6 +41,7 @@ type MenuNode =
 
 const MENU: MenuNode[] = [
   { label: "Products", icon: ProductsIcon, href: "/inventory/products", perm: P.PRODUCTS_READ },
+  { label: "Recipes", icon: RecipesIcon, href: "/recipes" },
   {
     label: "Inventory",
     icon: InventoryIcon,
@@ -53,7 +54,6 @@ const MENU: MenuNode[] = [
       { label: "Stock count", href: "/stock/counts", perm: P.STOCK_COUNTS_READ },
     ],
   },
-  { label: "Recipes", icon: RecipesIcon, href: "/recipes" },
   { label: "Prep orders", icon: PrepOrdersIcon, href: "/prep-orders" },
   {
     label: "Purchasing",
