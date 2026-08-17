@@ -13,6 +13,7 @@ import {
   writeBytes,
 } from "@/lib/printer-bt";
 import { buildTestDocket } from "@/lib/escpos";
+import { registerLivePrinter } from "@/lib/printer";
 import { formatDateTime } from "@/lib/format";
 
 // GATT Device Information characteristics we probe for a MAC.
@@ -115,6 +116,9 @@ export function PrinterPairing() {
   function attach(deviceId: string, device: any, char: any) {
     connectionsRef.current.set(deviceId, { device, char });
     markConnected(deviceId, true);
+    // Share this open connection app-wide so POS "Print QR" reuses it without
+    // reconnecting or prompting again.
+    registerLivePrinter(deviceId, device, char);
     device.addEventListener("gattserverdisconnected", () => {
       connectionsRef.current.delete(deviceId);
       markConnected(deviceId, false);
