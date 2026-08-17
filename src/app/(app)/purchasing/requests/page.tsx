@@ -20,11 +20,12 @@ type RequestRow = {
   created_by: string | null;
   created_at: string;
   creator: Updater | null;
-  supplier: { name: string } | null;
   purchase_request_items: {
     id: string;
     qty: number;
     unit: string;
+    status: "pending" | "approved" | "rejected";
+    supplier_id: string | null;
     available_snapshot: number | null;
     available_unit: string | null;
     item: { name: string; unit: string } | null;
@@ -47,7 +48,7 @@ export default async function PurchaseRequestsPage({
 
   let query = supabase
     .from("purchase_requests")
-    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), supplier:suppliers(name), purchase_request_items(id, qty, unit, available_snapshot, available_unit, item:items(name, unit))", { count: "exact" })
+    .select("id, status, note, created_by, created_at, creator:profiles!created_by(full_name,email), purchase_request_items(id, qty, unit, status, supplier_id, available_snapshot, available_unit, item:items(name, unit))", { count: "exact" })
     .order("updated_at", { ascending: false })
     .range(from, to);
 
@@ -55,8 +56,12 @@ export default async function PurchaseRequestsPage({
   if (status && ["draft", "pending", "approved", "rejected"].includes(status))
     query = query.eq("status", status);
 
-  const { data, count } = await query;
+  const [{ data, count }, { data: suppliersData }] = await Promise.all([
+    query,
+    supabase.from("suppliers").select("id, name").order("name"),
+  ]);
   const list = (data ?? []) as unknown as RequestRow[];
+  const suppliers = (suppliersData ?? []) as { id: string; name: string }[];
   const isAdmin = can(profile, P.PURCHASING_APPROVE);
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
 
@@ -93,7 +98,7 @@ export default async function PurchaseRequestsPage({
           .
         </div>
       ) : (
-        <PurchaseRequestsTable list={list} isAdmin={isAdmin} currentProfileId={profile?.id} />
+        <PurchaseRequestsTable list={list} isAdmin={isAdmin} currentProfileId={profile?.id} suppliers={suppliers} />
       )}
       <PaginationBar page={page} totalPages={totalPages} pageSize={PAGE_SIZE} buildHref={buildHref} buildSizeHref={(s) => buildHref(1, s)} />
     </div>

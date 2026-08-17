@@ -28,10 +28,10 @@ export default async function NewPurchasePage() {
       .from("purchase_requests")
       .select(`
         id, note, created_at, reviewed_at,
-        purchase_request_items(item_id, qty, unit, item:items(name, deleted_at)),
+        purchase_request_items(item_id, qty, unit, status, item:items(name, deleted_at)),
         purchase_purchase_requests(purchases(purchase_items(item_id, qty_purchased, unit)))
       `)
-      .eq("status", "approved")
+      .in("status", ["approved", "pending"])
       .order("created_at", { ascending: false }),
     supabase.from("suppliers").select("id, name").order("name"),
   ]);
@@ -41,7 +41,7 @@ export default async function NewPurchasePage() {
     note: string | null;
     created_at: string;
     reviewed_at: string | null;
-    purchase_request_items: { item_id: string; qty: number; unit: string; item: { name: string; deleted_at: string | null } | null }[];
+    purchase_request_items: { item_id: string; qty: number; unit: string; status: string; item: { name: string; deleted_at: string | null } | null }[];
     purchase_purchase_requests: {
       purchases: {
         purchase_items: { item_id: string; qty_purchased: number; unit: string }[];
@@ -73,17 +73,19 @@ export default async function NewPurchasePage() {
       created_at: r.created_at,
       reviewed_at: r.reviewed_at,
       purchaseCount,
-      items: r.purchase_request_items.map((it) => ({
-        item_id: it.item_id,
-        item_name: it.item?.name ?? null,
-        item_deleted: !it.item || !!it.item.deleted_at,
-        qty: it.qty,
-        unit: it.unit,
-        purchased_qty: purchasedMap[it.item_id]?.qty ?? 0,
-        purchased_unit: purchasedMap[it.item_id]?.unit ?? it.unit,
-      })),
+      items: r.purchase_request_items
+        .filter((it) => it.status === "approved")
+        .map((it) => ({
+          item_id: it.item_id,
+          item_name: it.item?.name ?? null,
+          item_deleted: !it.item || !!it.item.deleted_at,
+          qty: it.qty,
+          unit: it.unit,
+          purchased_qty: purchasedMap[it.item_id]?.qty ?? 0,
+          purchased_unit: purchasedMap[it.item_id]?.unit ?? it.unit,
+        })),
     };
-  });
+  }).filter((r) => r.items.length > 0);
 
   return (
     <div className="flex flex-col flex-1 gap-6 max-w-4xl">

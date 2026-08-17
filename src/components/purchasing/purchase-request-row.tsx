@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { MoreHorizontal, ChevronRight } from "lucide-react";
+import { MoreHorizontal, ChevronRight, Check, X } from "lucide-react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DecimalInput } from "@/components/ui/decimal-input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +19,8 @@ import {
 import { TableCell, TableRow, STICKY_ACTION_CELL } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { formatDate, formatId } from "@/lib/format";
-import { formatNum } from "@/lib/units";
+import { formatNum, parseDecimal } from "@/lib/units";
+import { updatePurchaseRequestItem, submitDraftRequest } from "@/app/actions/purchasing";
 import { PurchaseRequestDeleteDialog } from "./purchase-request-delete-dialog";
 import type { PurchaseRequestStatus, Updater } from "@/lib/supabase/types";
 
@@ -26,10 +31,14 @@ const STATUS_LABEL: Record<PurchaseRequestStatus, string> = {
   rejected: "Rejected",
 };
 
+type ItemStatus = "pending" | "approved" | "rejected";
+
 export type RequestRowItem = {
   id: string;
   qty: number;
   unit: string;
+  status: ItemStatus;
+  supplier_id: string | null;
   available_snapshot: number | null;
   available_unit: string | null;
   item: { name: string; unit: string } | null;
@@ -43,6 +52,8 @@ type Props = {
   creator: Updater | null;
   createdAt: string;
   isAdmin: boolean;
+  canApprove: boolean;
+  suppliers: { id: string; name: string }[];
   isOwn: boolean;
   colSpan: number;
   showStatus?: boolean;
@@ -52,14 +63,40 @@ type Props = {
   showNote?: boolean;
 };
 
+function statusBadge(status: ItemStatus | PurchaseRequestStatus) {
+  return (
+    <Badge variant={
+      status === "approved" ? "success" :
+      status === "rejected" ? "destructive" :
+      status === "draft" ? "outline" :
+      "secondary"
+    }>
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
+}
+
 export function PurchaseRequestRow({
-  id, status, items, note, creator, createdAt, isAdmin, isOwn, colSpan,
+  id, status, items, note, creator, createdAt, isAdmin, canApprove, suppliers, isOwn, colSpan,
   showStatus = true, showRequestor = true, showRequestDate = true, showItems = true, showNote = true,
 }: Props) {
+  const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [open, setOpen] = useState(false);
+  const [submitting, startSubmit] = useTransition();
   const canDelete = isAdmin || (isOwn && (status === "pending" || status === "draft"));
+  const canEditDraft = status === "draft" && (isOwn || isAdmin);
   const requestorLabel = creator?.full_name ?? creator?.email ?? "—";
+  const hasMenu = canEditDraft || canDelete;
+
+  function submitDraft() {
+    startSubmit(async () => {
+      const res = await submitDraftRequest(id);
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success("Request submitted");
+      router.refresh();
+    });
+  }
 
   return (
     <>
@@ -71,48 +108,38 @@ export function PurchaseRequestRow({
         <TableCell className="p-0 text-center">
           <ChevronRight className={cn("mx-auto size-4 text-muted-foreground transition-transform", open && "rotate-90")} />
         </TableCell>
-        <TableCell className="font-medium tabular-nums">
-          <Link href={`/purchasing/requests/${id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
-            {formatId(id)}
-          </Link>
-        </TableCell>
-        {showStatus && (
-          <TableCell>
-            <Badge variant={
-              status === "approved" ? "success" :
-              status === "rejected" ? "destructive" :
-              status === "draft" ? "outline" :
-              "secondary"
-            }>
-              {STATUS_LABEL[status]}
-            </Badge>
-          </TableCell>
-        )}
+        <TableCell className="font-medium tabular-nums">{formatId(id)}</TableCell>
+        {showStatus && <TableCell>{statusBadge(status)}</TableCell>}
         {showRequestor && <TableCell className="text-sm truncate">{requestorLabel}</TableCell>}
         {showRequestDate && <TableCell className="text-sm tabular-nums">{formatDate(createdAt)}</TableCell>}
         {showItems && <TableCell className="tabular-nums">{items.length}</TableCell>}
         {showNote && <TableCell className="text-sm text-muted-foreground truncate">{note ?? "—"}</TableCell>}
         <TableCell />
         <TableCell className={STICKY_ACTION_CELL} onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8">
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href={`/purchasing/requests/${id}`}>View details</Link>
-              </DropdownMenuItem>
-              {canDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => setDeleteOpen(true)}>Delete</DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {hasMenu ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8">
+                  <MoreHorizontal className="size-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEditDraft && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/purchasing/requests/${id}/edit`}>Edit draft</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={submitting} onSelect={submitDraft}>Submit request</DropdownMenuItem>
+                  </>
+                )}
+                {canEditDraft && canDelete && <DropdownMenuSeparator />}
+                {canDelete && <DropdownMenuItem onSelect={() => setDeleteOpen(true)}>Delete</DropdownMenuItem>}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="size-8" />
+          )}
         </TableCell>
       </TableRow>
 
@@ -120,41 +147,150 @@ export function PurchaseRequestRow({
         <TableRow className="bg-muted/30 hover:bg-muted/30">
           <TableCell />
           <TableCell colSpan={colSpan - 1} className="py-3">
-            <div className="max-w-xl pr-4">
-              {items.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No items.</div>
-              ) : (
-                <table className="w-full text-sm">
+            {items.length === 0 ? (
+              <div className="text-sm text-muted-foreground">No items.</div>
+            ) : (
+              <div className="overflow-x-auto pr-4">
+                <table className="w-full min-w-[640px] text-sm">
                   <thead>
                     <tr className="border-b text-xs text-muted-foreground">
                       <th className="py-1 pr-3 text-left font-medium">Item</th>
-                      <th className="py-1 px-3 text-right font-medium">Requested</th>
-                      <th className="py-1 pl-3 text-right font-medium">Available at request</th>
+                      <th className="py-1 px-3 text-right font-medium w-[150px]">Requested</th>
+                      <th className="py-1 px-3 text-right font-medium w-[150px]">Available at request</th>
+                      <th className="py-1 px-3 text-left font-medium w-[200px]">Supplier</th>
+                      <th className="py-1 pl-3 text-right font-medium w-[190px]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((it) => (
-                      <tr key={it.id} className="border-b border-dashed last:border-0">
-                        <td className="py-1.5 pr-3">{it.item?.name ?? "—"}</td>
-                        <td className="py-1.5 px-3 text-right tabular-nums">
-                          {it.qty ? `${formatNum(Number(it.qty))} ${it.unit}` : "—"}
-                        </td>
-                        <td className="py-1.5 pl-3 text-right tabular-nums text-muted-foreground">
-                          {it.available_snapshot != null
-                            ? `${formatNum(Number(it.available_snapshot))} ${it.available_unit ?? ""}`.trim()
-                            : "—"}
-                        </td>
-                      </tr>
+                      <RequestItemRow key={it.id} item={it} canApprove={canApprove} suppliers={suppliers} />
                     ))}
                   </tbody>
                 </table>
-              )}
-            </div>
+              </div>
+            )}
           </TableCell>
         </TableRow>
       )}
 
       <PurchaseRequestDeleteDialog id={id} open={deleteOpen} onOpenChange={setDeleteOpen} />
     </>
+  );
+}
+
+function RequestItemRow({
+  item,
+  canApprove,
+  suppliers,
+}: {
+  item: RequestRowItem;
+  canApprove: boolean;
+  suppliers: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [qty, setQty] = useState(item.qty != null ? String(item.qty) : "");
+
+  const available = item.available_snapshot ?? 0;
+  const availableLabel = `${formatNum(Number(available))} ${item.available_unit ?? item.item?.unit ?? ""}`.trim();
+  const supplierName = suppliers.find((s) => s.id === item.supplier_id)?.name ?? "—";
+
+  function save(patch: { qty?: number | null; supplier_id?: string | null; status?: ItemStatus }, okMsg?: string) {
+    start(async () => {
+      const res = await updatePurchaseRequestItem(item.id, patch);
+      if (!res.ok) { toast.error(res.error); return; }
+      if (okMsg) toast.success(okMsg);
+      router.refresh();
+    });
+  }
+
+  function saveQtyOnBlur() {
+    const parsed = qty.trim() ? parseDecimal(qty) : null;
+    if (parsed === item.qty) return;
+    if (parsed == null || parsed <= 0) { toast.error("Qty harus lebih dari 0"); setQty(String(item.qty ?? "")); return; }
+    save({ qty: parsed }, "Qty diperbarui");
+  }
+
+  return (
+    <tr className="border-b border-dashed last:border-0">
+      <td className="py-1.5 pr-3">{item.item?.name ?? "—"}</td>
+
+      {/* Requested qty */}
+      <td className="py-1.5 px-3 text-right">
+        {canApprove ? (
+          <div className="flex items-center justify-end gap-1.5">
+            <DecimalInput
+              min="0"
+              step="any"
+              value={qty}
+              onValueChange={setQty}
+              onBlur={saveQtyOnBlur}
+              disabled={pending}
+              className="h-8 w-24 text-right"
+            />
+            <span className="text-muted-foreground w-10 text-left">{item.unit}</span>
+          </div>
+        ) : (
+          <span className="tabular-nums">{item.qty ? `${formatNum(Number(item.qty))} ${item.unit}` : "—"}</span>
+        )}
+      </td>
+
+      {/* Available at request (snapshot) */}
+      <td className="py-1.5 px-3 text-right tabular-nums text-muted-foreground">{availableLabel}</td>
+
+      {/* Supplier */}
+      <td className="py-1.5 px-3">
+        {canApprove ? (
+          <Select
+            value={item.supplier_id ?? "none"}
+            onValueChange={(v) => save({ supplier_id: v === "none" ? null : v }, "Supplier diperbarui")}
+            disabled={pending}
+          >
+            <SelectTrigger className="h-8 w-full"><SelectValue placeholder="Pilih supplier" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Tanpa supplier</SelectItem>
+              {suppliers.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span>{supplierName}</span>
+        )}
+      </td>
+
+      {/* Status + per-item approve/reject */}
+      <td className="py-1.5 pl-3">
+        <div className="flex items-center justify-end gap-2">
+          {statusBadge(item.status)}
+          {canApprove && (
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-7 text-green-600 hover:text-green-700"
+                disabled={pending || item.status === "approved"}
+                title="Approve"
+                onClick={() => save({ status: "approved" }, "Item disetujui")}
+              >
+                <Check className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-7 text-destructive hover:text-destructive"
+                disabled={pending || item.status === "rejected"}
+                title="Reject"
+                onClick={() => save({ status: "rejected" }, "Item ditolak")}
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
   );
 }

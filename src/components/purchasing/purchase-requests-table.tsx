@@ -19,7 +19,6 @@ type RequestRow = {
   created_by: string | null;
   created_at: string;
   creator: Updater | null;
-  supplier: { name: string } | null;
   purchase_request_items: RequestRowItem[];
 };
 
@@ -35,10 +34,12 @@ export function PurchaseRequestsTable({
   list,
   isAdmin,
   currentProfileId,
+  suppliers,
 }: {
   list: RequestRow[];
   isAdmin: boolean;
   currentProfileId?: string;
+  suppliers: { id: string; name: string }[];
 }) {
   const { isVisible } = useColumnVisibility("purchase-requests", PURCHASE_REQUEST_COLUMNS);
 
@@ -75,6 +76,8 @@ export function PurchaseRequestsTable({
               creator={r.creator}
               createdAt={r.created_at}
               isAdmin={isAdmin}
+              canApprove={isAdmin}
+              suppliers={suppliers}
               isOwn={r.created_by === currentProfileId}
               colSpan={colSpan}
               showStatus={isVisible("status")}

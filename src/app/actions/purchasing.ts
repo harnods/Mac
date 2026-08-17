@@ -204,6 +204,88 @@ export async function reviewPurchaseRequest(
   return { ok: true };
 }
 
+const updateItemSchema = z.object({
+  qty: z.coerce.number().positive().nullable().optional(),
+  supplier_id: z.string().uuid().nullable().optional(),
+  status: z.enum(["pending", "approved", "rejected"]).optional(),
+});
+
+/**
+ * Approver edits a single requested item inline (change qty, assign a supplier,
+ * or approve/reject it). Approval is per item, not per whole request; the
+ * request-level status is recomputed as an aggregate afterwards.
+ */
+export async function updatePurchaseRequestItem(itemId: string, raw: unknown): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.PURCHASING_APPROVE)) return { ok: false, error: "No permission" };
+
+  const parsed = updateItemSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { data: row } = await supabase
+    .from("purchase_request_items")
+    .select("request_id")
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!row) return { ok: false, error: "Item not found" };
+
+  const patch: Record<string, unknown> = {};
+  if (parsed.data.qty !== undefined) patch.qty = parsed.data.qty;
+  if (parsed.data.supplier_id !== undefined) patch.supplier_id = parsed.data.supplier_id;
+  if (parsed.data.status !== undefined) patch.status = parsed.data.status;
+  if (Object.keys(patch).length === 0) return { ok: true, id: itemId };
+
+  const { error } = await supabase.from("purchase_request_items").update(patch).eq("id", itemId);
+  if (error) return { ok: false, error: error.message };
+
+  await recomputeRequestStatus(supabase, row.request_id as string, profile.id);
+
+  revalidatePath("/purchasing/requests");
+  return { ok: true, id: itemId };
+}
+
+/** Roll the per-item statuses up to the request: pending if any item is still
+ *  pending, else approved if any approved, else rejected. */
+async function recomputeRequestStatus(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  requestId: string,
+  profileId: string,
+) {
+  const { data: items } = await supabase
+    .from("purchase_request_items")
+    .select("status")
+    .eq("request_id", requestId);
+  const statuses = ((items ?? []) as { status: string }[]).map((i) => i.status);
+  if (statuses.length === 0) return;
+
+  // Don't override a still-editable draft.
+  const { data: reqRow } = await supabase
+    .from("purchase_requests")
+    .select("status")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!reqRow || reqRow.status === "draft") return;
+
+  const next = statuses.some((s) => s === "pending")
+    ? "pending"
+    : statuses.some((s) => s === "approved")
+      ? "approved"
+      : "rejected";
+
+  const reviewed = next !== "pending";
+  await supabase
+    .from("purchase_requests")
+    .update({
+      status: next,
+      reviewed_by: reviewed ? profileId : null,
+      reviewed_at: reviewed ? new Date().toISOString() : null,
+      updated_by: profileId,
+    })
+    .eq("id", requestId);
+}
+
 const purchaseItemSchema = z.object({
   item_id: z.string().uuid(),
   qty_requested: z.coerce.number().positive().nullable().optional(),
