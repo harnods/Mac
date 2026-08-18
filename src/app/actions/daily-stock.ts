@@ -90,6 +90,16 @@ async function soldQtyByItem(
   return sold;
 }
 
+/**
+ * Opening balance for a line. `items.on_hand` is already net of the sales
+ * recorded that day (a sale draws ingredients down through the recipe), so the
+ * day's sold quantity is added back — the Sold column subtracts it again in
+ * the expected-closing formula.
+ */
+function openingFor(onHand: number, sold: number) {
+  return onHand + sold;
+}
+
 const dailyItemSchema = z.object({ item_id: z.string().uuid() });
 
 const createDailyCountSchema = z.object({
@@ -124,8 +134,9 @@ async function buildCountItemRows(
       count_id: countId,
       item_id: it.id,
       unit: it.unit,
-      // Snapshot of the item's on hand at the moment it joined this count.
-      opening_qty: Number(it.on_hand),
+      // The item's on hand is already net of the day's sales, so add them back
+      // to get the baseline the Sold column is then measured against.
+      opening_qty: openingFor(Number(it.on_hand), sold.get(it.id) ?? 0),
       sold_qty: sold.get(it.id) ?? 0,
       received_qty: null,
       rnd_qty: null,
@@ -348,7 +359,10 @@ export async function saveDailyStockCountDraft(raw: unknown): Promise<ActionResu
 /** Re-pull today's sold quantities — sales recorded after the count was created. */
 export async function refreshDailySoldQty(
   id: string,
-): Promise<{ ok: true; sold: Record<string, number> } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; sold: Record<string, number>; opening: Record<string, number> }
+  | { ok: false; error: string }
+> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.DAILY_STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
@@ -371,17 +385,30 @@ export async function refreshDailySoldQty(
   const itemIds = ((rows ?? []) as { item_id: string }[]).map((r) => r.item_id);
   const sold = await soldQtyByItem(supabase, count.count_date as string, itemIds);
 
+  // Opening is re-derived too, so it stays consistent with the new sold figure.
+  const { data: liveItems } = await supabase
+    .from("items")
+    .select("id, on_hand")
+    .in("id", itemIds);
+  const onHand = new Map(
+    ((liveItems ?? []) as { id: string; on_hand: number }[]).map((it) => [it.id, Number(it.on_hand)]),
+  );
+
+  const opening: Record<string, number> = {};
   for (const itemId of itemIds) {
+    const soldQty = sold.get(itemId) ?? 0;
+    opening[itemId] = openingFor(onHand.get(itemId) ?? 0, soldQty);
+
     const { error } = await supabase
       .from("daily_stock_count_items")
-      .update({ sold_qty: sold.get(itemId) ?? 0 })
+      .update({ sold_qty: soldQty, opening_qty: opening[itemId] })
       .eq("count_id", id)
       .eq("item_id", itemId);
     if (error) return { ok: false, error: error.message };
   }
 
   revalidatePath(`/stock/daily-counts/${id}`);
-  return { ok: true, sold: Object.fromEntries(itemIds.map((i) => [i, sold.get(i) ?? 0])) };
+  return { ok: true, sold: Object.fromEntries(itemIds.map((i) => [i, sold.get(i) ?? 0])), opening };
 }
 
 export async function finishDailyStockCount(raw: unknown): Promise<ActionResult> {

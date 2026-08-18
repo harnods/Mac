@@ -214,9 +214,13 @@ export function DailyCountWorkspace({
         return;
       }
       setRows((prev) =>
-        prev.map((row) => ({ ...row, sold_qty: res.sold[row.item_id] ?? row.sold_qty })),
+        prev.map((row) => ({
+          ...row,
+          sold_qty: res.sold[row.item_id] ?? row.sold_qty,
+          opening_qty: res.opening[row.item_id] ?? row.opening_qty,
+        })),
       );
-      toast.success("Sold quantities refreshed from sales");
+      toast.success("Sold and opening refreshed from sales");
     });
   }
 
@@ -305,9 +309,9 @@ export function DailyCountWorkspace({
       )}
 
       <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-        Expected closing = Opening + Received − R&amp;D − Waste. Variance = Counted − Expected
-        closing, so a negative variance is unexplained shrinkage. Sold is shown for reference
-        only — recording a sale already drew the stock down, so Opening is net of it.
+        Expected closing = Opening + Received − Sold − R&amp;D − Waste. Variance = Counted −
+        Expected closing, so a negative variance is unexplained shrinkage. Opening is the
+        item&rsquo;s on hand when this count was created, with that day&rsquo;s sales added back.
       </div>
 
       {(canInput || note.trim() !== "") && (
@@ -342,7 +346,7 @@ export function DailyCountWorkspace({
               <TableHead className="w-[220px]">Item</TableHead>
               <TableHead className="w-[120px] text-right">Opening</TableHead>
               <TableHead className="w-[170px]">Received</TableHead>
-              <TableHead className="w-[130px] text-right">Sold (in opening)</TableHead>
+              <TableHead className="w-[120px] text-right">Sold</TableHead>
               <TableHead className="w-[170px]">R&amp;D</TableHead>
               <TableHead className="w-[170px]">Waste</TableHead>
               <TableHead className="w-[140px] text-right">Expected closing</TableHead>
