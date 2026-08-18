@@ -520,3 +520,103 @@ export async function deleteDailyStockCount(id: string): Promise<ActionResult> {
   revalidatePath("/stock/daily-counts");
   return { ok: true };
 }
+
+// ─── Item-set templates ──────────────────────────────────────────────────────
+
+export type DailyCountTemplate = {
+  id: string;
+  name: string;
+  item_ids: string[];
+};
+
+type TemplateRow = {
+  id: string;
+  name: string;
+  daily_count_template_items: { item_id: string }[];
+};
+
+export async function getDailyCountTemplates(): Promise<DailyCountTemplate[]> {
+  const profile = await getCurrentProfile();
+  if (!can(profile, P.DAILY_STOCK_COUNTS_READ)) return [];
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("daily_count_templates")
+    .select("id, name, daily_count_template_items(item_id)")
+    .order("name");
+
+  return ((data ?? []) as unknown as TemplateRow[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    item_ids: (row.daily_count_template_items ?? []).map((it) => it.item_id),
+  }));
+}
+
+const saveTemplateSchema = z.object({
+  name: z.string().trim().min(1, "Template name is required").max(80),
+  items: z.array(dailyItemSchema).min(1, "Select at least one item to save"),
+});
+
+/** Create a template, or replace the item set of one with the same name. */
+export async function saveDailyCountTemplate(
+  raw: unknown,
+): Promise<{ ok: true; template: DailyCountTemplate } | { ok: false; error: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.DAILY_STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
+
+  const parsed = saveTemplateSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { name, items } = parsed.data;
+  const itemIds = [...new Set(items.map((it) => it.item_id))];
+
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("daily_count_templates")
+    .select("id")
+    .ilike("name", name)
+    .maybeSingle();
+
+  let templateId = existing?.id as string | undefined;
+
+  if (templateId) {
+    const { error } = await supabase
+      .from("daily_count_template_items")
+      .delete()
+      .eq("template_id", templateId);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const { data: created, error } = await supabase
+      .from("daily_count_templates")
+      .insert({ name, created_by: profile.id })
+      .select("id")
+      .single();
+    if (error || !created) {
+      return { ok: false, error: error?.message ?? "Failed to save template" };
+    }
+    templateId = created.id;
+  }
+
+  const { error: itemsError } = await supabase
+    .from("daily_count_template_items")
+    .insert(itemIds.map((item_id) => ({ template_id: templateId!, item_id })));
+
+  if (itemsError) return { ok: false, error: itemsError.message };
+
+  revalidatePath("/stock/daily-counts/new");
+  return { ok: true, template: { id: templateId!, name, item_ids: itemIds } };
+}
+
+export async function deleteDailyCountTemplate(id: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.DAILY_STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("daily_count_templates").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/stock/daily-counts/new");
+  return { ok: true };
+}

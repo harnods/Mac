@@ -5,7 +5,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { DailyCountForm } from "@/components/stock/daily-count-form";
-import { getDailyCountOptions } from "@/app/actions/daily-stock";
+import { getDailyCountOptions, getDailyCountTemplates } from "@/app/actions/daily-stock";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,10 @@ export default async function NewDailyStockCountPage() {
   if (!profile) redirect("/login");
   if (!can(profile, P.DAILY_STOCK_COUNTS_WRITE)) redirect("/stock/daily-counts");
 
-  const options = await getDailyCountOptions();
+  const [options, templates] = await Promise.all([
+    getDailyCountOptions(),
+    getDailyCountTemplates(),
+  ]);
   if (!options.ok) redirect("/stock/daily-counts");
 
   return (
@@ -27,7 +30,7 @@ export default async function NewDailyStockCountPage() {
         </Button>
         <h1 className="text-2xl font-semibold tracking-tight">New daily stock count</h1>
       </div>
-      <DailyCountForm items={options.items} categories={options.categories} />
+      <DailyCountForm items={options.items} categories={options.categories} templates={templates} />
     </div>
   );
 }
