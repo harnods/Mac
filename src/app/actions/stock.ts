@@ -278,6 +278,123 @@ export async function createStockCount(raw: unknown): Promise<ActionResult> {
   return { ok: true, id: count.id };
 }
 
+export type AddedCountItem = {
+  id: string;
+  item_id: string;
+  qty_system: number;
+  qty_counted: number | null;
+  unit: string;
+  unopened_qty: number | null;
+  unopened_unit: string | null;
+  in_use_qty: number | null;
+  in_use_unit: string | null;
+  note: string | null;
+  item: {
+    name: string;
+    brand: string | null;
+    type: string;
+    unit: string;
+    purchase_unit: string | null;
+    purchase_unit_qty: number | null;
+    item_unit_conversions: { from_unit: string; factor: number; to_unit: string }[];
+  } | null;
+};
+
+const addCountItemsSchema = z.object({
+  id: z.string().uuid(),
+  items: z.array(countTaskItemSchema).min(1, "Select at least one item to add"),
+});
+
+/** Add more items to a count that is still open (draft or counting). */
+export async function addStockCountItems(
+  raw: unknown
+): Promise<{ ok: true; items: AddedCountItem[] } | { ok: false; error: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.STOCK_COUNTS_WRITE)) return { ok: false, error: "No permission" };
+
+  const parsed = addCountItemsSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const { id, items } = parsed.data;
+
+  const itemIds = [...new Set(items.map((it) => it.item_id))];
+
+  const supabase = await createClient();
+
+  const { data: count } = await supabase
+    .from("stock_counts")
+    .select("id, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!count) return { ok: false, error: "Stock count not found" };
+  if (count.status === "completed") return { ok: false, error: "Completed counts cannot be edited" };
+
+  const { data: alreadyHere } = await supabase
+    .from("stock_count_items")
+    .select("item_id, item:items(name)")
+    .eq("count_id", id)
+    .in("item_id", itemIds);
+
+  if (alreadyHere && alreadyHere.length > 0) {
+    return {
+      ok: false,
+      error: `${formatConflictNames(alreadyHere as unknown as CountConflictRow[])} is already in this count.`,
+    };
+  }
+
+  const { data: openCountRows } = await supabase
+    .from("stock_count_items")
+    .select("item_id, item:items(name), count:stock_counts!inner(status)")
+    .in("item_id", itemIds)
+    .neq("count.status", "completed");
+
+  if (openCountRows && openCountRows.length > 0) {
+    return {
+      ok: false,
+      error: `${formatConflictNames(openCountRows as unknown as CountConflictRow[])} is already in another unfinished cycle count.`,
+    };
+  }
+
+  const { data: dbItems } = await supabase
+    .from("items")
+    .select("id, unit, on_hand")
+    .is("deleted_at", null)
+    .in("type", ["ingredient", "supply", "prep_item"])
+    .in("id", itemIds);
+
+  if (!dbItems || dbItems.length !== itemIds.length) {
+    return { ok: false, error: "One or more selected items are no longer available for stock count" };
+  }
+  const dbItemsById = new Map(dbItems.map((item) => [item.id, item]));
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("stock_count_items")
+    .insert(
+      itemIds.map((itemId) => {
+        const it = dbItemsById.get(itemId)!;
+        return {
+          count_id: id,
+          item_id: it.id,
+          qty_system: Number(it.on_hand),
+          qty_counted: null,
+          unit: it.unit,
+          note: null,
+        };
+      })
+    )
+    .select(`
+      id, item_id, qty_system, qty_counted, unit, unopened_qty, unopened_unit, in_use_qty, in_use_unit, note,
+      item:items(name, brand, type, unit, purchase_unit, purchase_unit_qty, item_unit_conversions(from_unit, factor, to_unit))
+    `);
+
+  if (insertError) return { ok: false, error: insertError.message };
+
+  revalidatePath("/stock/counts");
+  revalidatePath(`/stock/counts/${id}`);
+  return { ok: true, items: (inserted ?? []) as unknown as AddedCountItem[] };
+}
+
 const updateCountSchema = z.object({
   id: z.string().uuid(),
   note: z.string().max(500).optional(),

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Check, Play, Printer, Save } from "lucide-react";
+import { Check, Play, Plus, Printer, Save, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 import { convert, convertToItemUnit, formatNum, parseDecimal, unitOptionsForItem } from "@/lib/units";
@@ -27,7 +27,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Qty } from "@/components/ui/qty";
-import { finishStockCount, saveStockCountDraft, startStockCount } from "@/app/actions/stock";
+import {
+  addStockCountItems,
+  finishStockCount,
+  getStockCountOptions,
+  saveStockCountDraft,
+  startStockCount,
+  type AddedCountItem,
+  type StockCountItemOption,
+} from "@/app/actions/stock";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CompletedCountTable } from "@/components/stock/completed-count-table";
 
 type CountStatus = "draft" | "counting" | "completed";
@@ -160,6 +175,27 @@ function updateSplitRow(row: RowState, patch: Partial<RowState>) {
   };
 }
 
+function toRowState(item: CountItem): RowState {
+  const hasStoredSplit = item.unopened_qty != null || item.in_use_qty != null;
+  return {
+    ...item,
+    qty_counted_text: item.qty_counted == null ? "" : String(item.qty_counted),
+    unopened_qty_text:
+      item.unopened_qty == null
+        ? hasStoredSplit || item.qty_counted == null
+          ? ""
+          : String(item.qty_counted)
+        : String(item.unopened_qty),
+    unopened_unit:
+      item.unopened_unit ??
+      (hasStoredSplit || item.qty_counted == null ? item.item?.purchase_unit : item.unit) ??
+      item.unit,
+    in_use_qty_text: item.in_use_qty == null ? "" : String(item.in_use_qty),
+    in_use_unit: item.in_use_unit ?? item.item?.unit ?? item.unit,
+    note_text: item.note ?? "",
+  };
+}
+
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border p-4">
@@ -174,28 +210,8 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
   const [pending, startTransition] = useTransition();
   const [note, setNote] = useState(count.note ?? "");
   const [q, setQ] = useState("");
-  const [rows, setRows] = useState<RowState[]>(
-    items.map((item) => {
-      const hasStoredSplit = item.unopened_qty != null || item.in_use_qty != null;
-      return {
-        ...item,
-        qty_counted_text: item.qty_counted == null ? "" : String(item.qty_counted),
-        unopened_qty_text:
-          item.unopened_qty == null
-            ? hasStoredSplit || item.qty_counted == null
-              ? ""
-              : String(item.qty_counted)
-            : String(item.unopened_qty),
-        unopened_unit:
-          item.unopened_unit ??
-          (hasStoredSplit || item.qty_counted == null ? item.item?.purchase_unit : item.unit) ??
-          item.unit,
-        in_use_qty_text: item.in_use_qty == null ? "" : String(item.in_use_qty),
-        in_use_unit: item.in_use_unit ?? item.item?.unit ?? item.unit,
-        note_text: item.note ?? "",
-      };
-    })
-  );
+  const [rows, setRows] = useState<RowState[]>(() => items.map(toRowState));
+  const [addOpen, setAddOpen] = useState(false);
 
   const isCompleted = count.status === "completed";
   const isCounting = count.status === "counting";
@@ -229,6 +245,11 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
     setRows((prev) =>
       prev.map((row) => (row.item_id === itemId ? updateSplitRow(row, patch) : row))
     );
+  }
+
+  function handleItemsAdded(added: AddedCountItem[]) {
+    setRows((prev) => [...prev, ...added.map((item) => toRowState(item as CountItem))]);
+    router.refresh();
   }
 
   function handleStart() {
@@ -285,6 +306,11 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
             <Play className="size-4" /> {pending ? "Starting..." : "Start counting"}
           </Button>
         )}
+        {canEdit && !readOnly && (
+          <Button type="button" variant="outline" onClick={() => setAddOpen(true)} disabled={pending}>
+            <Plus className="size-4" /> Add items
+          </Button>
+        )}
         {canInput && (
           <>
             <Button type="button" variant="outline" onClick={handleSave} disabled={pending}>
@@ -296,6 +322,16 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
           </>
         )}
       </div>
+
+      {canEdit && !readOnly && (
+        <AddCountItemsDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          countId={count.id}
+          existingItemIds={rows.map((row) => row.item_id)}
+          onAdded={handleItemsAdded}
+        />
+      )}
 
       <div className="no-print grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard label="Progress" value={`${countedRows}/${rows.length} items`} />
@@ -345,8 +381,8 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
             <TableRow>
               <TableHead className="w-[240px]">Item</TableHead>
               <TableHead className="w-[160px] text-right">System qty</TableHead>
-              <TableHead className="w-[160px]">Counted qty</TableHead>
-              <TableHead className="w-[160px]">In-use qty</TableHead>
+              <TableHead className="w-[260px]">Counted qty</TableHead>
+              <TableHead className="w-[260px]">In-use qty</TableHead>
               <TableHead className="w-[160px] text-right">Variance</TableHead>
               <TableHead className="w-[160px]">Note</TableHead>
             </TableRow>
@@ -380,16 +416,18 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <QuantityCalculatorInput
-                        min="0"
-                        step="any"
-                        value={row.unopened_qty_text}
-                        onValueChange={(value) =>
-                          updateSplit(row.item_id, { unopened_qty_text: value })
-                        }
-                        disabled={!canInput}
-                        className="text-right"
-                      />
+                      <div className="min-w-32 flex-1">
+                        <QuantityCalculatorInput
+                          min="0"
+                          step="any"
+                          value={row.unopened_qty_text}
+                          onValueChange={(value) =>
+                            updateSplit(row.item_id, { unopened_qty_text: value })
+                          }
+                          disabled={!canInput}
+                          className="text-right"
+                        />
+                      </div>
                       {canInput && units.length > 1 ? (
                         <Select
                           value={row.unopened_unit}
@@ -415,16 +453,18 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <QuantityCalculatorInput
-                        min="0"
-                        step="any"
-                        value={row.in_use_qty_text}
-                        onValueChange={(value) =>
-                          updateSplit(row.item_id, { in_use_qty_text: value })
-                        }
-                        disabled={!canInput}
-                        className="text-right"
-                      />
+                      <div className="min-w-32 flex-1">
+                        <QuantityCalculatorInput
+                          min="0"
+                          step="any"
+                          value={row.in_use_qty_text}
+                          onValueChange={(value) =>
+                            updateSplit(row.item_id, { in_use_qty_text: value })
+                          }
+                          disabled={!canInput}
+                          className="text-right"
+                        />
+                      </div>
                       {canInput && units.length > 1 ? (
                         <Select
                           value={row.in_use_unit}
@@ -528,5 +568,147 @@ export function CountWorkspace({ count, items, canEdit, viewOnly = false }: Coun
         }
       `}</style>
     </div>
+  );
+}
+
+
+function AddCountItemsDialog({
+  open,
+  onOpenChange,
+  countId,
+  existingItemIds,
+  onAdded,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  countId: string;
+  existingItemIds: string[];
+  onAdded: (items: AddedCountItem[]) => void;
+}) {
+  const [loading, startLoad] = useTransition();
+  const [saving, startSave] = useTransition();
+  const [options, setOptions] = useState<StockCountItemOption[] | null>(null);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+
+  // Item options are fetched lazily the first time the dialog is opened.
+  useEffect(() => {
+    if (!open || options != null) return;
+    startLoad(async () => {
+      const res = await getStockCountOptions();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      setOptions(res.items);
+    });
+  }, [open, options]);
+
+  function close() {
+    setQuery("");
+    setSelected(new Set());
+    onOpenChange(false);
+  }
+
+  const alreadyIn = new Set(existingItemIds);
+  const available = (options ?? []).filter((item) => !alreadyIn.has(item.id));
+  const q = query.trim().toLowerCase();
+  const filtered = available.filter((item) => !q || item.name.toLowerCase().includes(q));
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function submit() {
+    if (selected.size === 0) {
+      toast.error("Select at least one item to add");
+      return;
+    }
+    startSave(async () => {
+      const res = await addStockCountItems({
+        id: countId,
+        items: [...selected].map((item_id) => ({ item_id })),
+      });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`${res.items.length} item${res.items.length !== 1 ? "s" : ""} added to this count`);
+      onAdded(res.items);
+      close();
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add items to this count</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search items..."
+              className="pl-9"
+            />
+          </div>
+
+          <div className="max-h-80 overflow-y-auto rounded-lg border">
+            {loading && options == null ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">Loading items...</p>
+            ) : filtered.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">
+                No items available to add.
+              </p>
+            ) : (
+              filtered.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex cursor-pointer items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0 hover:bg-muted/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(item.id)}
+                    onChange={() => toggle(item.id)}
+                    className="size-4 rounded border-border"
+                  />
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {item.name}
+                    {item.brand && (
+                      <span className="block text-xs font-normal text-muted-foreground truncate">
+                        {item.brand}
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {TYPE_LABEL[item.type] ?? item.type} · {item.unit}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <p className="text-sm text-muted-foreground">{selected.size} selected</p>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={close} disabled={saving}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={submit} disabled={saving || selected.size === 0}>
+            {saving ? "Adding..." : "Add items"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
