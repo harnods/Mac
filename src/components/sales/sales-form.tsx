@@ -77,7 +77,9 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
     setRows((p) => p.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  function toggleProduct(id: string) {
+  // Toggling from a row's dropdown: an unselected product fills the row when it
+  // is still blank, otherwise it becomes a new row. Unselecting drops its row.
+  function toggleProductForRow(rowKey: string, id: string) {
     setRows((prev) => {
       const existing = prev.find((r) => r.product_id === id);
       if (existing) {
@@ -85,14 +87,18 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
         return next.length ? next : [newRow()];
       }
       const product = products.find((p) => p.id === id);
-      const blank = prev.find((r) => !r.product_id);
-      if (blank) {
+      const target = prev.find((r) => r.key === rowKey);
+      if (target && !target.product_id) {
         return prev.map((r) =>
-          r.key === blank.key ? { ...r, product_id: id, unit: product?.unit ?? null } : r
+          r.key === rowKey ? { ...r, product_id: id, unit: product?.unit ?? null } : r
         );
       }
       return [...prev, { key: crypto.randomUUID(), product_id: id, qty: "", unit: product?.unit ?? null }];
     });
+  }
+
+  function addRow() {
+    setRows((prev) => (prev.some((r) => !r.product_id) ? prev : [...prev, newRow()]));
   }
 
   function handleSubmit() {
@@ -185,13 +191,9 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
                   key={row.key}
                   row={row}
                   index={idx}
-                  products={products.filter(
-                    (p) => !rows.some((r) => r.key !== row.key && r.product_id === p.id) || p.id === row.product_id
-                  )}
-                  onProductSelect={(id) => {
-                    const product = products.find((p) => p.id === id);
-                    updateRow(row.key, { product_id: id, unit: product?.unit ?? null });
-                  }}
+                  products={products}
+                  selectedIds={selectedProductIds}
+                  onProductToggle={(id) => toggleProductForRow(row.key, id)}
                   onQtyChange={(qty) => updateRow(row.key, { qty })}
                   onUnitChange={(unit) => updateRow(row.key, { unit })}
                   onRemove={rows.length > 1 ? () => removeRow(row.key) : undefined}
@@ -201,11 +203,9 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
           </Table>
         </div>
 
-        <ProductMultiSelect
-          products={products}
-          selectedIds={selectedProductIds}
-          onToggle={toggleProduct}
-        />
+        <Button type="button" variant="outline" size="sm" onClick={addRow}>
+          <Plus className="size-4" /> Add product
+        </Button>
       </section>
 
       {/* Money summary */}
@@ -296,62 +296,14 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
   );
 }
 
-function ProductMultiSelect({
-  products,
-  selectedIds,
-  onToggle,
-}: {
-  products: Product[];
-  selectedIds: string[];
-  onToggle: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = new Set(selectedIds);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm">
-          <Plus className="size-4" />
-          {selected.size > 0 ? `Add products (${selected.size} selected)` : "Add products"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search products..." />
-          <CommandList>
-            <CommandEmpty>No products found.</CommandEmpty>
-            <CommandGroup>
-              {products.map((p) => (
-                <CommandItem key={p.id} value={p.name} onSelect={() => onToggle(p.id)}>
-                  <span
-                    className={cn(
-                      "flex size-4 items-center justify-center rounded-sm border",
-                      selected.has(p.id)
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : "border-border"
-                    )}
-                  >
-                    {selected.has(p.id) && <Check className="size-3" />}
-                  </span>
-                  <span className="truncate">{p.name}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 function SalesRowField({
-  row, index, products, onProductSelect, onQtyChange, onUnitChange, onRemove,
+  row, index, products, selectedIds, onProductToggle, onQtyChange, onUnitChange, onRemove,
 }: {
   row: Row;
   index: number;
   products: Product[];
-  onProductSelect: (id: string) => void;
+  selectedIds: string[];
+  onProductToggle: (id: string) => void;
   onQtyChange: (qty: string) => void;
   onUnitChange: (unit: string) => void;
   onRemove?: () => void;
@@ -359,6 +311,7 @@ function SalesRowField({
   const [open, setOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
 
+  const selected = new Set(selectedIds);
   const selectedProduct = products.find((p) => p.id === row.product_id) ?? null;
   const units = selectedProduct ? compatibleUnits(selectedProduct.unit) : [];
 
@@ -384,10 +337,18 @@ function SalesRowField({
                 <CommandEmpty>No products found.</CommandEmpty>
                 <CommandGroup>
                   {products.map((p) => (
-                    <CommandItem key={p.id} value={p.name}
-                      onSelect={() => { onProductSelect(p.id); setOpen(false); }}>
-                      <Check className={cn("size-4", row.product_id === p.id ? "opacity-100" : "opacity-0")} />
-                      {p.name}
+                    <CommandItem key={p.id} value={p.name} onSelect={() => onProductToggle(p.id)}>
+                      <span
+                        className={cn(
+                          "flex size-4 shrink-0 items-center justify-center rounded-sm border",
+                          selected.has(p.id)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border"
+                        )}
+                      >
+                        {selected.has(p.id) && <Check className="size-3" />}
+                      </span>
+                      <span className="truncate">{p.name}</span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
