@@ -70,10 +70,29 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
   const allocated = filledPayments.reduce((s, p) => s + parseDecimal(p.amount), 0);
   const paymentsBalanced = filledPayments.length === 0 || Math.round(allocated) === Math.round(netSales);
 
-  function addRow() { setRows((p) => [...p, newRow()]); }
-  function removeRow(key: string) { setRows((p) => p.filter((r) => r.key !== key)); }
+  function removeRow(key: string) {
+    setRows((p) => (p.length > 1 ? p.filter((r) => r.key !== key) : p));
+  }
   function updateRow(key: string, patch: Partial<Row>) {
     setRows((p) => p.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function toggleProduct(id: string) {
+    setRows((prev) => {
+      const existing = prev.find((r) => r.product_id === id);
+      if (existing) {
+        const next = prev.filter((r) => r.key !== existing.key);
+        return next.length ? next : [newRow()];
+      }
+      const product = products.find((p) => p.id === id);
+      const blank = prev.find((r) => !r.product_id);
+      if (blank) {
+        return prev.map((r) =>
+          r.key === blank.key ? { ...r, product_id: id, unit: product?.unit ?? null } : r
+        );
+      }
+      return [...prev, { key: crypto.randomUUID(), product_id: id, qty: "", unit: product?.unit ?? null }];
+    });
   }
 
   function handleSubmit() {
@@ -102,6 +121,9 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
   }
 
   const totalItems = rows.filter((r) => r.product_id && r.qty).length;
+  const selectedProductIds = rows
+    .map((r) => r.product_id)
+    .filter((id): id is string => Boolean(id));
 
   return (
     <div className="flex flex-col flex-1 gap-6">
@@ -179,9 +201,11 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
           </Table>
         </div>
 
-        <Button type="button" variant="outline" size="sm" onClick={addRow}>
-          <Plus className="size-4" /> Add product
-        </Button>
+        <ProductMultiSelect
+          products={products}
+          selectedIds={selectedProductIds}
+          onToggle={toggleProduct}
+        />
       </section>
 
       {/* Money summary */}
@@ -269,6 +293,55 @@ export function SalesForm({ products, paymentMethods }: { products: Product[]; p
         </Button>
       </div>
     </div>
+  );
+}
+
+function ProductMultiSelect({
+  products,
+  selectedIds,
+  onToggle,
+}: {
+  products: Product[];
+  selectedIds: string[];
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = new Set(selectedIds);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm">
+          <Plus className="size-4" />
+          {selected.size > 0 ? `Add products (${selected.size} selected)` : "Add products"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search products..." />
+          <CommandList>
+            <CommandEmpty>No products found.</CommandEmpty>
+            <CommandGroup>
+              {products.map((p) => (
+                <CommandItem key={p.id} value={p.name} onSelect={() => onToggle(p.id)}>
+                  <span
+                    className={cn(
+                      "flex size-4 items-center justify-center rounded-sm border",
+                      selected.has(p.id)
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : "border-border"
+                    )}
+                  >
+                    {selected.has(p.id) && <Check className="size-3" />}
+                  </span>
+                  <span className="truncate">{p.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
