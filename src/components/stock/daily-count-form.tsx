@@ -132,8 +132,9 @@ export function DailyCountForm({
               onChange={(e) => setCountDate(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Opening is snapshotted from each item&rsquo;s on hand right now, so create the count
-              at the start of the day. Sold is pulled from the sales recorded on this date.
+              Record the day&rsquo;s sales first, then create the count: Opening is snapshotted from
+              each item&rsquo;s on hand right now, which is already net of those sales. Sold is
+              pulled from the sales recorded on this date and shown for reference.
             </p>
           </div>
           <div className="space-y-1.5">

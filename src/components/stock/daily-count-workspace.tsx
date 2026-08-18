@@ -305,8 +305,9 @@ export function DailyCountWorkspace({
       )}
 
       <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-        Expected closing = Opening + Received − Sold − R&amp;D − Waste. Variance = Counted −
-        Expected closing, so a negative variance is unexplained shrinkage.
+        Expected closing = Opening + Received − R&amp;D − Waste. Variance = Counted − Expected
+        closing, so a negative variance is unexplained shrinkage. Sold is shown for reference
+        only — recording a sale already drew the stock down, so Opening is net of it.
       </div>
 
       {(canInput || note.trim() !== "") && (
@@ -341,7 +342,7 @@ export function DailyCountWorkspace({
               <TableHead className="w-[220px]">Item</TableHead>
               <TableHead className="w-[120px] text-right">Opening</TableHead>
               <TableHead className="w-[170px]">Received</TableHead>
-              <TableHead className="w-[120px] text-right">Sold</TableHead>
+              <TableHead className="w-[130px] text-right">Sold (in opening)</TableHead>
               <TableHead className="w-[170px]">R&amp;D</TableHead>
               <TableHead className="w-[170px]">Waste</TableHead>
               <TableHead className="w-[140px] text-right">Expected closing</TableHead>
