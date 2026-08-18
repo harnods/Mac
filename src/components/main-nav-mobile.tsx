@@ -70,6 +70,11 @@ export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: bool
             <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
           </DropdownMenuItem>
         )}
+        {has(P.DAILY_STOCK_COUNTS_READ) && (
+          <DropdownMenuItem asChild>
+            <Link prefetch={false} href="/stock/daily-counts" className="cursor-pointer">Daily stock count</Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel>Recipes</DropdownMenuLabel>
         <DropdownMenuItem asChild>

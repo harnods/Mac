@@ -33,6 +33,9 @@ export function StockNav() {
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/stock/counts" className="cursor-pointer">Stock count</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/stock/daily-counts" className="cursor-pointer">Daily stock count</Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

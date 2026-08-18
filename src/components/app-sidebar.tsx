@@ -52,6 +52,7 @@ const MENU: MenuNode[] = [
       "divider",
       { label: "Stock adjustments", href: "/stock/adjustments", perm: P.STOCK_ADJUSTMENTS_READ },
       { label: "Stock count", href: "/stock/counts", perm: P.STOCK_COUNTS_READ },
+      { label: "Daily stock count", href: "/stock/daily-counts", perm: P.DAILY_STOCK_COUNTS_READ },
     ],
   },
   { label: "Prep orders", icon: PrepOrdersIcon, href: "/prep-orders" },

@@ -28,6 +28,7 @@ const TYPE_LABEL: Record<string, string> = {
   prep_consumption: "Prep consumption",
   prep_output: "Prep output",
   count_adjustment: "Stock count",
+  daily_count_adjustment: "Daily stock count",
   reservation: "Reservation",
   reservation_release: "Reservation release",
 };
@@ -39,6 +40,7 @@ const TYPE_HREF: Record<string, (refId: string) => string> = {
   prep_consumption: (id) => `/prep-orders/${id}`,
   prep_output: (id) => `/prep-orders/${id}`,
   count_adjustment: (id) => `/stock/counts/${id}`,
+  daily_count_adjustment: (id) => `/stock/daily-counts/${id}`,
 };
 
 export type LedgerRow = {
