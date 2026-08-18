@@ -9,15 +9,6 @@ import { can, P } from "@/lib/permissions";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
-/** The business day runs on Jakarta time, same as receipts and reports. */
-const TZ_OFFSET = "+07:00";
-
-function dayWindow(date: string) {
-  const from = new Date(`${date}T00:00:00${TZ_OFFSET}`);
-  const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
-  return { from: from.toISOString(), to: to.toISOString() };
-}
-
 export type DailyCountItemOption = {
   id: string;
   name: string;
@@ -99,38 +90,6 @@ async function soldQtyByItem(
   return sold;
 }
 
-/**
- * On-hand at the start of the business day. Taken from the first ledger row of
- * that day (`on_hand_after - qty_delta`); items with no movement that day are
- * still at their current on-hand.
- */
-async function openingQtyByItem(
-  supabase: SupabaseClient,
-  date: string,
-  onHandNow: Map<string, number>,
-): Promise<Map<string, number>> {
-  const itemIds = [...onHandNow.keys()];
-  const opening = new Map(onHandNow);
-  if (itemIds.length === 0) return opening;
-
-  const { from, to } = dayWindow(date);
-  const { data: rows } = await supabase
-    .from("stock_ledger")
-    .select("item_id, qty_delta, on_hand_after, created_at")
-    .in("item_id", itemIds)
-    .gte("created_at", from)
-    .lt("created_at", to)
-    .order("created_at", { ascending: true });
-
-  const seen = new Set<string>();
-  for (const row of (rows ?? []) as { item_id: string; qty_delta: number; on_hand_after: number }[]) {
-    if (seen.has(row.item_id)) continue;
-    seen.add(row.item_id);
-    opening.set(row.item_id, Number(row.on_hand_after) - Number(row.qty_delta));
-  }
-  return opening;
-}
-
 const dailyItemSchema = z.object({ item_id: z.string().uuid() });
 
 const createDailyCountSchema = z.object({
@@ -156,11 +115,7 @@ async function buildCountItemRows(
   const rows = (dbItems ?? []) as { id: string; unit: string; on_hand: number }[];
   if (rows.length !== itemIds.length) return null;
 
-  const onHandNow = new Map(rows.map((it) => [it.id, Number(it.on_hand)]));
-  const [opening, sold] = await Promise.all([
-    openingQtyByItem(supabase, date, onHandNow),
-    soldQtyByItem(supabase, date, itemIds),
-  ]);
+  const sold = await soldQtyByItem(supabase, date, itemIds);
 
   const byId = new Map(rows.map((it) => [it.id, it]));
   return itemIds.map((id) => {
@@ -169,7 +124,8 @@ async function buildCountItemRows(
       count_id: countId,
       item_id: it.id,
       unit: it.unit,
-      opening_qty: opening.get(it.id) ?? Number(it.on_hand),
+      // Snapshot of the item's on hand at the moment it joined this count.
+      opening_qty: Number(it.on_hand),
       sold_qty: sold.get(it.id) ?? 0,
       received_qty: null,
       rnd_qty: null,
