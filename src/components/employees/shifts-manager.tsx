@@ -3,11 +3,18 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,6 +74,18 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [breakMinutes, setBreakMinutes] = useState("0");
+
+  // Filter bar state (client-side; the shift list is small).
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [query, setQuery] = useState("");
+  const hasFilter = statusFilter !== "all" || query.trim() !== "";
+  const visibleShifts = shifts.filter((s) => {
+    const statusOk =
+      statusFilter === "all" ||
+      (statusFilter === "active" ? s.active !== false : s.active === false);
+    const nameOk = s.name.toLowerCase().includes(query.trim().toLowerCase());
+    return statusOk && nameOk;
+  });
 
   const isForm = modal?.type === "add" || modal?.type === "edit";
   const isEdit = modal?.type === "edit";
@@ -133,6 +152,37 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
         )}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasFilter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setStatusFilter("all"); setQuery(""); }}
+              className="text-muted-foreground"
+            >
+              <X className="size-4" /> Clear
+            </Button>
+          )}
+        </div>
+        <Input
+          placeholder="Search shifts..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-full sm:w-56"
+        />
+      </div>
+
       <div className="border table-outer rounded-lg overflow-x-auto">
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
@@ -147,14 +197,14 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
             </TableRow>
           </TableHeader>
           <TableBody>
-            {shifts.length === 0 && (
+            {visibleShifts.length === 0 && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 5} className="text-center text-sm text-muted-foreground py-8">
-                  No shifts yet.
+                  {shifts.length === 0 ? "No shifts yet." : "No shifts match your filter."}
                 </TableCell>
               </TableRow>
             )}
-            {shifts.map((shift) => {
+            {visibleShifts.map((shift) => {
               const dayOff = !shift.start_time && !shift.end_time;
               const locked = LOCKED_SHIFTS.includes(shift.name);
               return (
