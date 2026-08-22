@@ -16,7 +16,7 @@ export function DetailActionsMenu({ children }: { children: React.ReactNode }) {
           Actions <ChevronDown className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">{children}</DropdownMenuContent>
+      <DropdownMenuContent align="end" className="w-auto">{children}</DropdownMenuContent>
     </DropdownMenu>
   );
 }

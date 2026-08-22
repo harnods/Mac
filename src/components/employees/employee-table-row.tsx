@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
+import { setEmployeeActive } from "@/app/actions/employees";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -43,6 +46,18 @@ export function EmployeeTableRow({
   showLastUpdated?: boolean;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const isResigned = !!employee.termination_date;
+
+  function toggleActive() {
+    start(async () => {
+      const res = await setEmployeeActive(employee.id, employee.active === false);
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success(employee.active === false ? `${employee.name} marked active` : `${employee.name} marked inactive`);
+      router.refresh();
+    });
+  }
 
   return (
     <>
@@ -120,7 +135,7 @@ export function EmployeeTableRow({
                 <span className="sr-only">Open menu</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-auto">
               <DropdownMenuItem asChild>
                 <Link href={`/hr/crew/${employee.id}`}>View details</Link>
               </DropdownMenuItem>
@@ -129,6 +144,14 @@ export function EmployeeTableRow({
                   <DropdownMenuItem asChild>
                     <Link href={`/hr/crew/${employee.id}/edit`}>Edit</Link>
                   </DropdownMenuItem>
+                  {!isResigned && (
+                    <DropdownMenuItem
+                      disabled={pending}
+                      onSelect={(e) => { e.preventDefault(); toggleActive(); }}
+                    >
+                      {employee.active === false ? "Mark as active" : "Mark as inactive"}
+                    </DropdownMenuItem>
+                  )}
                   {!employee.mac_user?.is_owner && (
                     <>
                       <DropdownMenuSeparator />
