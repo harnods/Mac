@@ -126,7 +126,9 @@ export function CrewAttendancePanel({
     const late = new Set<string>();
     const early = new Set<string>();
     const onTime = new Set<string>();
+    const byDate = new Map<string, AttendanceWithRelations[]>();
     for (const r of rows) {
+      byDate.set(r.work_date, [...(byDate.get(r.work_date) ?? []), r]);
       const isDayOff = !!r.shifts && !r.shifts.start_time && !r.shifts.end_time;
       if (isDayOff) dayOff.add(r.work_date);
       if (r.clock_in) {
@@ -137,6 +139,18 @@ export function CrewAttendancePanel({
         if (st.includes("early-leave")) early.add(r.work_date);
       }
     }
+
+    // Absent: a past day (before today) that isn't a day off and has no
+    // clock-in — i.e. the crew was expected to work but never clocked in.
+    let absent = 0;
+    for (const day of eachDay(period.start, period.end)) {
+      if (day >= today) continue; // don't count today or future days
+      const recs = byDate.get(day);
+      const hasClockIn = recs?.some((r) => r.clock_in);
+      const isDayOff = !!recs?.length && recs.every((r) => r.shifts && !r.shifts.start_time && !r.shifts.end_time);
+      if (!hasClockIn && !isDayOff) absent++;
+    }
+
     return {
       workingDays,
       present: present.size,
@@ -144,8 +158,9 @@ export function CrewAttendancePanel({
       late: late.size,
       early: early.size,
       onTime: onTime.size,
+      absent,
     };
-  }, [rows, period.start, period.end, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
+  }, [rows, period.start, period.end, today, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
 
   // One row per calendar day in the period; days with attendance show it,
   // days without stay blank (crew simply didn't clock in).
@@ -177,13 +192,14 @@ export function CrewAttendancePanel({
         </SelectContent>
       </Select>
 
-      <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 ${pending ? "opacity-60" : ""}`}>
+      <div className={`grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7 ${pending ? "opacity-60" : ""}`}>
         {([
           { label: "Working days", value: stats.workingDays, hint: "21st–20th − 4 days off" },
           { label: "Days present", value: stats.present },
           { label: "On time", value: stats.onTime },
           { label: "Late", value: stats.late },
           { label: "Early leave", value: stats.early },
+          { label: "Absent", value: stats.absent },
           { label: "Day offs", value: stats.dayOff },
         ] as const).map((s) => (
           <div key={s.label} className="rounded-lg border p-3">
