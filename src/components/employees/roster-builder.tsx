@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -28,6 +34,20 @@ function todayISO() {
 }
 function shiftLabel(s: ShiftOpt) {
   return s.start_time && s.end_time ? `${s.name} (${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)})` : s.name;
+}
+
+/** Shift name on line 1, hours on line 2. */
+function twoLine(s: ShiftOpt) {
+  return (
+    <span className="flex flex-col leading-tight">
+      <span>{s.name}</span>
+      {s.start_time && s.end_time && (
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+        </span>
+      )}
+    </span>
+  );
 }
 
 export function RosterBuilder({
@@ -191,15 +211,20 @@ export function RosterBuilder({
                   const sel = options.find((s) => s.id === cells[key(c.id, w)]);
                   return (
                     <td key={w} className="border-l px-1.5 py-1.5">
-                      <select
-                        className={selectCls}
-                        value={cells[key(c.id, w)] ?? ""}
-                        title={sel ? shiftLabel(sel) : "No shift"}
-                        onChange={(e) => set(c.id, w, e.target.value)}
+                      <Select
+                        value={cells[key(c.id, w)] || "__none__"}
+                        onValueChange={(v) => set(c.id, w, v === "__none__" ? "" : v)}
                       >
-                        <option value="">—</option>
-                        {options.map((s) => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
-                      </select>
+                        <SelectTrigger className="h-auto min-h-10 w-full whitespace-normal py-1 text-left">
+                          {sel ? twoLine(sel) : <span className="text-muted-foreground">—</span>}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {options.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{twoLine(s)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
                   );
                 })}
