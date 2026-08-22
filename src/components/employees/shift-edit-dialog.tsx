@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 
 type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
-type ShiftOption = { id: string; name: string; start_time: string | null; end_time: string | null };
+type ShiftOption = { id: string; name: string; start_time: string | null; end_time: string | null; active?: boolean };
 
 const NO_SHIFT = "__none__";
 
@@ -30,6 +30,13 @@ function shiftLabel(s: ShiftOption) {
   return s.start_time && s.end_time
     ? `${s.name} (${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)})`
     : s.name;
+}
+
+/** Alphabetical by name, then by start time. */
+function sortShifts(shifts: ShiftOption[]) {
+  return [...shifts].sort(
+    (a, b) => a.name.localeCompare(b.name) || (a.start_time ?? "").localeCompare(b.start_time ?? ""),
+  );
 }
 
 export function ShiftEditDialog({
@@ -83,8 +90,15 @@ export function ShiftEditDialog({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_SHIFT}>No shift</SelectItem>
-              {shifts.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{shiftLabel(s)}</SelectItem>
+              {sortShifts(shifts).map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  <span className="flex flex-col">
+                    <span>{shiftLabel(s)}</span>
+                    {s.active === false && (
+                      <span className="text-xs text-muted-foreground">Inactive</span>
+                    )}
+                  </span>
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
