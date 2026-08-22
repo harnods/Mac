@@ -1,11 +1,25 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Crown } from "lucide-react";
+import { Crown, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { RoleWithPermissions, UserWithRole } from "@/app/actions/permissions";
-import { setUserRole, setUserAppAccess, revokeUserAccess } from "@/app/actions/permissions";
-import { roleLabel } from "@/lib/permissions";
+import {
+  setUserRole,
+  setUserAppAccess,
+  revokeUserAccess,
+  resetUserPassword,
+} from "@/app/actions/permissions";
+import { roleLabel, DEFAULT_CREW_PASSWORD } from "@/lib/permissions";
 import { formatDateTime } from "@/lib/format";
 
 type Props = {
@@ -18,6 +32,31 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
   const [users, setUsers] = useState<UserWithRole[]>(initialUsers);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  // Reset-password dialog state.
+  const [resetTarget, setResetTarget] = useState<UserWithRole | null>(null);
+  const [forceChange, setForceChange] = useState(true);
+  const [resetDone, setResetDone] = useState(false);
+
+  function openReset(user: UserWithRole) {
+    setResetTarget(user);
+    setForceChange(true);
+    setResetDone(false);
+  }
+
+  function handleReset() {
+    if (!resetTarget) return;
+    const id = resetTarget.id;
+    startTransition(async () => {
+      const result = await resetUserPassword(id, forceChange);
+      if (!result.ok) {
+        setError(result.error);
+        setResetTarget(null);
+        return;
+      }
+      setResetDone(true);
+    });
+  }
 
   function patchUser(userId: string, patch: Partial<UserWithRole>) {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...patch } : u)));
@@ -152,17 +191,30 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
 
                   {/* Actions */}
                   <td className="px-4 py-2 text-right">
-                    {!user.is_owner && user.id !== currentUserId && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRevoke(user)}
-                        disabled={isPending}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        Revoke access
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      {!user.is_owner && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openReset(user)}
+                          disabled={isPending}
+                        >
+                          <KeyRound className="size-3.5" />
+                          Reset password
+                        </Button>
+                      )}
+                      {!user.is_owner && user.id !== currentUserId && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevoke(user)}
+                          disabled={isPending}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          Revoke access
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -177,6 +229,81 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
           </tbody>
         </table>
       </div>
+
+      <Dialog
+        open={resetTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setResetTarget(null);
+        }}
+      >
+        <DialogContent>
+          {resetDone ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Password direset</DialogTitle>
+                <DialogDescription>
+                  Password {resetTarget?.full_name || resetTarget?.email} sekarang{" "}
+                  <span className="font-mono font-medium text-foreground">
+                    {DEFAULT_CREW_PASSWORD}
+                  </span>
+                  .
+                  {forceChange
+                    ? " Mereka akan diminta membuat password baru saat login berikutnya."
+                    : " Mereka bisa langsung login dengan password ini."}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button onClick={() => setResetTarget(null)}>Selesai</Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Reset password</DialogTitle>
+                <DialogDescription>
+                  Password {resetTarget?.full_name || resetTarget?.email} akan
+                  direset ke{" "}
+                  <span className="font-mono font-medium text-foreground">
+                    {DEFAULT_CREW_PASSWORD}
+                  </span>
+                  .
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <div className="text-sm font-medium">
+                    Minta ganti password saat login
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {forceChange
+                      ? "Crew wajib membuat password sendiri saat login berikutnya."
+                      : `Crew tetap login dengan ${DEFAULT_CREW_PASSWORD} sampai mereka menggantinya sendiri.`}
+                  </div>
+                </div>
+                <Switch
+                  checked={forceChange}
+                  onCheckedChange={setForceChange}
+                  disabled={isPending}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setResetTarget(null)}
+                  disabled={isPending}
+                >
+                  Batal
+                </Button>
+                <Button onClick={handleReset} disabled={isPending}>
+                  {isPending ? "Mereset…" : "Reset password"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

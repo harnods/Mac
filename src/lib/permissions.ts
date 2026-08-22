@@ -46,6 +46,9 @@ export type PermissionKey = typeof P[keyof typeof P];
 // The built-in super-admin role. It always holds every permission (including
 // ones added in future) and its permission set can't be edited or unchecked.
 export const ADMIN_ROLE_NAME = 'admin';
+
+/** The default password crew accounts are reset to. */
+export const DEFAULT_CREW_PASSWORD = 'crew-2026';
 export const ALL_PERMISSION_KEYS: PermissionKey[] = Object.values(P);
 
 /** Whether a role name is the all-access admin role. */

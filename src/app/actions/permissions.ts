@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, P, ALL_PERMISSION_KEYS, isSuperRole } from "@/lib/permissions";
+import { can, P, ALL_PERMISSION_KEYS, isSuperRole, DEFAULT_CREW_PASSWORD } from "@/lib/permissions";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -182,6 +182,45 @@ export async function setUserAppAccess(
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings", "layout");
   return { ok: true };
+}
+
+/**
+ * Reset a user's password back to the default (`crew-2026`).
+ * When [forceChange] is true the user must set their own password on their next
+ * login (must_change_password); when false they keep signing in with the
+ * default password. Crew can change their own password anytime in me.machimoto.
+ */
+export async function resetUserPassword(
+  userId: string,
+  forceChange: boolean,
+): Promise<ActionResult & { password?: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.SETTINGS_ROLES)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("is_owner")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: "User not found" };
+  if (target.is_owner)
+    return { ok: false, error: "Cannot reset the account owner's password" };
+
+  const admin = serviceClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    password: DEFAULT_CREW_PASSWORD,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  await admin
+    .from("profiles")
+    .update({ must_change_password: forceChange })
+    .eq("id", userId);
+
+  revalidatePath("/settings", "layout");
+  return { ok: true, password: DEFAULT_CREW_PASSWORD };
 }
 
 export async function setUserRole(userId: string, role: string): Promise<ActionResult> {

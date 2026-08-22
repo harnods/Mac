@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { KeyRound } from "lucide-react";
 import { getCurrentProfile } from "@/lib/auth";
 import { getMyProfile } from "@/app/actions/crew-self";
 import { formatDate } from "@/lib/format";
@@ -80,6 +82,19 @@ export default async function MeProfilePage() {
         <Row label="Bank name" value={p.bank_name} />
         <Row label="Account number" value={p.bank_account_no} />
         <Row label="Account holder" value={p.account_holder_name} />
+      </Section>
+
+      <Section title="Security">
+        <Link
+          href="/me/change-password"
+          className="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-sm font-medium hover:bg-muted/50"
+        >
+          <span className="flex items-center gap-2">
+            <KeyRound className="size-4" />
+            Change password
+          </span>
+          <span aria-hidden className="text-muted-foreground">&rsaquo;</span>
+        </Link>
       </Section>
 
       <CrewLogoutButton />
