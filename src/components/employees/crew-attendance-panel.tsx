@@ -249,6 +249,7 @@ export function CrewAttendancePanel({
               <TableHead className="w-[100px]">Break</TableHead>
               <TableHead className="w-[120px]">Duration</TableHead>
               <TableHead className="w-[160px]">Status</TableHead>
+              <TableHead className="w-[200px]">Note</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -306,6 +307,7 @@ export function CrewAttendancePanel({
                       </div>
                     )}
                   </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-normal">{rec?.note || dash}</TableCell>
                 </TableRow>
               );
             })}
