@@ -79,13 +79,21 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [query, setQuery] = useState("");
   const hasFilter = statusFilter !== "all" || query.trim() !== "";
-  const visibleShifts = shifts.filter((s) => {
-    const statusOk =
-      statusFilter === "all" ||
-      (statusFilter === "active" ? s.active !== false : s.active === false);
-    const nameOk = s.name.toLowerCase().includes(query.trim().toLowerCase());
-    return statusOk && nameOk;
-  });
+  const visibleShifts = shifts
+    .filter((s) => {
+      const statusOk =
+        statusFilter === "all" ||
+        (statusFilter === "active" ? s.active !== false : s.active === false);
+      const nameOk = s.name.toLowerCase().includes(query.trim().toLowerCase());
+      return statusOk && nameOk;
+    })
+    // No-time defaults (Day off / No schedule / Unpaid) first, then by name, then time.
+    .sort(
+      (a, b) =>
+        (a.start_time ? 1 : 0) - (b.start_time ? 1 : 0) ||
+        a.name.localeCompare(b.name) ||
+        (a.start_time ?? "").localeCompare(b.start_time ?? ""),
+    );
 
   const isForm = modal?.type === "add" || modal?.type === "edit";
   const isEdit = modal?.type === "edit";
