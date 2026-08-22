@@ -1,6 +1,9 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { Button } from "@/components/ui/button";
 import { getPayrollSettings } from "@/app/actions/payroll";
 import { ScheduleGrid } from "@/components/employees/schedule-grid";
 
@@ -40,7 +43,14 @@ export default async function SchedulePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Schedule</h1>
+        {canWrite && (
+          <Button asChild>
+            <Link href="/hr/schedule/new"><Plus className="size-4" /> New shift schedule</Link>
+          </Button>
+        )}
+      </div>
       <ScheduleGrid
         crew={crew}
         shifts={shifts}
