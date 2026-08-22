@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { MoreHorizontal } from "lucide-react";
 import { setEmployeeActive } from "@/app/actions/employees";
+import { EmployeeInactivateDialog } from "@/components/employees/employee-inactivate-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,15 +47,20 @@ export function EmployeeTableRow({
   showLastUpdated?: boolean;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [inactivateOpen, setInactivateOpen] = useState(false);
   const [pending, start] = useTransition();
   const router = useRouter();
   const isResigned = !!employee.termination_date;
 
-  function toggleActive() {
+  function handleActiveToggle() {
+    if (employee.active !== false) {
+      setInactivateOpen(true); // deactivating: capture effective date
+      return;
+    }
     start(async () => {
-      const res = await setEmployeeActive(employee.id, employee.active === false);
+      const res = await setEmployeeActive(employee.id, true);
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success(employee.active === false ? `${employee.name} marked active` : `${employee.name} marked inactive`);
+      toast.success(`${employee.name} marked active`);
       router.refresh();
     });
   }
@@ -147,7 +153,7 @@ export function EmployeeTableRow({
                   {!isResigned && (
                     <DropdownMenuItem
                       disabled={pending}
-                      onSelect={(e) => { e.preventDefault(); toggleActive(); }}
+                      onSelect={(e) => { e.preventDefault(); handleActiveToggle(); }}
                     >
                       {employee.active === false ? "Mark as active" : "Mark as inactive"}
                     </DropdownMenuItem>
@@ -170,6 +176,14 @@ export function EmployeeTableRow({
         </TableCell>
       </ClickableTableRow>
 
+      {canWrite && (
+        <EmployeeInactivateDialog
+          id={employee.id}
+          name={employee.name}
+          open={inactivateOpen}
+          onOpenChange={setInactivateOpen}
+        />
+      )}
       {canWrite && !employee.mac_user?.is_owner && (
         <EmployeeDeleteDialog
           id={employee.id}

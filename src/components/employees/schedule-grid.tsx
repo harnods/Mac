@@ -43,7 +43,7 @@ export function ScheduleGrid({
   today,
   canWrite = false,
 }: {
-  crew: { id: string; name: string; join_date?: string | null }[];
+  crew: { id: string; name: string; join_date?: string | null; inactive_date?: string | null }[];
   shifts: ShiftOpt[];
   cutoffStartDay: number;
   cutoffEndDay: number;
@@ -59,6 +59,12 @@ export function ScheduleGrid({
   const [aY, aM] = anchorKey.split("-").map(Number);
   const period = payrollPeriod(aY, aM - 1, cutoffStartDay, cutoffEndDay);
   const days = useMemo(() => eachDay(period.start, period.end), [period.start, period.end]);
+
+  // Crew who went inactive before this period starts no longer appear.
+  const visibleCrew = useMemo(
+    () => crew.filter((c) => !(c.inactive_date && c.inactive_date < period.start)),
+    [crew, period.start],
+  );
 
   const shiftById = useMemo(() => new Map(shifts.map((s) => [s.id, s])), [shifts]);
   const pickable = useMemo(() => shifts.filter((s) => s.active !== false), [shifts]);
@@ -118,16 +124,17 @@ export function ScheduleGrid({
             </tr>
           </thead>
           <tbody>
-            {crew.map((c) => (
+            {visibleCrew.map((c) => (
               <tr key={c.id} className="border-b last:border-b-0">
                 <td className="sticky left-0 z-10 bg-background border-r px-3 py-1.5 font-medium truncate w-[180px] min-w-[180px]">{c.name}</td>
                 {days.map((day) => {
-                  // Before the crew joined: not schedulable — disable the cell.
+                  // Not schedulable before join date or after the inactive date.
                   const beforeJoin = !!c.join_date && day < c.join_date;
-                  if (beforeJoin) {
+                  const afterInactive = !!c.inactive_date && day > c.inactive_date;
+                  if (beforeJoin || afterInactive) {
                     return (
                       <td key={day} className="border-l p-0 text-center align-middle bg-muted/40">
-                        <div className="h-11 w-full" title="Before join date" />
+                        <div className="h-11 w-full" title={beforeJoin ? "Before join date" : "Inactive"} />
                       </td>
                     );
                   }
@@ -150,7 +157,7 @@ export function ScheduleGrid({
                 })}
               </tr>
             ))}
-            {crew.length === 0 && (
+            {visibleCrew.length === 0 && (
               <tr><td className="px-3 py-8 text-center text-muted-foreground" colSpan={days.length + 1}>No crew.</td></tr>
             )}
           </tbody>

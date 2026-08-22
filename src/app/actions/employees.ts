@@ -263,17 +263,29 @@ const resignSchema = z.object({
   last_day: z.string().trim().min(1, "Last day is required"),
 });
 
-/** Mark a crew as inactive/active (temporarily not working). Independent of
- *  resignation — an inactive crew keeps their employment status and record. */
-export async function setEmployeeActive(id: string, active: boolean): Promise<ActionResult> {
+/** Mark a crew as inactive/active. Deactivating requires an effective date
+ *  (inactive_date) — after it the crew drops off the schedule. Reactivating
+ *  clears it. Independent of resignation; the record + employment status stay. */
+export async function setEmployeeActive(
+  id: string,
+  active: boolean,
+  effectiveDate?: string | null,
+): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
+  if (!active && !effectiveDate) return { ok: false, error: "Pick the effective date" };
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("employees")
-    .update({ active, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .update({
+      active,
+      inactive_date: active ? null : effectiveDate,
+      updated_by: profile.id,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", id)
     .is("deleted_at", null);
   if (error) return { ok: false, error: error.message };
