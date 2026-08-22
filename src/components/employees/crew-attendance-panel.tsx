@@ -129,8 +129,9 @@ export function CrewAttendancePanel({
     const byDate = new Map<string, AttendanceWithRelations[]>();
     for (const r of rows) {
       byDate.set(r.work_date, [...(byDate.get(r.work_date) ?? []), r]);
-      const isDayOff = !!r.shifts && !r.shifts.start_time && !r.shifts.end_time;
-      if (isDayOff) dayOff.add(r.work_date);
+      // Only the mandatory "Day off" shift counts as a (paid) day off. Other
+      // no-times shifts like "Unpaid" are treated as absent/unpaid below.
+      if (r.shifts?.name === "Day off") dayOff.add(r.work_date);
       if (r.clock_in) {
         present.add(r.work_date);
         const st = attendanceStatuses(r, { lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes });
@@ -140,15 +141,16 @@ export function CrewAttendancePanel({
       }
     }
 
-    // Absent: a past day (before today) that isn't a day off and has no
-    // clock-in — i.e. the crew was expected to work but never clocked in.
+    // Absent = unpaid: a past day (before today) with no clock-in that isn't a
+    // mandatory "Day off". This includes days explicitly tagged "Unpaid" and
+    // plain no-shows (crew expected in but never clocked in).
     let absent = 0;
     for (const day of eachDay(period.start, period.end)) {
       if (day >= today) continue; // don't count today or future days
       const recs = byDate.get(day);
       const hasClockIn = recs?.some((r) => r.clock_in);
-      const isDayOff = !!recs?.length && recs.every((r) => r.shifts && !r.shifts.start_time && !r.shifts.end_time);
-      if (!hasClockIn && !isDayOff) absent++;
+      const isMandatoryDayOff = !!recs?.length && recs.every((r) => r.shifts?.name === "Day off");
+      if (!hasClockIn && !isMandatoryDayOff) absent++;
     }
 
     return {
