@@ -19,8 +19,14 @@ export default async function EditSchedulePatternPage({ params }: { params: Prom
   const supabase = await createClient();
   const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
 
-  // All crew (so cells for since-resigned/inactive crew still show), minus owner.
-  let crewQuery = supabase.from("employees").select("id,name").is("deleted_at", null).order("name");
+  // Only currently-active crew (not resigned / inactive), minus the owner.
+  let crewQuery = supabase
+    .from("employees")
+    .select("id,name")
+    .is("deleted_at", null)
+    .is("termination_date", null)
+    .eq("active", true)
+    .order("name");
   if (owner?.id) crewQuery = crewQuery.or(`user_id.is.null,user_id.neq.${owner.id}`);
 
   const [{ data: crewData }, { data: shiftRows }] = await Promise.all([

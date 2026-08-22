@@ -36,16 +36,15 @@ function shiftLabel(s: ShiftOpt) {
   return s.start_time && s.end_time ? `${s.name} (${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)})` : s.name;
 }
 
-/** Shift name on line 1, hours on line 2. */
+/** Shift name on line 1 (truncated), hours on line 2 (always reserved so every
+ *  cell is the same height). */
 function twoLine(s: ShiftOpt) {
   return (
-    <span className="flex flex-col leading-tight">
-      <span>{s.name}</span>
-      {s.start_time && s.end_time && (
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
-        </span>
-      )}
+    <span className="flex min-w-0 flex-col leading-tight">
+      <span className="truncate">{s.name}</span>
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {s.start_time && s.end_time ? `${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}` : " "}
+      </span>
     </span>
   );
 }
@@ -218,10 +217,13 @@ export function RosterBuilder({
                         value={cells[key(c.id, w)] || "__none__"}
                         onValueChange={(v) => set(c.id, w, v === "__none__" ? "" : v)}
                       >
-                        <SelectTrigger className="!h-auto min-h-10 w-full items-center whitespace-normal py-1.5 text-left">
+                        <SelectTrigger
+                          className="!h-[52px] w-full items-center py-1.5 text-left"
+                          title={sel ? shiftLabel(sel) : undefined}
+                        >
                           {sel ? twoLine(sel) : <span className="text-muted-foreground">—</span>}
                         </SelectTrigger>
-                        <SelectContent position="popper" align="start">
+                        <SelectContent position="popper" align="start" className="min-w-[220px]">
                           <SelectItem value="__none__">—</SelectItem>
                           {options.map((s) => (
                             <SelectItem key={s.id} value={s.id}>{twoLine(s)}</SelectItem>
