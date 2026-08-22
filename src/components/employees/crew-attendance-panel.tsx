@@ -34,6 +34,10 @@ const STATUS_META: Record<string, { label: string; variant: "success" | "seconda
 const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dash = <span className="text-muted-foreground">—</span>;
 
+/** Mandatory days off every crew gets per payroll period (subtracted from the
+ *  calendar days to get working days). */
+const MANDATORY_DAYS_OFF = 4;
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -111,6 +115,38 @@ export function CrewAttendancePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, period.start, period.end, reloadKey]);
 
+  // Payroll-period stats shown above the table. Working days = calendar days in
+  // the 21st–20th window minus the 4 mandatory days off each crew gets. The
+  // rest are counted per distinct day from the actual records.
+  const stats = useMemo(() => {
+    const periodDays = eachDay(period.start, period.end).length;
+    const workingDays = Math.max(0, periodDays - MANDATORY_DAYS_OFF);
+    const present = new Set<string>();
+    const dayOff = new Set<string>();
+    const late = new Set<string>();
+    const early = new Set<string>();
+    const onTime = new Set<string>();
+    for (const r of rows) {
+      const isDayOff = !!r.shifts && !r.shifts.start_time && !r.shifts.end_time;
+      if (isDayOff) dayOff.add(r.work_date);
+      if (r.clock_in) {
+        present.add(r.work_date);
+        const st = attendanceStatuses(r, { lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes });
+        if (st.includes("late")) late.add(r.work_date);
+        else onTime.add(r.work_date);
+        if (st.includes("early-leave")) early.add(r.work_date);
+      }
+    }
+    return {
+      workingDays,
+      present: present.size,
+      dayOff: dayOff.size,
+      late: late.size,
+      early: early.size,
+      onTime: onTime.size,
+    };
+  }, [rows, period.start, period.end, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
+
   // One row per calendar day in the period; days with attendance show it,
   // days without stay blank (crew simply didn't clock in).
   const displayRows = useMemo(() => {
@@ -140,6 +176,25 @@ export function CrewAttendancePanel({
           ))}
         </SelectContent>
       </Select>
+
+      <div className={`grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6 ${pending ? "opacity-60" : ""}`}>
+        {([
+          { label: "Working days", value: stats.workingDays, hint: "21st–20th − 4 days off" },
+          { label: "Days present", value: stats.present },
+          { label: "On time", value: stats.onTime },
+          { label: "Late", value: stats.late },
+          { label: "Early leave", value: stats.early },
+          { label: "Day offs", value: stats.dayOff },
+        ] as const).map((s) => (
+          <div key={s.label} className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">{s.label}</div>
+            <div className="mt-0.5 text-2xl font-semibold tabular-nums">{s.value}</div>
+            {"hint" in s && s.hint && (
+              <div className="mt-0.5 text-[11px] text-muted-foreground">{s.hint}</div>
+            )}
+          </div>
+        ))}
+      </div>
 
       <div className={`border table-outer rounded-lg overflow-x-auto ${pending ? "opacity-60" : ""}`}>
         <Table className="w-auto min-w-full table-fixed">
