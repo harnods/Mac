@@ -106,7 +106,7 @@ export function RosterBuilder({
   }
 
   const selectCls =
-    "w-full rounded-md border border-input bg-background px-1.5 py-1 text-xs";
+    "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
 
   return (
     <div className="space-y-4">
