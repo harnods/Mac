@@ -5,15 +5,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useState } from "react";
 import { clockIn, clockOut, breakStart, breakEnd } from "@/app/actions/crew-self";
 import type { MyContext, PunchGeo } from "@/app/actions/crew-self";
 
@@ -36,7 +27,8 @@ function getGeo(): Promise<PunchGeo> {
 export function ClockCard({ context }: { context: MyContext }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [shiftId, setShiftId] = useState("");
+  const assigned = context.scheduledShift;
+  const isWorkingDay = !!assigned?.start_time; // Day off / No schedule have no times
 
   const t = context.today;
   const open = !!t && !!t.clock_in && !t.clock_out;
@@ -97,20 +89,26 @@ export function ClockCard({ context }: { context: MyContext }) {
       {/* Actions */}
       {!open ? (
         <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="shift">Shift</Label>
-            <Select value={shiftId} onValueChange={setShiftId}>
-              <SelectTrigger id="shift" className="h-12 w-full text-base"><SelectValue placeholder="Choose your shift" /></SelectTrigger>
-              <SelectContent>
-                {context.shifts.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}{s.start_time && s.end_time ? ` (${hhmm(s.start_time)}–${hhmm(s.end_time)})` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="rounded-lg border px-3 py-2.5 text-center text-sm">
+            {isWorkingDay ? (
+              <>
+                <span className="text-muted-foreground">Jadwal hari ini: </span>
+                <span className="font-medium">
+                  {assigned!.name}
+                  {assigned!.start_time && assigned!.end_time ? ` (${hhmm(assigned!.start_time)}–${hhmm(assigned!.end_time)})` : ""}
+                </span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                {assigned ? `Hari ini ${assigned.name} — tidak ada jadwal kerja.` : "Kamu tidak dijadwalkan kerja hari ini."}
+              </span>
+            )}
           </div>
-          <Button className="h-14 w-full text-base" disabled={pending || blocked || !shiftId} onClick={() => run(async () => clockIn(shiftId, await getGeo()), "Clocked in")}>
+          <Button
+            className="h-14 w-full text-base"
+            disabled={pending || blocked || !isWorkingDay}
+            onClick={() => run(async () => clockIn(await getGeo()), "Clocked in")}
+          >
             Clock in
           </Button>
           {completed && <p className="text-center text-xs text-muted-foreground">Clocking in again starts a new session.</p>}

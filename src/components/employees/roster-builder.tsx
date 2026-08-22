@@ -6,6 +6,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createRosterPattern, updateRosterPattern } from "@/app/actions/schedule";
 
 type ShiftOpt = { id: string; name: string; start_time: string | null; end_time: string | null; active: boolean };
@@ -40,6 +48,9 @@ export function RosterBuilder({
   const [eff, setEff] = useState(initialEffective ?? todayISO());
   const [cells, setCells] = useState<Record<string, string>>(initialCells ?? {});
   const [pending, start] = useTransition();
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const [scope, setScope] = useState<"effective" | "from">("effective");
+  const [applyFrom, setApplyFrom] = useState(todayISO());
 
   const options = [...shifts]
     .filter((s) => s.active !== false)
@@ -54,22 +65,41 @@ export function RosterBuilder({
       return n;
     });
 
-  function save() {
-    if (!eff) { toast.error("Pick an effective date"); return; }
-    const cellsArr: { employeeId: string; weekday: number; shiftId: string }[] = [];
+  function collectCells() {
+    const arr: { employeeId: string; weekday: number; shiftId: string }[] = [];
     for (const c of crew) {
       for (let w = 0; w < 7; w++) {
         const v = cells[key(c.id, w)];
-        if (v) cellsArr.push({ employeeId: c.id, weekday: w, shiftId: v });
+        if (v) arr.push({ employeeId: c.id, weekday: w, shiftId: v });
       }
     }
-    if (cellsArr.length === 0) { toast.error("Set at least one shift"); return; }
+    return arr;
+  }
+
+  function save() {
+    if (!eff) { toast.error("Pick an effective date"); return; }
+    if (collectCells().length === 0) { toast.error("Set at least one shift"); return; }
+    // Editing an existing pattern: ask how the change should apply.
+    if (isEdit) { setScope("effective"); setApplyFrom(todayISO()); setScopeOpen(true); return; }
     start(async () => {
-      const res = isEdit
-        ? await updateRosterPattern(patternId!, { name, effectiveDate: eff, cells: cellsArr })
-        : await createRosterPattern({ name, effectiveDate: eff, cells: cellsArr });
+      const res = await createRosterPattern({ name, effectiveDate: eff, cells: collectCells() });
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success(isEdit ? "Shift schedule updated" : "Shift schedule created");
+      toast.success("Shift schedule created");
+      router.push("/hr/schedule-patterns");
+      router.refresh();
+    });
+  }
+
+  function saveEdit() {
+    const cellsArr = collectCells();
+    start(async () => {
+      const res =
+        scope === "from"
+          ? await createRosterPattern({ name, effectiveDate: applyFrom, cells: cellsArr })
+          : await updateRosterPattern(patternId!, { name, effectiveDate: eff, cells: cellsArr });
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success(scope === "from" ? "New schedule created from that date" : "Shift schedule updated");
+      setScopeOpen(false);
       router.push("/hr/schedule-patterns");
       router.refresh();
     });
@@ -150,6 +180,38 @@ export function RosterBuilder({
           {pending ? "Saving…" : isEdit ? "Save changes" : "Create schedule"}
         </Button>
       </div>
+
+      <Dialog open={scopeOpen} onOpenChange={(o) => !o && setScopeOpen(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Apply these changes</DialogTitle>
+            <DialogDescription>Choose from when this edit should take effect.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer">
+              <input type="radio" className="mt-1" name="scope" checked={scope === "effective"} onChange={() => setScope("effective")} />
+              <span>
+                <span className="text-sm font-medium">Whole schedule (from {eff})</span>
+                <span className="block text-xs text-muted-foreground">Rewrites this pattern from its effective date.</span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer">
+              <input type="radio" className="mt-1" name="scope" checked={scope === "from"} onChange={() => setScope("from")} />
+              <span className="flex-1">
+                <span className="text-sm font-medium">From a specific date onward</span>
+                <span className="block text-xs text-muted-foreground">Keeps earlier days unchanged; starts a new version from this date.</span>
+                {scope === "from" && (
+                  <Input type="date" value={applyFrom} min={eff} onChange={(e) => setApplyFrom(e.target.value)} className="mt-2 w-44" />
+                )}
+              </span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setScopeOpen(false)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={pending}>{pending ? "Saving…" : "Apply"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

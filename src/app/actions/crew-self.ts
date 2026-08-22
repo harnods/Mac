@@ -107,6 +107,7 @@ export type MyContext = {
   employee: { id: string; name: string; photo_url: string | null } | null;
   today: AttendanceWithRelations | null;
   shifts: { id: string; name: string; start_time: string | null; end_time: string | null }[];
+  scheduledShift: { id: string; name: string; start_time: string | null; end_time: string | null } | null;
   onStoreNetwork: boolean;
   detectedIp: string | null;
   restricted: boolean;
@@ -129,7 +130,7 @@ export async function getMyContext(): Promise<MyContext | null> {
   const restricted = !!settings?.allowed_ips?.trim();
   const onStoreNetwork = isIpAllowed(detectedIp, settings?.allowed_ips);
 
-  if (!emp) return { employee: null, today: null, shifts: [], onStoreNetwork, detectedIp, restricted };
+  if (!emp) return { employee: null, today: null, shifts: [], scheduledShift: null, onStoreNetwork, detectedIp, restricted };
 
   const today = jakartaDate();
   const [{ data: todayRec }, { data: shifts }] = await Promise.all([
@@ -145,27 +146,54 @@ export async function getMyContext(): Promise<MyContext | null> {
     supabase.from("shifts").select("id,name,start_time,end_time").eq("active", true).not("start_time", "is", null).order("start_time"),
   ]);
 
+  // Today's assigned shift from the schedule (crew clock in against this).
+  const { data: sched } = await supabase
+    .from("schedules")
+    .select("shifts(id,name,start_time,end_time)")
+    .eq("employee_id", emp.id)
+    .eq("work_date", today)
+    .maybeSingle();
+  const sShift = (sched?.shifts ?? null) as unknown as
+    | { id: string; name: string; start_time: string | null; end_time: string | null }
+    | null;
+
   return {
     employee: emp as { id: string; name: string; photo_url: string | null },
     today: (todayRec ?? null) as AttendanceWithRelations | null,
     shifts: (shifts ?? []) as { id: string; name: string; start_time: string | null; end_time: string | null }[],
+    scheduledShift: sShift,
     onStoreNetwork,
     detectedIp,
     restricted,
   };
 }
 
-export async function clockIn(shiftId: string, geo?: PunchGeo): Promise<ActionResult> {
+export async function clockIn(geo?: PunchGeo): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   const empId = await myEmployeeId(profile.id);
   if (!empId) return { ok: false, error: "No crew profile linked to this account." };
-  if (!shiftId) return { ok: false, error: "Please choose your shift." };
-  const guard = await punchGuard(geo, { checkTimeWindow: true });
-  if (guard.error) return { ok: false, error: guard.error };
 
   const supabase = await createClient();
   const today = jakartaDate();
+
+  // The shift is fixed by the schedule — crew clock in against their assigned
+  // working shift, they can't choose it.
+  const { data: sched } = await supabase
+    .from("schedules")
+    .select("shift_id, shifts(start_time)")
+    .eq("employee_id", empId)
+    .eq("work_date", today)
+    .maybeSingle();
+  const shiftId = sched?.shift_id as string | undefined;
+  const shiftRel = sched?.shifts as unknown as { start_time: string | null } | null;
+  if (!shiftId || !shiftRel?.start_time) {
+    return { ok: false, error: "Kamu tidak dijadwalkan kerja hari ini." };
+  }
+
+  const guard = await punchGuard(geo, { checkTimeWindow: true });
+  if (guard.error) return { ok: false, error: guard.error };
+
   const { data: open } = await supabase
     .from("attendance")
     .select("id")
@@ -294,6 +322,31 @@ export async function getMyAttendance(start: string, end: string): Promise<Atten
     .lte("work_date", end)
     .order("work_date", { ascending: false });
   return (data ?? []) as unknown as AttendanceWithRelations[];
+}
+
+export type MyScheduleDay = {
+  work_date: string;
+  shift: { name: string; start_time: string | null; end_time: string | null } | null;
+};
+
+/** The current crew's own schedule in a date range. */
+export async function getMySchedule(start: string, end: string): Promise<MyScheduleDay[]> {
+  const profile = await getCurrentProfile();
+  if (!profile) return [];
+  const empId = await myEmployeeId(profile.id);
+  if (!empId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("schedules")
+    .select("work_date, shifts(name,start_time,end_time)")
+    .eq("employee_id", empId)
+    .gte("work_date", start)
+    .lte("work_date", end)
+    .order("work_date");
+  return (data ?? []).map((r) => ({
+    work_date: r.work_date as string,
+    shift: (r.shifts ?? null) as unknown as MyScheduleDay["shift"],
+  }));
 }
 
 export async function changeMyPassword(newPassword: string): Promise<ActionResult> {
