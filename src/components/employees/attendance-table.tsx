@@ -22,6 +22,7 @@ export const ATTENDANCE_COLUMNS: ColumnDef[] = [
   { key: "breakDuration", label: "Break" },
   { key: "duration", label: "Duration" },
   { key: "status", label: "Status" },
+  { key: "note", label: "Note" },
   { key: "source", label: "Source" },
   { key: "location", label: "Location (IP / GPS)", defaultHidden: true },
   { key: "recordedBy", label: "Recorded by" },
@@ -44,6 +45,7 @@ export function AttendanceTable({ list, canWrite, formData, grace }: { list: Att
             {isVisible("breakDuration") && <TableHead className="w-[100px]">Break</TableHead>}
             {isVisible("duration") && <TableHead className="w-[120px]">Duration</TableHead>}
             {isVisible("status") && <TableHead className="w-[160px]">Status</TableHead>}
+            {isVisible("note") && <TableHead className="w-[200px]">Note</TableHead>}
             {isVisible("source") && <TableHead className="w-[110px]">Source</TableHead>}
             {isVisible("location") && <TableHead className="w-[220px]">Location (IP / GPS)</TableHead>}
             {isVisible("recordedBy") && <TableHead className="w-[150px]">Recorded by</TableHead>}
@@ -67,6 +69,7 @@ export function AttendanceTable({ list, canWrite, formData, grace }: { list: Att
               showBreak={isVisible("breakDuration")}
               showDuration={isVisible("duration")}
               showStatus={isVisible("status")}
+              showNote={isVisible("note")}
               showSource={isVisible("source")}
               showLocation={isVisible("location")}
               showRecordedBy={isVisible("recordedBy")}

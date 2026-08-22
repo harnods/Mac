@@ -19,3 +19,10 @@ BEGIN
     EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES public.profiles(id) ON DELETE SET NULL', r.tbl, r.conname, col);
   END LOOP;
 END $$;
+
+-- The order_shifts closed pair check blocked SET NULL of closed_by on delete.
+-- Relax it so a closed shift may have a null closer (unknown), while still
+-- forbidding a closer on a shift that isn't closed.
+ALTER TABLE public.order_shifts DROP CONSTRAINT IF EXISTS order_shifts_closed_pair_check;
+ALTER TABLE public.order_shifts ADD CONSTRAINT order_shifts_closed_pair_check
+  CHECK (closed_at IS NOT NULL OR closed_by IS NULL);

@@ -50,6 +50,7 @@ export function AttendanceTableRow({
   showBreak = true,
   showDuration = true,
   showStatus = true,
+  showNote = true,
   showSource = true,
   showLocation = false,
   showRecordedBy = true,
@@ -66,6 +67,7 @@ export function AttendanceTableRow({
   showBreak?: boolean;
   showDuration?: boolean;
   showStatus?: boolean;
+  showNote?: boolean;
   showSource?: boolean;
   showLocation?: boolean;
   showRecordedBy?: boolean;
@@ -144,6 +146,9 @@ export function AttendanceTableRow({
               </div>
             )}
           </TableCell>
+        )}
+        {showNote && (
+          <TableCell className="text-sm text-muted-foreground whitespace-normal">{record.note || dash}</TableCell>
         )}
         {showSource && (
           <TableCell className="text-sm">
