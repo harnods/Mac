@@ -20,7 +20,7 @@ export default async function SchedulePage() {
   const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
   let crewQuery = supabase
     .from("employees")
-    .select("id,name")
+    .select("id,name,join_date")
     .is("deleted_at", null)
     .is("termination_date", null)
     .order("name");
@@ -31,7 +31,7 @@ export default async function SchedulePage() {
     supabase.from("shifts").select("id,name,start_time,end_time,active").order("start_time", { nullsFirst: true }),
   ]);
 
-  const crew = (crewData ?? []) as { id: string; name: string }[];
+  const crew = (crewData ?? []) as { id: string; name: string; join_date: string | null }[];
   const shifts = (shiftRows ?? []) as { id: string; name: string; start_time: string | null; end_time: string | null; active: boolean }[];
 
   return (

@@ -43,7 +43,7 @@ export function ScheduleGrid({
   today,
   canWrite = false,
 }: {
-  crew: { id: string; name: string }[];
+  crew: { id: string; name: string; join_date?: string | null }[];
   shifts: ShiftOpt[];
   cutoffStartDay: number;
   cutoffEndDay: number;
@@ -122,6 +122,15 @@ export function ScheduleGrid({
               <tr key={c.id} className="border-b last:border-b-0">
                 <td className="sticky left-0 z-10 bg-background border-r px-3 py-1.5 font-medium truncate w-[180px] min-w-[180px]">{c.name}</td>
                 {days.map((day) => {
+                  // Before the crew joined: not schedulable — disable the cell.
+                  const beforeJoin = !!c.join_date && day < c.join_date;
+                  if (beforeJoin) {
+                    return (
+                      <td key={day} className="border-l p-0 text-center align-middle bg-muted/40">
+                        <div className="h-11 w-full" title="Before join date" />
+                      </td>
+                    );
+                  }
                   const sid = cells.get(`${c.id}|${day}`) ?? null;
                   const s = sid ? shiftById.get(sid) : undefined;
                   const off = s && !s.start_time && !s.end_time;
