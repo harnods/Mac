@@ -124,8 +124,8 @@ export function ScheduleGrid({
       <div className={`border table-outer rounded-lg overflow-x-auto ${pending ? "opacity-60" : ""}`}>
         <table className="border-collapse text-sm">
           <thead>
-            <tr className="bg-muted/50">
-              <th className="sticky left-0 z-10 bg-muted/50 border-b px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
+            <tr className="bg-muted">
+              <th className="sticky left-0 z-30 bg-muted border-b border-r px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
               {days.map((day) => {
                 const { wd, dm } = label(day);
                 const isToday = day === today;
@@ -141,7 +141,9 @@ export function ScheduleGrid({
           <tbody>
             {visibleCrew.map((c) => (
               <tr key={c.id} className="border-b last:border-b-0">
-                <td className="sticky left-0 z-10 bg-background border-r px-3 py-1.5 font-medium truncate w-[180px] min-w-[180px]">{c.name}</td>
+                <td className="sticky left-0 z-20 bg-background border-r px-3 py-1.5 font-medium w-[180px] min-w-[180px] max-w-[180px]">
+                  <div className="max-w-[156px] truncate" title={c.name}>{c.name}</div>
+                </td>
                 {days.map((day) => {
                   // Not schedulable before join date or after they stopped working.
                   const beforeJoin = !!c.join_date && day < c.join_date;
