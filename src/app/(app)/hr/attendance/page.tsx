@@ -54,7 +54,10 @@ export default async function AttendancePage({
     earlyLeaveGraceMinutes: settings?.early_leave_grace_minutes ?? 0,
   };
 
-  const list = (items ?? []) as unknown as AttendanceWithRelations[];
+  // Hide "No schedule" rows (part-timers not rostered that day) from the index.
+  const list = ((items ?? []) as unknown as AttendanceWithRelations[]).filter(
+    (r) => r.shifts?.name !== "No schedule",
+  );
   const emptyFormData = { crew: [], shifts: [] };
 
   return (

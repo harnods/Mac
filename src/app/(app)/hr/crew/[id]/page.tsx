@@ -112,6 +112,7 @@ export default async function EmployeeDetailPage({
       {/* Tabs — Crew profile holds the detail content; other modules TBD */}
       <EmployeeDetailTabs
         employeeId={id}
+        joinDate={emp.join_date}
         cutoffStartDay={cutoffStartDay}
         cutoffEndDay={cutoffEndDay}
         lateGraceMinutes={lateGraceMinutes}

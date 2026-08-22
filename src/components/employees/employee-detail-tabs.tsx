@@ -20,6 +20,7 @@ const TABS: { key: Tab; label: string }[] = [
 export function EmployeeDetailTabs({
   children,
   employeeId,
+  joinDate = null,
   cutoffStartDay,
   cutoffEndDay,
   lateGraceMinutes,
@@ -32,6 +33,7 @@ export function EmployeeDetailTabs({
 }: {
   children: React.ReactNode;
   employeeId: string;
+  joinDate?: string | null;
   cutoffStartDay: number;
   cutoffEndDay: number;
   lateGraceMinutes: number;
@@ -62,6 +64,7 @@ export function EmployeeDetailTabs({
       ) : tab === "attendance" ? (
         <CrewAttendancePanel
           employeeId={employeeId}
+          joinDate={joinDate}
           cutoffStartDay={cutoffStartDay}
           cutoffEndDay={cutoffEndDay}
           lateGraceMinutes={lateGraceMinutes}

@@ -64,6 +64,7 @@ function eachDay(startISO: string, endISO: string) {
 
 export function CrewAttendancePanel({
   employeeId,
+  joinDate = null,
   cutoffStartDay,
   cutoffEndDay,
   lateGraceMinutes = 0,
@@ -74,6 +75,7 @@ export function CrewAttendancePanel({
   canWrite = false,
 }: {
   employeeId: string;
+  joinDate?: string | null;
   cutoffStartDay: number;
   cutoffEndDay: number;
   lateGraceMinutes?: number;
@@ -148,6 +150,7 @@ export function CrewAttendancePanel({
     let absent = 0;
     for (const day of eachDay(period.start, period.end)) {
       if (day >= today) continue; // don't count today or future days
+      if (joinDate && day < joinDate) continue; // not employed yet
       const recs = byDate.get(day);
       const hasClockIn = recs?.some((r) => r.clock_in);
       const isExcused = !!recs?.length && recs.every((r) => EXCUSED.has(r.shifts?.name ?? ""));
@@ -163,7 +166,7 @@ export function CrewAttendancePanel({
       onTime: onTime.size,
       absent,
     };
-  }, [rows, period.start, period.end, today, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
+  }, [rows, period.start, period.end, today, joinDate, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
 
   // One row per calendar day in the period; days with attendance show it,
   // days without stay blank (crew simply didn't clock in).
@@ -250,10 +253,14 @@ export function CrewAttendancePanel({
               const statuses = rec ? attendanceStatuses(rec, { lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes }) : [];
               const duration = rec ? workDurationMinutes(rec) : null;
               const isDayOff = !!rec?.shifts && !rec.shifts.start_time && !rec.shifts.end_time;
+              const beforeJoin = !!joinDate && day < joinDate;
               return (
-                <TableRow key={key}>
+                <TableRow key={key} className={beforeJoin ? "opacity-50" : ""}>
                   <TableCell className={`text-sm ${isDayOff ? "text-red-600 dark:text-red-400" : ""}`}>{showDate ? formatWeekdayDate(day) : ""}</TableCell>
                   <TableCell className="text-sm">
+                    {beforeJoin ? (
+                      <span className="text-xs text-muted-foreground">Before join date</span>
+                    ) : (
                     <div className="group/shift flex items-start justify-between gap-1">
                       <div>
                         {rec?.shifts ? (
@@ -278,6 +285,7 @@ export function CrewAttendancePanel({
                         </button>
                       )}
                     </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm tabular-nums">{formatTime(rec?.clock_in) || dash}</TableCell>
                   <TableCell className="text-sm tabular-nums">{formatTime(rec?.clock_out) || dash}</TableCell>
