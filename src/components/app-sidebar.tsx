@@ -78,7 +78,6 @@ const MENU: MenuNode[] = [
     label: "Settings",
     icon: SettingsIcon,
     children: [
-      { label: "Roles & permissions", href: "/settings/roles" },
       { label: "Payment methods", href: "/settings/payment-methods", perm: P.SALES_READ },
       { label: "Tables & QR", href: "/settings/tables" },
       { label: "Loyalty points", href: "/settings/loyalty" },
@@ -110,6 +109,8 @@ const HR_MENU: MenuNode[] = [
     label: "Settings",
     icon: SettingsIcon,
     children: [
+      { label: "Roles & permissions", href: "/hr/settings/roles" },
+      "divider",
       { label: "Job positions", href: "/hr/job-positions" },
       { label: "Job levels", href: "/hr/job-levels" },
       { label: "Employment type", href: "/hr/employment-statuses" },
