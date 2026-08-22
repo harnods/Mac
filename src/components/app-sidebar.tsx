@@ -12,6 +12,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   CalendarX,
+  CalendarDays,
   ChartColumn,
 } from "lucide-react";
 import {
@@ -94,6 +95,7 @@ const MENU: MenuNode[] = [
 const HR_MENU: MenuNode[] = [
   { label: "Crew", icon: CrewIcon, href: "/hr/crew" },
   { label: "Attendance", icon: AttendanceIcon, href: "/hr/attendance" },
+  { label: "Schedule", icon: CalendarDays, href: "/hr/schedule" },
   { label: "Overtime", icon: OvertimeIcon, href: "/hr/overtime" },
   { label: "Time off", icon: CalendarX, href: "/hr/time-off" },
   { label: "Payroll", icon: PayrollIcon, href: "/hr/payroll" },
