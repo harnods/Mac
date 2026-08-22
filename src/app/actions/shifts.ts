@@ -23,7 +23,10 @@ const shiftSchema = z
     path: ["end_time"],
   });
 
-export async function createShift(input: unknown): Promise<ActionResult> {
+export async function createShift(
+  input: unknown,
+  opts?: { revalidate?: boolean },
+): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
@@ -45,7 +48,9 @@ export async function createShift(input: unknown): Promise<ActionResult> {
     .single();
 
   if (error) return { ok: false, error: error.message };
-  revalidatePath("/hr", "layout");
+  // Quick-add from the schedule builder skips revalidation so the in-progress
+  // form isn't reset; it adds the shift to its pickers locally instead.
+  if (opts?.revalidate !== false) revalidatePath("/hr", "layout");
   return { ok: true, id: data.id };
 }
 

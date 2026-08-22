@@ -87,7 +87,10 @@ export function RosterBuilder({
     if (!aName.trim()) { toast.error("Shift name is required"); return; }
     if (!aStart || !aEnd) { toast.error("Start and end time are required"); return; }
     start(async () => {
-      const res = await createShift({ name: aName.trim(), start_time: aStart, end_time: aEnd, break_minutes: Number(aBreak) || 0 });
+      const res = await createShift(
+        { name: aName.trim(), start_time: aStart, end_time: aEnd, break_minutes: Number(aBreak) || 0 },
+        { revalidate: false },
+      );
       if (!res.ok) { toast.error(res.error); return; }
       setShiftList((prev) => [
         ...prev,
@@ -188,9 +191,9 @@ export function RosterBuilder({
           <thead>
             <tr className="bg-muted">
               <th className="sticky left-0 z-30 bg-muted border-b border-r px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
-              <th className="border-b border-l px-2 py-2 text-center font-medium min-w-[120px]">Fill week</th>
+              <th className="border-b border-l px-2 py-2 text-center font-medium min-w-[110px] w-[110px]">Fill week</th>
               {WD.map((d) => (
-                <th key={d} className="border-b border-l px-2 py-2 text-center font-medium min-w-[110px]">{d}</th>
+                <th key={d} className="border-b border-l px-2 py-2 text-center font-medium min-w-[110px] w-[110px]">{d}</th>
               ))}
             </tr>
           </thead>
