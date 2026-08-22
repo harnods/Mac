@@ -207,7 +207,7 @@ export function CrewAttendancePanel({
           {([
             { label: "Present", value: stats.present },
             { label: "Day offs", value: stats.dayOff },
-            { label: "Absent", value: stats.absent },
+            { label: "Unpaid", value: stats.absent },
           ] as const).map((s) => (
             <div key={s.label}>
               <div className="text-xs text-muted-foreground">{s.label}</div>
