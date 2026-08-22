@@ -16,7 +16,7 @@ const attendanceSchema = z.object({
   employee_id: z.string().uuid("Crew is required"),
   shift_id: z.string().uuid().nullable().optional().or(z.literal("")),
   work_date: z.string().trim().min(1, "Date is required"),
-  clock_in: z.string().trim().min(1, "Clock in time is required"),
+  clock_in: z.string().trim().optional().or(z.literal("")),
   clock_out: z.string().trim().optional().or(z.literal("")),
   break_minutes: z.coerce.number().int().min(0).max(1440).default(0),
   note: z.string().trim().max(500).optional().or(z.literal("")),
