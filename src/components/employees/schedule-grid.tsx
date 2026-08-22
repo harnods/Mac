@@ -82,7 +82,12 @@ export function ScheduleGrid({
   );
 
   const shiftById = useMemo(() => new Map(shifts.map((s) => [s.id, s])), [shifts]);
-  const pickable = useMemo(() => shifts.filter((s) => s.active !== false), [shifts]);
+  // Show every shift in the picker — including inactive ones (flagged) — so
+  // backdated schedules can still use shifts that are no longer active.
+  const pickable = useMemo(
+    () => shifts.map((s) => (s.active === false ? { ...s, name: `${s.name} (inactive)` } : s)),
+    [shifts],
+  );
 
   const [cells, setCells] = useState<Map<string, string | null>>(new Map());
   const [pending, start] = useTransition();
