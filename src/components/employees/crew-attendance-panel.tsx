@@ -192,24 +192,41 @@ export function CrewAttendancePanel({
         </SelectContent>
       </Select>
 
-      <div className={`grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7 ${pending ? "opacity-60" : ""}`}>
-        {([
-          { label: "Working days", value: stats.workingDays, hint: "21st–20th − 4 days off" },
-          { label: "Days present", value: stats.present },
-          { label: "On time", value: stats.onTime },
-          { label: "Late", value: stats.late },
-          { label: "Early leave", value: stats.early },
-          { label: "Absent", value: stats.absent },
-          { label: "Day offs", value: stats.dayOff },
-        ] as const).map((s) => (
-          <div key={s.label} className="rounded-lg border p-3">
-            <div className="text-xs text-muted-foreground">{s.label}</div>
-            <div className="mt-0.5 text-2xl font-semibold tabular-nums">{s.value}</div>
-            {"hint" in s && s.hint && (
-              <div className="mt-0.5 text-[11px] text-muted-foreground">{s.hint}</div>
-            )}
-          </div>
-        ))}
+      <div className={`grid gap-2 sm:grid-cols-3 ${pending ? "opacity-60" : ""}`}>
+        {/* Box 1 — working days */}
+        <div className="flex flex-col justify-center rounded-lg border p-3">
+          <div className="text-xs text-muted-foreground">Working days</div>
+          <div className="mt-0.5 text-3xl font-semibold tabular-nums">{stats.workingDays}</div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">21st–20th − 4 days off</div>
+        </div>
+
+        {/* Box 2 — attendance breakdown */}
+        <div className="grid grid-cols-3 gap-3 rounded-lg border p-3">
+          {([
+            { label: "Present", value: stats.present },
+            { label: "Day offs", value: stats.dayOff },
+            { label: "Absent", value: stats.absent },
+          ] as const).map((s) => (
+            <div key={s.label}>
+              <div className="text-xs text-muted-foreground">{s.label}</div>
+              <div className="mt-0.5 text-2xl font-semibold tabular-nums">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Box 3 — punctuality */}
+        <div className="grid grid-cols-3 gap-3 rounded-lg border p-3">
+          {([
+            { label: "On time", value: stats.onTime },
+            { label: "Late", value: stats.late },
+            { label: "Early leave", value: stats.early },
+          ] as const).map((s) => (
+            <div key={s.label}>
+              <div className="text-xs text-muted-foreground">{s.label}</div>
+              <div className="mt-0.5 text-2xl font-semibold tabular-nums">{s.value}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className={`border table-outer rounded-lg overflow-x-auto ${pending ? "opacity-60" : ""}`}>
