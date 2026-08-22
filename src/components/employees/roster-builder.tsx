@@ -40,7 +40,7 @@ function shiftLabel(s: ShiftOpt) {
  *  cell is the same height). */
 function twoLine(s: ShiftOpt) {
   return (
-    <span className="flex min-w-0 flex-col leading-tight">
+    <span className="flex min-w-0 flex-1 flex-col leading-tight">
       <span className="truncate">{s.name}</span>
       <span className="text-xs text-muted-foreground tabular-nums">
         {s.start_time && s.end_time ? `${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}` : " "}
@@ -178,7 +178,7 @@ export function RosterBuilder({
       </p>
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full table-fixed border-collapse text-sm">
           <thead>
             <tr className="bg-muted">
               <th className="sticky left-0 z-30 bg-muted border-b border-r px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
