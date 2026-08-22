@@ -240,20 +240,21 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
           {resetDone ? (
             <>
               <DialogHeader>
-                <DialogTitle>Password direset</DialogTitle>
+                <DialogTitle>Password reset</DialogTitle>
                 <DialogDescription>
-                  Password {resetTarget?.full_name || resetTarget?.email} sekarang{" "}
+                  {resetTarget?.full_name || resetTarget?.email}&rsquo;s password
+                  is now{" "}
                   <span className="font-mono font-medium text-foreground">
                     {DEFAULT_CREW_PASSWORD}
                   </span>
                   .
                   {forceChange
-                    ? " Mereka akan diminta membuat password baru saat login berikutnya."
-                    : " Mereka bisa langsung login dengan password ini."}
+                    ? " They’ll be asked to set a new password on their next login."
+                    : " They can sign in with this password right away."}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button onClick={() => setResetTarget(null)}>Selesai</Button>
+                <Button onClick={() => setResetTarget(null)}>Done</Button>
               </DialogFooter>
             </>
           ) : (
@@ -261,8 +262,8 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
               <DialogHeader>
                 <DialogTitle>Reset password</DialogTitle>
                 <DialogDescription>
-                  Password {resetTarget?.full_name || resetTarget?.email} akan
-                  direset ke{" "}
+                  {resetTarget?.full_name || resetTarget?.email}&rsquo;s password
+                  will be reset to{" "}
                   <span className="font-mono font-medium text-foreground">
                     {DEFAULT_CREW_PASSWORD}
                   </span>
@@ -273,12 +274,12 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
               <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
                 <div className="space-y-0.5">
                   <div className="text-sm font-medium">
-                    Minta ganti password saat login
+                    Require password change on login
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {forceChange
-                      ? "Crew wajib membuat password sendiri saat login berikutnya."
-                      : `Crew tetap login dengan ${DEFAULT_CREW_PASSWORD} sampai mereka menggantinya sendiri.`}
+                      ? "The crew must set their own password on their next login."
+                      : `The crew keeps signing in with ${DEFAULT_CREW_PASSWORD} until they change it themselves.`}
                   </div>
                 </div>
                 <Switch
@@ -294,10 +295,10 @@ export function UsersRoleTable({ roles, users: initialUsers, currentUserId }: Pr
                   onClick={() => setResetTarget(null)}
                   disabled={isPending}
                 >
-                  Batal
+                  Cancel
                 </Button>
                 <Button onClick={handleReset} disabled={isPending}>
-                  {isPending ? "Mereset…" : "Reset password"}
+                  {isPending ? "Resetting…" : "Reset password"}
                 </Button>
               </DialogFooter>
             </>
