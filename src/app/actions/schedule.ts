@@ -85,9 +85,79 @@ export async function createRosterPattern(
     if (rErr) return { ok: false, error: rErr.message };
   }
 
-  const { error: applyErr } = await supabase.rpc("apply_roster_pattern", { p_pattern: pattern.id });
+  const { error: applyErr } = await supabase.rpc("rebuild_all_rosters");
   if (applyErr) return { ok: false, error: applyErr.message };
 
-  revalidatePath("/hr/schedule");
+  revalidatePath("/hr/schedule", "layout");
   return { ok: true, id: pattern.id };
+}
+
+export type RosterDetail = {
+  id: string;
+  name: string | null;
+  effective_date: string;
+  cells: { employeeId: string; weekday: number; shiftId: string | null }[];
+};
+
+export async function getRosterPattern(id: string): Promise<RosterDetail | null> {
+  const supabase = await createClient();
+  const { data: p } = await supabase
+    .from("roster_patterns")
+    .select("id, name, effective_date")
+    .eq("id", id)
+    .maybeSingle();
+  if (!p) return null;
+  const { data: rs } = await supabase
+    .from("roster_shifts")
+    .select("employee_id, weekday, shift_id")
+    .eq("pattern_id", id);
+  return {
+    id: p.id,
+    name: p.name,
+    effective_date: p.effective_date,
+    cells: (rs ?? []).map((r) => ({ employeeId: r.employee_id, weekday: r.weekday, shiftId: r.shift_id })),
+  };
+}
+
+export async function updateRosterPattern(
+  id: string,
+  input: RosterInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+  if (!input.effectiveDate) return { ok: false, error: "Pick an effective date" };
+
+  const supabase = await createClient();
+  const { error: uErr } = await supabase
+    .from("roster_patterns")
+    .update({ name: input.name?.trim() || null, effective_date: input.effectiveDate })
+    .eq("id", id);
+  if (uErr) return { ok: false, error: uErr.message };
+
+  await supabase.from("roster_shifts").delete().eq("pattern_id", id);
+  const rows = input.cells
+    .filter((c) => c.shiftId && c.weekday >= 0 && c.weekday <= 6)
+    .map((c) => ({ pattern_id: id, employee_id: c.employeeId, weekday: c.weekday, shift_id: c.shiftId }));
+  if (rows.length > 0) {
+    const { error: rErr } = await supabase.from("roster_shifts").insert(rows);
+    if (rErr) return { ok: false, error: rErr.message };
+  }
+  const { error: applyErr } = await supabase.rpc("rebuild_all_rosters");
+  if (applyErr) return { ok: false, error: applyErr.message };
+  revalidatePath("/hr/schedule", "layout");
+  return { ok: true };
+}
+
+export async function deleteRosterPattern(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("roster_patterns").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  await supabase.rpc("rebuild_all_rosters");
+  revalidatePath("/hr/schedule", "layout");
+  return { ok: true };
 }

@@ -119,6 +119,7 @@ const HR_MENU: MenuNode[] = [
       { label: "Departments", href: "/hr/departments" },
       "divider",
       { label: "Shifts", href: "/hr/shifts" },
+      { label: "Schedule patterns", href: "/hr/schedule-patterns" },
       { label: "Attendance", href: "/hr/attendance-settings" },
       { label: "Overtime", href: "/hr/overtime-settings" },
       "divider",

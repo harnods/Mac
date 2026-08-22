@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createRosterPattern } from "@/app/actions/schedule";
+import { createRosterPattern, updateRosterPattern } from "@/app/actions/schedule";
 
 type ShiftOpt = { id: string; name: string; start_time: string | null; end_time: string | null; active: boolean };
 
@@ -22,14 +22,23 @@ function shiftLabel(s: ShiftOpt) {
 export function RosterBuilder({
   crew,
   shifts,
+  patternId,
+  initialName = "",
+  initialEffective,
+  initialCells,
 }: {
   crew: { id: string; name: string }[];
   shifts: ShiftOpt[];
+  patternId?: string;
+  initialName?: string;
+  initialEffective?: string;
+  initialCells?: Record<string, string>;
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [eff, setEff] = useState(todayISO());
-  const [cells, setCells] = useState<Record<string, string>>({});
+  const isEdit = !!patternId;
+  const [name, setName] = useState(initialName);
+  const [eff, setEff] = useState(initialEffective ?? todayISO());
+  const [cells, setCells] = useState<Record<string, string>>(initialCells ?? {});
   const [pending, start] = useTransition();
 
   const options = [...shifts]
@@ -56,10 +65,12 @@ export function RosterBuilder({
     }
     if (cellsArr.length === 0) { toast.error("Set at least one shift"); return; }
     start(async () => {
-      const res = await createRosterPattern({ name, effectiveDate: eff, cells: cellsArr });
+      const res = isEdit
+        ? await updateRosterPattern(patternId!, { name, effectiveDate: eff, cells: cellsArr })
+        : await createRosterPattern({ name, effectiveDate: eff, cells: cellsArr });
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success("Shift schedule created");
-      router.push("/hr/schedule");
+      toast.success(isEdit ? "Shift schedule updated" : "Shift schedule created");
+      router.push("/hr/schedule-patterns");
       router.refresh();
     });
   }
@@ -77,10 +88,6 @@ export function RosterBuilder({
         <div className="space-y-1.5">
           <Label htmlFor="pname">Name (optional)</Label>
           <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. August roster" className="w-64" />
-        </div>
-        <div className="ml-auto flex gap-2">
-          <Button variant="ghost" onClick={() => router.push("/hr/schedule")}>Cancel</Button>
-          <Button onClick={save} disabled={pending}>{pending ? "Saving…" : "Create schedule"}</Button>
         </div>
       </div>
 
@@ -127,6 +134,13 @@ export function RosterBuilder({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={() => router.push(isEdit ? "/hr/schedule-patterns" : "/hr/schedule")}>Cancel</Button>
+        <Button onClick={save} disabled={pending}>
+          {pending ? "Saving…" : isEdit ? "Save changes" : "Create schedule"}
+        </Button>
       </div>
     </div>
   );

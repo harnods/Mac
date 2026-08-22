@@ -73,3 +73,15 @@ BEGIN
     SET shift_id = excluded.shift_id, source = 'pattern', updated_at = now()
     WHERE schedules.source = 'pattern';
 END $$;
+
+-- Rebuild all pattern-generated schedule rows from scratch (used after
+-- create/edit/delete of a pattern so effective-date changes stay consistent).
+CREATE OR REPLACE FUNCTION public.rebuild_all_rosters()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE r record;
+BEGIN
+  DELETE FROM schedules WHERE source = 'pattern';
+  FOR r IN SELECT id FROM roster_patterns ORDER BY effective_date LOOP
+    PERFORM apply_roster_pattern(r.id);
+  END LOOP;
+END $$;
