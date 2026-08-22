@@ -13,7 +13,7 @@ export default async function ShiftsPage() {
 
   const { data } = await supabase
     .from("shifts")
-    .select("id,name,start_time,end_time,break_minutes,updated_by,updated_at")
+    .select("id,name,start_time,end_time,break_minutes,active,updated_by,updated_at")
     .order("start_time");
   const shifts = (data ?? []) as Shift[];
 

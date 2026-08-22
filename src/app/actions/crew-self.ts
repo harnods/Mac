@@ -142,7 +142,7 @@ export async function getMyContext(): Promise<MyContext | null> {
       .order("clock_in", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase.from("shifts").select("id,name,start_time,end_time").not("start_time", "is", null).order("start_time"),
+    supabase.from("shifts").select("id,name,start_time,end_time").eq("active", true).not("start_time", "is", null).order("start_time"),
   ]);
 
   return {

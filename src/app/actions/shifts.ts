@@ -81,6 +81,28 @@ export async function updateShift(id: string, input: unknown): Promise<ActionRes
   return { ok: true };
 }
 
+/** Activate/deactivate a shift. Inactive shifts stay on historical attendance
+ *  but are hidden from the crew clock-in picker. */
+export async function setShiftActive(id: string, active: boolean): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: target } = await supabase.from("shifts").select("name").eq("id", id).maybeSingle();
+  if (target && LOCKED_SHIFTS.includes(target.name)) {
+    return { ok: false, error: `“${target.name}” is a default shift and is always active.` };
+  }
+
+  const { error } = await supabase
+    .from("shifts")
+    .update({ active, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/hr", "layout");
+  return { ok: true };
+}
+
 export async function deleteShift(id: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };

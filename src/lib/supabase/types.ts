@@ -308,6 +308,7 @@ export type Shift = {
   start_time: string | null;
   end_time: string | null;
   break_minutes: number;
+  active: boolean;
   updated_by: string | null;
   updated_at: string;
 };

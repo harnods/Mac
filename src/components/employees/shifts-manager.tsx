@@ -33,7 +33,7 @@ import {
   STICKY_ACTION_HEAD,
   STICKY_ACTION_CELL,
 } from "@/components/ui/table";
-import { createShift, updateShift, deleteShift } from "@/app/actions/shifts";
+import { createShift, updateShift, deleteShift, setShiftActive } from "@/app/actions/shifts";
 import type { Shift } from "@/lib/supabase/types";
 
 const LOCKED_SHIFTS = ["Day off"];
@@ -55,6 +55,7 @@ type ModalState =
   | { type: "add" }
   | { type: "edit"; shift: Shift }
   | { type: "delete"; shift: Shift }
+  | { type: "deactivate"; shift: Shift }
   | null;
 
 export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: boolean }) {
@@ -111,6 +112,16 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
     });
   }
 
+  function setActive(shift: Shift, active: boolean) {
+    start(async () => {
+      const res = await setShiftActive(shift.id, active);
+      if (!res.ok) { toast.error(res.error); return; }
+      toast.success(active ? "Shift activated" : "Shift marked inactive");
+      setModal(null);
+      router.refresh();
+    });
+  }
+
   return (
     <>
       <div className="flex items-center justify-between gap-4">
@@ -130,6 +141,7 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
               <TableHead className="w-[140px]">Start time</TableHead>
               <TableHead className="w-[140px]">End time</TableHead>
               <TableHead className="w-[140px]">Break</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
               {isAdmin && <TableHead className="p-0" />}
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
@@ -137,7 +149,7 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
           <TableBody>
             {shifts.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 4} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={isAdmin ? 7 : 5} className="text-center text-sm text-muted-foreground py-8">
                   No shifts yet.
                 </TableCell>
               </TableRow>
@@ -156,6 +168,15 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
                 <TableCell className="text-sm tabular-nums">{shift.start_time ? hhmm(shift.start_time) : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-sm tabular-nums">{shift.end_time ? hhmm(shift.end_time) : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-sm">{dayOff ? <span className="text-muted-foreground">—</span> : breakLabel(shift.break_minutes ?? 0)}</TableCell>
+                <TableCell>
+                  {locked ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : shift.active === false ? (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Inactive</Badge>
+                  ) : (
+                    <Badge variant="success">Active</Badge>
+                  )}
+                </TableCell>
                 {isAdmin && <TableCell className="p-0" />}
                 {isAdmin && (
                   <TableCell className={STICKY_ACTION_CELL}>
@@ -167,8 +188,13 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
                           <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-auto">
                         <DropdownMenuItem onSelect={() => openEdit(shift)}>Edit</DropdownMenuItem>
+                        {shift.active === false ? (
+                          <DropdownMenuItem onSelect={() => setActive(shift, true)}>Mark as active</DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onSelect={() => setModal({ type: "deactivate", shift })}>Mark as inactive</DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onSelect={() => setModal({ type: "delete", shift })}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -237,6 +263,30 @@ export function ShiftsManager({ shifts, isAdmin }: { shifts: Shift[]; isAdmin: b
             </DialogClose>
             <Button disabled={pending} onClick={handleDelete}>
               {pending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate confirmation */}
+      <Dialog open={modal?.type === "deactivate"} onOpenChange={(o) => !o && setModal(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark &ldquo;{modal?.type === "deactivate" ? modal.shift.name : ""}&rdquo; inactive?</DialogTitle>
+            <DialogDescription>
+              Crew won&rsquo;t see this shift when clocking in on me.machimoto. Existing
+              attendance already using it stays unchanged, and you can reactivate it anytime.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button
+              disabled={pending}
+              onClick={() => modal?.type === "deactivate" && setActive(modal.shift, false)}
+            >
+              {pending ? "Saving..." : "Mark inactive"}
             </Button>
           </DialogFooter>
         </DialogContent>
