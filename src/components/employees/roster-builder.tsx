@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -15,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createRosterPattern, updateRosterPattern } from "@/app/actions/schedule";
+import { createShift } from "@/app/actions/shifts";
 
 type ShiftOpt = { id: string; name: string; start_time: string | null; end_time: string | null; active: boolean };
 
@@ -52,8 +55,32 @@ export function RosterBuilder({
   const [scope, setScope] = useState<"effective" | "from">("effective");
   const [applyFrom, setApplyFrom] = useState(todayISO());
 
+  // Locally-extendable shift list so quick-added shifts appear immediately.
+  const [shiftList, setShiftList] = useState<ShiftOpt[]>(shifts);
+  const [addOpen, setAddOpen] = useState(false);
+  const [aName, setAName] = useState("");
+  const [aStart, setAStart] = useState("");
+  const [aEnd, setAEnd] = useState("");
+  const [aBreak, setABreak] = useState("0");
+
+  function addShift() {
+    if (!aName.trim()) { toast.error("Shift name is required"); return; }
+    if (!aStart || !aEnd) { toast.error("Start and end time are required"); return; }
+    start(async () => {
+      const res = await createShift({ name: aName.trim(), start_time: aStart, end_time: aEnd, break_minutes: Number(aBreak) || 0 });
+      if (!res.ok) { toast.error(res.error); return; }
+      setShiftList((prev) => [
+        ...prev,
+        { id: res.id!, name: aName.trim(), start_time: aStart, end_time: aEnd, active: true },
+      ]);
+      toast.success("Shift created");
+      setAddOpen(false);
+      setAName(""); setAStart(""); setAEnd(""); setABreak("0");
+    });
+  }
+
   // No-time defaults (Day off / No schedule / Unpaid) first, then the rest.
-  const options = [...shifts]
+  const options = [...shiftList]
     .filter((s) => s.active !== false)
     .sort(
       (a, b) =>
@@ -125,6 +152,11 @@ export function RosterBuilder({
           <Label htmlFor="pname">Name (optional)</Label>
           <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. August roster" className="w-64" />
         </div>
+        <div className="ml-auto">
+          <Button variant="outline" onClick={() => setAddOpen(true)}>
+            <Plus className="size-4" /> New shift
+          </Button>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
@@ -186,6 +218,39 @@ export function RosterBuilder({
           {pending ? "Saving…" : isEdit ? "Save changes" : "Create schedule"}
         </Button>
       </div>
+
+      <Dialog open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New shift</DialogTitle>
+            <DialogDescription>Create a shift without leaving the schedule. It becomes available in the pickers immediately.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="a-name">Shift name</Label>
+              <Input id="a-name" value={aName} onChange={(e) => setAName(e.target.value)} placeholder="e.g. Bar - Shift 1" autoFocus />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="a-start">Start time</Label>
+                <Input id="a-start" type="time" value={aStart} onChange={(e) => setAStart(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="a-end">End time</Label>
+                <Input id="a-end" type="time" value={aEnd} onChange={(e) => setAEnd(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="a-break">Break (minutes)</Label>
+              <Input id="a-break" type="number" min="0" step="5" value={aBreak} onChange={(e) => setABreak(e.target.value)} className="w-40" />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+            <Button onClick={addShift} disabled={pending}>{pending ? "Saving…" : "Add shift"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={scopeOpen} onOpenChange={(o) => !o && setScopeOpen(false)}>
         <DialogContent className="sm:max-w-md">
