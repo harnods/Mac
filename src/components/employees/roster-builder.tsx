@@ -89,13 +89,13 @@ export function RosterBuilder({
       </p>
 
       <div className="border table-outer rounded-lg overflow-x-auto">
-        <table className="border-collapse text-sm">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-muted">
               <th className="sticky left-0 z-30 bg-muted border-b border-r px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
-              <th className="border-b border-l px-2 py-2 text-center font-medium w-[130px] min-w-[130px]">Fill week</th>
+              <th className="border-b border-l px-2 py-2 text-center font-medium min-w-[120px]">Fill week</th>
               {WD.map((d) => (
-                <th key={d} className="border-b border-l px-2 py-2 text-center font-medium w-[120px] min-w-[120px]">{d}</th>
+                <th key={d} className="border-b border-l px-2 py-2 text-center font-medium min-w-[110px]">{d}</th>
               ))}
             </tr>
           </thead>
