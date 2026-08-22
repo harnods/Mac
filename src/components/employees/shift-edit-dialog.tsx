@@ -32,10 +32,15 @@ function shiftLabel(s: ShiftOption) {
     : s.name;
 }
 
-/** Alphabetical by name, then by start time. */
+/** No-time default shifts (Day off / No schedule / Unpaid) first, then the rest
+ *  alphabetical by name, then by start time. */
 function sortShifts(shifts: ShiftOption[]) {
+  const rank = (s: ShiftOption) => (s.start_time ? 1 : 0);
   return [...shifts].sort(
-    (a, b) => a.name.localeCompare(b.name) || (a.start_time ?? "").localeCompare(b.start_time ?? ""),
+    (a, b) =>
+      rank(a) - rank(b) ||
+      a.name.localeCompare(b.name) ||
+      (a.start_time ?? "").localeCompare(b.start_time ?? ""),
   );
 }
 
@@ -89,7 +94,6 @@ export function ShiftEditDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_SHIFT}>No shift</SelectItem>
               {sortShifts(shifts).map((s) => (
                 <SelectItem key={s.id} value={s.id}>
                   <span className="flex flex-col">

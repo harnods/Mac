@@ -52,9 +52,15 @@ export function RosterBuilder({
   const [scope, setScope] = useState<"effective" | "from">("effective");
   const [applyFrom, setApplyFrom] = useState(todayISO());
 
+  // No-time defaults (Day off / No schedule / Unpaid) first, then the rest.
   const options = [...shifts]
     .filter((s) => s.active !== false)
-    .sort((a, b) => a.name.localeCompare(b.name) || (a.start_time ?? "").localeCompare(b.start_time ?? ""));
+    .sort(
+      (a, b) =>
+        (a.start_time ? 1 : 0) - (b.start_time ? 1 : 0) ||
+        a.name.localeCompare(b.name) ||
+        (a.start_time ?? "").localeCompare(b.start_time ?? ""),
+    );
 
   const key = (emp: string, wd: number) => `${emp}|${wd}`;
   const set = (emp: string, wd: number, val: string) => setCells((p) => ({ ...p, [key(emp, wd)]: val }));
