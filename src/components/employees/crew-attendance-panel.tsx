@@ -65,6 +65,7 @@ function eachDay(startISO: string, endISO: string) {
 export function CrewAttendancePanel({
   employeeId,
   joinDate = null,
+  stopDate = null,
   cutoffStartDay,
   cutoffEndDay,
   lateGraceMinutes = 0,
@@ -76,6 +77,7 @@ export function CrewAttendancePanel({
 }: {
   employeeId: string;
   joinDate?: string | null;
+  stopDate?: string | null;
   cutoffStartDay: number;
   cutoffEndDay: number;
   lateGraceMinutes?: number;
@@ -151,6 +153,7 @@ export function CrewAttendancePanel({
     for (const day of eachDay(period.start, period.end)) {
       if (day >= today) continue; // don't count today or future days
       if (joinDate && day < joinDate) continue; // not employed yet
+      if (stopDate && day > stopDate) continue; // no longer working
       const recs = byDate.get(day);
       const hasClockIn = recs?.some((r) => r.clock_in);
       const isExcused = !!recs?.length && recs.every((r) => EXCUSED.has(r.shifts?.name ?? ""));
@@ -166,7 +169,7 @@ export function CrewAttendancePanel({
       onTime: onTime.size,
       absent,
     };
-  }, [rows, period.start, period.end, today, joinDate, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
+  }, [rows, period.start, period.end, today, joinDate, stopDate, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
 
   // One row per calendar day in the period; days with attendance show it,
   // days without stay blank (crew simply didn't clock in).
@@ -254,12 +257,14 @@ export function CrewAttendancePanel({
               const duration = rec ? workDurationMinutes(rec) : null;
               const isDayOff = !!rec?.shifts && !rec.shifts.start_time && !rec.shifts.end_time;
               const beforeJoin = !!joinDate && day < joinDate;
+              const afterStop = !!stopDate && day > stopDate;
+              const outside = beforeJoin || afterStop;
               return (
-                <TableRow key={key} className={beforeJoin ? "opacity-50" : ""}>
+                <TableRow key={key} className={outside ? "opacity-50" : ""}>
                   <TableCell className={`text-sm ${isDayOff ? "text-red-600 dark:text-red-400" : ""}`}>{showDate ? formatWeekdayDate(day) : ""}</TableCell>
                   <TableCell className="text-sm">
-                    {beforeJoin ? (
-                      <span className="text-xs text-muted-foreground">Before join date</span>
+                    {outside ? (
+                      <span className="text-xs text-muted-foreground">{beforeJoin ? "Before join date" : "No longer active"}</span>
                     ) : (
                     <div className="group/shift flex items-start justify-between gap-1">
                       <div>

@@ -113,6 +113,7 @@ export default async function EmployeeDetailPage({
       <EmployeeDetailTabs
         employeeId={id}
         joinDate={emp.join_date}
+        stopDate={[emp.inactive_date, emp.last_day, emp.termination_date].filter(Boolean).sort()[0] ?? null}
         cutoffStartDay={cutoffStartDay}
         cutoffEndDay={cutoffEndDay}
         lateGraceMinutes={lateGraceMinutes}

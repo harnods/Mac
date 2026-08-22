@@ -21,6 +21,7 @@ export function EmployeeDetailTabs({
   children,
   employeeId,
   joinDate = null,
+  stopDate = null,
   cutoffStartDay,
   cutoffEndDay,
   lateGraceMinutes,
@@ -34,6 +35,7 @@ export function EmployeeDetailTabs({
   children: React.ReactNode;
   employeeId: string;
   joinDate?: string | null;
+  stopDate?: string | null;
   cutoffStartDay: number;
   cutoffEndDay: number;
   lateGraceMinutes: number;
@@ -65,6 +67,7 @@ export function EmployeeDetailTabs({
         <CrewAttendancePanel
           employeeId={employeeId}
           joinDate={joinDate}
+          stopDate={stopDate}
           cutoffStartDay={cutoffStartDay}
           cutoffEndDay={cutoffEndDay}
           lateGraceMinutes={lateGraceMinutes}
