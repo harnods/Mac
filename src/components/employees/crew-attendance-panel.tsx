@@ -141,16 +141,17 @@ export function CrewAttendancePanel({
       }
     }
 
-    // Absent = unpaid: a past day (before today) with no clock-in that isn't a
-    // mandatory "Day off". This includes days explicitly tagged "Unpaid" and
-    // plain no-shows (crew expected in but never clocked in).
+    // Absent = unpaid: a past day (before today) with no clock-in that isn't an
+    // excused non-working day. "Day off" (paid) and "No schedule" (not rostered)
+    // are excused; "Unpaid" and plain no-shows count as unpaid/absent.
+    const EXCUSED = new Set(["Day off", "No schedule"]);
     let absent = 0;
     for (const day of eachDay(period.start, period.end)) {
       if (day >= today) continue; // don't count today or future days
       const recs = byDate.get(day);
       const hasClockIn = recs?.some((r) => r.clock_in);
-      const isMandatoryDayOff = !!recs?.length && recs.every((r) => r.shifts?.name === "Day off");
-      if (!hasClockIn && !isMandatoryDayOff) absent++;
+      const isExcused = !!recs?.length && recs.every((r) => EXCUSED.has(r.shifts?.name ?? ""));
+      if (!hasClockIn && !isExcused) absent++;
     }
 
     return {

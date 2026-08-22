@@ -43,7 +43,7 @@ import {
 import { createShift, updateShift, deleteShift, setShiftActive } from "@/app/actions/shifts";
 import type { Shift } from "@/lib/supabase/types";
 
-const LOCKED_SHIFTS = ["Day off", "Unpaid"];
+const LOCKED_SHIFTS = ["Day off", "Unpaid", "No schedule"];
 
 /** "07:00:00" -> "07:00" */
 function hhmm(t: string | null) {

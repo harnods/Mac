@@ -9,7 +9,7 @@ import { can, P } from "@/lib/permissions";
 export type ActionResult = { ok: true; id?: string } | { ok: false; error: string };
 
 // Default shifts that can't be edited, deleted, or deactivated.
-const LOCKED_SHIFTS = ["Day off", "Unpaid"];
+const LOCKED_SHIFTS = ["Day off", "Unpaid", "No schedule"];
 
 const shiftSchema = z
   .object({
