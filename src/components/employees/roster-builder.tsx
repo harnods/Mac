@@ -119,14 +119,22 @@ export function RosterBuilder({
                     {options.map((s) => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
                   </select>
                 </td>
-                {WD.map((_, w) => (
-                  <td key={w} className="border-l px-1.5 py-1.5">
-                    <select className={selectCls} value={cells[key(c.id, w)] ?? ""} onChange={(e) => set(c.id, w, e.target.value)}>
-                      <option value="">—</option>
-                      {options.map((s) => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
-                    </select>
-                  </td>
-                ))}
+                {WD.map((_, w) => {
+                  const sel = options.find((s) => s.id === cells[key(c.id, w)]);
+                  return (
+                    <td key={w} className="border-l px-1.5 py-1.5">
+                      <select
+                        className={selectCls}
+                        value={cells[key(c.id, w)] ?? ""}
+                        title={sel ? shiftLabel(sel) : "No shift"}
+                        onChange={(e) => set(c.id, w, e.target.value)}
+                      >
+                        <option value="">—</option>
+                        {options.map((s) => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
+                      </select>
+                    </td>
+                  );
+                })}
               </tr>
             ))}
             {crew.length === 0 && (
