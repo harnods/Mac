@@ -113,12 +113,6 @@ export function RosterBuilder({
 
   const key = (emp: string, wd: number) => `${emp}|${wd}`;
   const set = (emp: string, wd: number, val: string) => setCells((p) => ({ ...p, [key(emp, wd)]: val }));
-  const fillRow = (emp: string, val: string) =>
-    setCells((p) => {
-      const n = { ...p };
-      for (let w = 0; w < 7; w++) n[key(emp, w)] = val;
-      return n;
-    });
 
   function collectCells() {
     const arr: { employeeId: string; weekday: number; shiftId: string }[] = [];
@@ -160,8 +154,6 @@ export function RosterBuilder({
     });
   }
 
-  const selectCls =
-    "h-10 w-full rounded-md border border-input bg-background px-2 text-sm";
 
   return (
     <div className="space-y-4">
@@ -182,7 +174,7 @@ export function RosterBuilder({
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Set each crew&rsquo;s weekly shifts. It repeats every week from the effective date until the next schedule. Use “Fill week” to set all seven days at once, then tweak.
+        Set each crew&rsquo;s weekly shifts. It repeats every week from the effective date until the next schedule.
       </p>
 
       <div className="border table-outer rounded-lg overflow-x-auto">
@@ -190,7 +182,6 @@ export function RosterBuilder({
           <thead>
             <tr className="bg-muted">
               <th className="sticky left-0 z-30 bg-muted border-b border-r px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
-              <th className="border-b border-l px-2 py-2 text-center font-medium min-w-[150px] w-[150px]">Fill week</th>
               {WD.map((d) => (
                 <th key={d} className="border-b border-l px-2 py-2 text-center font-medium min-w-[150px] w-[150px]">{d}</th>
               ))}
@@ -201,13 +192,6 @@ export function RosterBuilder({
               <tr key={c.id} className="border-b last:border-b-0">
                 <td className="sticky left-0 z-20 bg-background border-r px-3 py-1.5 font-medium w-[180px] min-w-[180px] max-w-[180px]">
                   <div className="max-w-[156px] truncate" title={c.name}>{c.name}</div>
-                </td>
-                <td className="border-l px-1.5 py-1.5">
-                  <select className={selectCls} value="" onChange={(e) => { if (e.target.value !== "__keep__") fillRow(c.id, e.target.value); }}>
-                    <option value="__keep__">Fill week…</option>
-                    <option value="">— (clear)</option>
-                    {options.map((s) => <option key={s.id} value={s.id}>{shiftLabel(s)}</option>)}
-                  </select>
                 </td>
                 {WD.map((_, w) => {
                   const sel = options.find((s) => s.id === cells[key(c.id, w)]);
@@ -236,7 +220,7 @@ export function RosterBuilder({
               </tr>
             ))}
             {crew.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No crew.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">No crew.</td></tr>
             )}
           </tbody>
         </table>
