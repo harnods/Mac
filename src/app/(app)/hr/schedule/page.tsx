@@ -18,11 +18,12 @@ export default async function SchedulePage() {
 
   // Active roster (exclude resigned and the account owner/CEO).
   const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+  // Load the full roster with the dates that bound each crew's employment; the
+  // grid shows only crew whose window overlaps the viewed period.
   let crewQuery = supabase
     .from("employees")
-    .select("id,name,join_date,inactive_date")
+    .select("id,name,join_date,inactive_date,termination_date,last_day")
     .is("deleted_at", null)
-    .is("termination_date", null)
     .order("name");
   if (owner?.id) crewQuery = crewQuery.or(`user_id.is.null,user_id.neq.${owner.id}`);
 
@@ -31,7 +32,10 @@ export default async function SchedulePage() {
     supabase.from("shifts").select("id,name,start_time,end_time,active").order("start_time", { nullsFirst: true }),
   ]);
 
-  const crew = (crewData ?? []) as { id: string; name: string; join_date: string | null; inactive_date: string | null }[];
+  const crew = (crewData ?? []) as {
+    id: string; name: string; join_date: string | null; inactive_date: string | null;
+    termination_date: string | null; last_day: string | null;
+  }[];
   const shifts = (shiftRows ?? []) as { id: string; name: string; start_time: string | null; end_time: string | null; active: boolean }[];
 
   return (

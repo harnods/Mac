@@ -43,7 +43,10 @@ export function ScheduleGrid({
   today,
   canWrite = false,
 }: {
-  crew: { id: string; name: string; join_date?: string | null; inactive_date?: string | null }[];
+  crew: {
+    id: string; name: string; join_date?: string | null; inactive_date?: string | null;
+    termination_date?: string | null; last_day?: string | null;
+  }[];
   shifts: ShiftOpt[];
   cutoffStartDay: number;
   cutoffEndDay: number;
@@ -60,10 +63,22 @@ export function ScheduleGrid({
   const period = payrollPeriod(aY, aM - 1, cutoffStartDay, cutoffEndDay);
   const days = useMemo(() => eachDay(period.start, period.end), [period.start, period.end]);
 
-  // Crew who went inactive before this period starts no longer appear.
+  // A crew's last working day: the earliest of inactive / last-day / termination.
+  const stopDate = (c: (typeof crew)[number]) => {
+    const ds = [c.inactive_date, c.last_day, c.termination_date].filter(Boolean) as string[];
+    return ds.length ? ds.sort()[0] : null;
+  };
+
+  // Show only crew whose employment window overlaps the viewed period:
+  // joined on/before the period ends, and hadn't stopped before it starts.
   const visibleCrew = useMemo(
-    () => crew.filter((c) => !(c.inactive_date && c.inactive_date < period.start)),
-    [crew, period.start],
+    () => crew.filter((c) => {
+      const joinedInTime = !c.join_date || c.join_date <= period.end;
+      const s = stopDate(c);
+      const stillActive = !s || s >= period.start;
+      return joinedInTime && stillActive;
+    }),
+    [crew, period.start, period.end],
   );
 
   const shiftById = useMemo(() => new Map(shifts.map((s) => [s.id, s])), [shifts]);
@@ -128,13 +143,14 @@ export function ScheduleGrid({
               <tr key={c.id} className="border-b last:border-b-0">
                 <td className="sticky left-0 z-10 bg-background border-r px-3 py-1.5 font-medium truncate w-[180px] min-w-[180px]">{c.name}</td>
                 {days.map((day) => {
-                  // Not schedulable before join date or after the inactive date.
+                  // Not schedulable before join date or after they stopped working.
                   const beforeJoin = !!c.join_date && day < c.join_date;
-                  const afterInactive = !!c.inactive_date && day > c.inactive_date;
-                  if (beforeJoin || afterInactive) {
+                  const stop = stopDate(c);
+                  const afterStop = !!stop && day > stop;
+                  if (beforeJoin || afterStop) {
                     return (
                       <td key={day} className="border-l p-0 text-center align-middle bg-muted/40">
-                        <div className="h-11 w-full" title={beforeJoin ? "Before join date" : "Inactive"} />
+                        <div className="h-11 w-full" title={beforeJoin ? "Before join date" : "No longer active"} />
                       </td>
                     );
                   }
