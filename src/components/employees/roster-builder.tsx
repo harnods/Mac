@@ -191,9 +191,9 @@ export function RosterBuilder({
           <thead>
             <tr className="bg-muted">
               <th className="sticky left-0 z-30 bg-muted border-b border-r px-3 py-2 text-left font-medium w-[180px] min-w-[180px]">Crew</th>
-              <th className="border-b border-l px-2 py-2 text-center font-medium min-w-[110px] w-[110px]">Fill week</th>
+              <th className="border-b border-l px-2 py-2 text-center font-medium min-w-[150px] w-[150px]">Fill week</th>
               {WD.map((d) => (
-                <th key={d} className="border-b border-l px-2 py-2 text-center font-medium min-w-[110px] w-[110px]">{d}</th>
+                <th key={d} className="border-b border-l px-2 py-2 text-center font-medium min-w-[150px] w-[150px]">{d}</th>
               ))}
             </tr>
           </thead>
@@ -218,10 +218,10 @@ export function RosterBuilder({
                         value={cells[key(c.id, w)] || "__none__"}
                         onValueChange={(v) => set(c.id, w, v === "__none__" ? "" : v)}
                       >
-                        <SelectTrigger className="h-auto min-h-10 w-full whitespace-normal py-1 text-left">
+                        <SelectTrigger className="!h-auto min-h-10 w-full items-center whitespace-normal py-1.5 text-left">
                           {sel ? twoLine(sel) : <span className="text-muted-foreground">—</span>}
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent position="popper" align="start">
                           <SelectItem value="__none__">—</SelectItem>
                           {options.map((s) => (
                             <SelectItem key={s.id} value={s.id}>{twoLine(s)}</SelectItem>
