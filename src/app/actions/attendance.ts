@@ -239,8 +239,14 @@ export async function getAttendanceFormData(): Promise<AttendanceFormData | null
   if (!can(profile, P.EMPLOYEES_WRITE)) return null;
 
   const supabase = await createClient();
+  // The account owner (admin/CEO) isn't crew — keep them out of the picker.
+  const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
   const [crewResult, shiftResult] = await Promise.all([
-    supabase.from("employees").select("id,name").is("deleted_at", null).order("name"),
+    (() => {
+      let q = supabase.from("employees").select("id,name").is("deleted_at", null).order("name");
+      if (owner?.id) q = q.or(`user_id.is.null,user_id.neq.${owner.id}`);
+      return q;
+    })(),
     supabase.from("shifts").select("id,name,start_time,end_time,updated_by,updated_at").order("start_time"),
   ]);
 

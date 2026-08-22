@@ -63,8 +63,15 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
     earlyLeaveGraceMinutes: attSettings?.early_leave_grace_minutes ?? 0,
   };
 
+  // The account owner (admin/CEO) isn't crew — exclude from the report.
+  const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+
   const [{ data: crewData }, { data: attData }, { data: otData }, { data: deptData }] = await Promise.all([
-    supabase.from("employees").select("id,name,join_date,termination_date,last_day,departments(name)").is("deleted_at", null).order("name"),
+    (() => {
+      let q = supabase.from("employees").select("id,name,join_date,termination_date,last_day,departments(name)").is("deleted_at", null).order("name");
+      if (owner?.id) q = q.or(`user_id.is.null,user_id.neq.${owner.id}`);
+      return q;
+    })(),
     supabase.from("attendance").select("employee_id,work_date,clock_in,clock_out,break_minutes,shifts(start_time,end_time)").gte("work_date", period.start).lte("work_date", period.end),
     supabase.from("overtime_requests").select("employee_id,hours,work_date").eq("status", "approved").gte("work_date", period.start).lte("work_date", period.end),
     supabase.from("departments").select("id,name").order("name"),

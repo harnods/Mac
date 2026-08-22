@@ -31,6 +31,10 @@ export default async function EmployeesPage({
   const canWrite = can(profile, P.EMPLOYEES_WRITE);
   const isFiltered = !!q.trim() || !!dept || status !== "active";
 
+  // The account owner (admin/CEO) isn't crew — keep them off the roster.
+  const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+  const ownerFilter = owner?.id ? `user_id.is.null,user_id.neq.${owner.id}` : null;
+
   const [{ data: items, count }, { data: departmentsData }] = await Promise.all([
     (() => {
       let query = supabase
@@ -42,6 +46,7 @@ export default async function EmployeesPage({
         .is("deleted_at", null)
         .order("name")
         .range(from, to);
+      if (ownerFilter) query = query.or(ownerFilter);
       if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
       if (dept) query = query.eq("department_id", dept);
       if (status === "active") query = query.is("termination_date", null).eq("active", true);
