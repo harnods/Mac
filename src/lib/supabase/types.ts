@@ -245,6 +245,7 @@ export type Employee = {
   join_date: string | null;
   termination_date: string | null;
   last_day: string | null;
+  active: boolean;
   nik: string | null;
   address: string | null;
   marital_status: MaritalStatus | null;

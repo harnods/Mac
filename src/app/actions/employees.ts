@@ -263,6 +263,24 @@ const resignSchema = z.object({
   last_day: z.string().trim().min(1, "Last day is required"),
 });
 
+/** Mark a crew as inactive/active (temporarily not working). Independent of
+ *  resignation — an inactive crew keeps their employment status and record. */
+export async function setEmployeeActive(id: string, active: boolean): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("employees")
+    .update({ active, updated_by: profile.id, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/hr", "layout");
+  return { ok: true };
+}
+
 export async function resignEmployee(id: string, input: unknown): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };

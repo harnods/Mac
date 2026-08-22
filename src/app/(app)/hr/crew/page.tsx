@@ -44,7 +44,8 @@ export default async function EmployeesPage({
         .range(from, to);
       if (q.trim()) query = query.ilike("name", `%${q.trim()}%`);
       if (dept) query = query.eq("department_id", dept);
-      if (status === "active") query = query.is("termination_date", null);
+      if (status === "active") query = query.is("termination_date", null).eq("active", true);
+      else if (status === "inactive") query = query.is("termination_date", null).eq("active", false);
       else if (status === "resigned") query = query.not("termination_date", "is", null);
       return query;
     })(),

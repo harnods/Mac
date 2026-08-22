@@ -93,12 +93,16 @@ export default async function EmployeeDetailPage({
           <DetailBackButton href="/hr/crew" />
           <h1 className="text-2xl font-semibold tracking-tight">{emp.name}</h1>
           {isResigned && <Badge variant="secondary">Resigned</Badge>}
+          {!isResigned && !emp.active && (
+            <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Inactive</Badge>
+          )}
         </div>
         {isAdmin && (
           <EmployeeDetailActions
             id={id}
             name={emp.name}
             canDelete={!emp.mac_user?.is_owner}
+            active={emp.active}
             terminationDate={emp.termination_date}
             lastDay={emp.last_day}
           />

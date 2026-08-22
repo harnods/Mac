@@ -68,6 +68,8 @@ export function EmployeeTableRow({
           <TableCell>
             {employee.termination_date ? (
               <Badge variant="secondary">Resigned</Badge>
+            ) : employee.active === false ? (
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Inactive</Badge>
             ) : (
               <Badge variant="success">Active</Badge>
             )}
