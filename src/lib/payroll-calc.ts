@@ -121,16 +121,19 @@ export function computePayslip(args: {
   const presentDays = presentDates.size;
   const absentDays = Math.max(0, workingDays - presentDays);
 
-  // Overtime is by approved request. Sum per day, capping each day at the
-  // configured max hours (when the cap is on).
+  // Overtime is by approved request. Sum per day, round each day up to whole
+  // hours (a remainder over 30 min rounds up, ≤30 min rounds down), then cap
+  // each day at the configured max hours (when the cap is on).
   let overtimeHours = 0;
   if (overtime) {
     const byDate = new Map<string, number>();
     for (const e of overtimeEntries) byDate.set(e.work_date, (byDate.get(e.work_date) ?? 0) + (e.hours || 0));
     for (const [, hrs] of byDate) {
-      overtimeHours += overtime.cap_hours ? Math.min(hrs, overtime.max_hours_per_day) : hrs;
+      const mins = Math.round(hrs * 60);
+      let dayHours = Math.floor(mins / 60) + (mins % 60 > 30 ? 1 : 0);
+      if (overtime.cap_hours) dayHours = Math.min(dayHours, overtime.max_hours_per_day);
+      overtimeHours += dayHours;
     }
-    overtimeHours = Math.round(overtimeHours * 100) / 100;
   }
 
   // Attendance-derived variables available to component formulas.

@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import {
   clockIn, clockOut, breakStart, breakEnd,
   clockInOvertime, clockOutOvertime, overtimeBreakStart, overtimeBreakEnd,
 } from "@/app/actions/crew-self";
@@ -50,9 +53,11 @@ export function ClockCard({ context }: { context: MyContext }) {
   const [punchType, setPunchType] = useState<"shift" | "overtime">(isWorkingDay ? "shift" : "overtime");
   const [otReasonIn, setOtReasonIn] = useState("");
   const [otReasonOut, setOtReasonOut] = useState("");
+  const [confirmClockOut, setConfirmClockOut] = useState(false);
 
   const canShift = isWorkingDay;
   const canOvertime = eligible;
+  const windowBlocked = context.overtimeWindowBlocked;
 
   function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) {
     start(async () => {
@@ -60,6 +65,23 @@ export function ClockCard({ context }: { context: MyContext }) {
       if (!res.ok) { toast.error(res.error ?? "Something went wrong"); return; }
       toast.success(ok);
       setOtReasonIn(""); setOtReasonOut("");
+      router.refresh();
+    });
+  }
+
+  // Start overtime. If a shift is still clocked in, the server asks us to
+  // confirm clocking it out first (autoClose runs the whole thing atomically).
+  function startOvertime(autoClose: boolean) {
+    if (!otReasonIn.trim()) { toast.error("Isi alasan overtime dulu."); return; }
+    start(async () => {
+      const res = await clockInOvertime(otReasonIn, await getGeo(), { autoCloseShift: autoClose });
+      if (!res.ok) {
+        if (res.needsShiftClockOut) { setConfirmClockOut(true); return; }
+        toast.error(res.error ?? "Something went wrong");
+        return;
+      }
+      toast.success("Overtime clocked in");
+      setOtReasonIn(""); setConfirmClockOut(false);
       router.refresh();
     });
   }
@@ -158,6 +180,11 @@ export function ClockCard({ context }: { context: MyContext }) {
           <Button variant="secondary" className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(async () => clockOut(await getGeo()), "Clocked out")}>
             Clock out
           </Button>
+          {canOvertime && !onShiftBreak && !windowBlocked && (
+            <Button variant="ghost" className="w-full" disabled={pending || blocked} onClick={() => setConfirmClockOut(true)}>
+              Start overtime instead
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -194,11 +221,16 @@ export function ClockCard({ context }: { context: MyContext }) {
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="ot-reason-in">Alasan overtime (clock in) <span className="text-destructive">*</span></Label>
-                <Textarea id="ot-reason-in" rows={2} value={otReasonIn} onChange={(e) => setOtReasonIn(e.target.value)} placeholder="Contoh: bantu event / extra shift" />
+                <Textarea id="ot-reason-in" rows={2} value={otReasonIn} onChange={(e) => setOtReasonIn(e.target.value)} placeholder="Contoh: bantu event / extra shift" disabled={windowBlocked} />
               </div>
-              <Button className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(async () => clockInOvertime(otReasonIn, await getGeo()), "Overtime clocked in")}>
+              <Button className="h-14 w-full text-base" disabled={pending || blocked || windowBlocked} onClick={() => startOvertime(false)}>
                 Clock in overtime
               </Button>
+              {windowBlocked && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Masih dalam jam shift — overtime bisa setelah shift selesai (atau clock out shift dulu).
+                </p>
+              )}
             </>
           ) : (
             <div className="rounded-lg border px-3 py-2.5 text-center text-sm text-muted-foreground">
@@ -209,6 +241,26 @@ export function ClockCard({ context }: { context: MyContext }) {
           {completed && <p className="text-center text-xs text-muted-foreground">Clocking in again starts a new session.</p>}
         </div>
       )}
+
+      {/* Clock out shift → start overtime confirm */}
+      <Dialog open={confirmClockOut} onOpenChange={(o) => !o && setConfirmClockOut(false)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mulai overtime?</DialogTitle>
+            <DialogDescription>
+              Kamu masih clock in shift. Lanjut akan clock out shift kamu dulu, lalu mulai overtime.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="ot-confirm-reason">Alasan overtime (clock in) <span className="text-destructive">*</span></Label>
+            <Textarea id="ot-confirm-reason" rows={2} value={otReasonIn} onChange={(e) => setOtReasonIn(e.target.value)} placeholder="Contoh: bantu event / extra shift" />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmClockOut(false)}>Cancel</Button>
+            <Button disabled={pending} onClick={() => startOvertime(true)}>Clock out shift & start overtime</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

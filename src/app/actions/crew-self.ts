@@ -27,6 +27,13 @@ function toMin(t: string) {
   return h * 60 + (m || 0);
 }
 
+/** Is `now` inside a shift window [start, end)? Handles overnight (end < start). */
+function withinShiftWindow(now: string, start: string | null, end: string | null): boolean {
+  if (!start || !end) return false;
+  const n = toMin(now), s = toMin(start), e = toMin(end);
+  return e > s ? n >= s && n < e : n >= s || n < e;
+}
+
 async function myEmployeeId(userId: string): Promise<string | null> {
   const supabase = await createClient();
   const { data } = await supabase.from("employees").select("id").eq("user_id", userId).is("deleted_at", null).maybeSingle();
@@ -112,6 +119,8 @@ export type MyContext = {
   scheduledShift: { id: string; name: string; start_time: string | null; end_time: string | null } | null;
   overtimeEligible: boolean;
   openOvertime: OpenOvertime | null;
+  /** True when now is inside today's scheduled shift window — overtime can't start yet. */
+  overtimeWindowBlocked: boolean;
   onStoreNetwork: boolean;
   detectedIp: string | null;
   restricted: boolean;
@@ -134,7 +143,11 @@ export async function getMyContext(): Promise<MyContext | null> {
   const restricted = !!settings?.allowed_ips?.trim();
   const onStoreNetwork = isIpAllowed(detectedIp, settings?.allowed_ips);
 
-  if (!emp) return { employee: null, today: null, shifts: [], scheduledShift: null, overtimeEligible: false, openOvertime: null, onStoreNetwork, detectedIp, restricted };
+  if (!emp) return { employee: null, today: null, shifts: [], scheduledShift: null, overtimeEligible: false, openOvertime: null, overtimeWindowBlocked: false, onStoreNetwork, detectedIp, restricted };
+
+  // Resolve any pending overtime→shift transition (OT started before the shift
+  // start auto-closes at shift start and clocks the shift in) before reading.
+  await applyOvertimeTransition(emp.id, profile.id);
 
   const today = jakartaDate();
   const [{ data: todayRec }, { data: shifts }] = await Promise.all([
@@ -189,6 +202,7 @@ export async function getMyContext(): Promise<MyContext | null> {
     scheduledShift: sShift,
     overtimeEligible,
     openOvertime: (openOt ?? null) as OpenOvertime | null,
+    overtimeWindowBlocked: withinShiftWindow(jakartaTime(), sShift?.start_time ?? null, sShift?.end_time ?? null),
     onStoreNetwork,
     detectedIp,
     restricted,
@@ -203,6 +217,11 @@ export async function clockIn(geo?: PunchGeo): Promise<ActionResult> {
 
   const supabase = await createClient();
   const today = jakartaDate();
+
+  // Resolve any pending overtime→shift transition, then block a manual shift
+  // clock-in while an overtime session is still open.
+  await applyOvertimeTransition(empId, profile.id);
+  if (await openOvertimeRecord(empId)) return { ok: false, error: "Kamu masih clock in overtime — clock out dulu." };
 
   // The shift is fixed by the schedule — crew clock in against their assigned
   // working shift, they can't choose it.
@@ -347,7 +366,7 @@ async function openOvertimeRecord(empId: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("overtime_requests")
-    .select("id,clock_in,break_start,break_minutes,breaks")
+    .select("id,clock_in,break_start,break_minutes,breaks,reason_out")
     .eq("employee_id", empId)
     .eq("work_date", jakartaDate())
     .not("clock_in", "is", null)
@@ -356,7 +375,72 @@ async function openOvertimeRecord(empId: string) {
   return data;
 }
 
-export async function clockInOvertime(reason: string, geo?: PunchGeo): Promise<ActionResult> {
+/**
+ * Overtime worked before the shift ends when the shift starts: close the open
+ * OT at the shift start and clock the shift in from that moment. Lazy — runs on
+ * page load / next action (there's no background job). Idempotent.
+ */
+async function applyOvertimeTransition(empId: string, profileId: string) {
+  const supabase = await createClient();
+  const today = jakartaDate();
+  const { data: sched } = await supabase
+    .from("schedules")
+    .select("shift_id, shifts(start_time)")
+    .eq("employee_id", empId)
+    .eq("work_date", today)
+    .maybeSingle();
+  const shiftId = sched?.shift_id as string | undefined;
+  const start = (sched?.shifts as unknown as { start_time: string | null } | null)?.start_time ?? null;
+  if (!shiftId || !start) return;
+
+  const open = await openOvertimeRecord(empId);
+  if (!open?.clock_in) return;
+  const now = jakartaTime();
+  // Only OT that began before the shift start and has now reached it.
+  if (!(toMin(open.clock_in) < toMin(start) && toMin(now) >= toMin(start))) return;
+
+  const svc = serviceClient();
+  let breakMin = open.break_minutes ?? 0;
+  const breaks = (Array.isArray(open.breaks) ? open.breaks : []) as { start: string; end: string }[];
+  if (open.break_start) {
+    breakMin += Math.max(0, toMin(start) - toMin(open.break_start));
+    breaks.push({ start: open.break_start, end: start });
+  }
+  await svc.from("overtime_requests").update({
+    clock_out: start,
+    break_minutes: breakMin,
+    break_start: null,
+    breaks,
+    reason_out: open.reason_out || "Auto: shift dimulai",
+    hours: otHours(open.clock_in, start, breakMin),
+    updated_at: new Date().toISOString(),
+  }).eq("id", open.id);
+
+  // Clock the shift in from the shift start, unless already clocked in today.
+  const { data: existing } = await supabase
+    .from("attendance")
+    .select("id")
+    .eq("employee_id", empId)
+    .eq("work_date", today)
+    .not("clock_in", "is", null)
+    .maybeSingle();
+  if (!existing) {
+    await svc.from("attendance").insert({
+      employee_id: empId,
+      work_date: today,
+      shift_id: shiftId,
+      clock_in: start,
+      source: "mobile",
+      note: "Auto clock-in dari overtime",
+      created_by: profileId,
+      updated_by: profileId,
+    });
+  }
+}
+
+export type OvertimeClockInResult = { ok: true } | { ok: false; error: string; needsShiftClockOut?: boolean };
+
+export async function clockInOvertime(reason: string, geo?: PunchGeo, opts?: { autoCloseShift?: boolean }): Promise<OvertimeClockInResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!reason.trim()) return { ok: false, error: "Isi alasan overtime dulu." };
@@ -374,17 +458,51 @@ export async function clockInOvertime(reason: string, geo?: PunchGeo): Promise<A
     .eq("job_level_id", emp.job_level_id);
   if (!count) return { ok: false, error: "Kamu tidak eligible untuk overtime." };
 
+  // Resolve any pending overtime→shift transition first.
+  await applyOvertimeTransition(empId, profile.id);
+
+  // Can't start overtime while inside the scheduled shift window.
+  const today = jakartaDate();
+  const { data: sched } = await supabase
+    .from("schedules")
+    .select("shifts(start_time,end_time)")
+    .eq("employee_id", empId)
+    .eq("work_date", today)
+    .maybeSingle();
+  const sShift = (sched?.shifts as unknown as { start_time: string | null; end_time: string | null } | null) ?? null;
+  const now = jakartaTime();
+  if (withinShiftWindow(now, sShift?.start_time ?? null, sShift?.end_time ?? null)) {
+    return { ok: false, error: "Masih dalam jam shift — belum bisa clock in overtime." };
+  }
+
   const guard = await punchGuard(geo, { checkTimeWindow: false });
   if (guard.error) return { ok: false, error: guard.error };
 
-  // One open session at a time (either a shift or overtime).
-  if (await openRecord(empId)) return { ok: false, error: "Kamu masih clock in shift — clock out dulu." };
+  // Still clocked in to a shift? Offer to auto clock it out first.
+  const openShift = await openRecord(empId);
+  if (openShift) {
+    if (!opts?.autoCloseShift) {
+      return { ok: false, error: "Kamu masih clock in shift.", needsShiftClockOut: true };
+    }
+    let breakMin = openShift.break_minutes ?? 0;
+    const breaks = (Array.isArray(openShift.breaks) ? openShift.breaks : []) as { start: string; end: string }[];
+    if (openShift.break_start) {
+      breakMin += Math.max(0, toMin(now) - toMin(openShift.break_start));
+      breaks.push({ start: openShift.break_start, end: now });
+    }
+    const { error: coErr } = await serviceClient()
+      .from("attendance")
+      .update({ clock_out: now, break_minutes: breakMin, break_start: null, breaks, updated_by: profile.id, updated_at: new Date().toISOString() })
+      .eq("id", openShift.id);
+    if (coErr) return { ok: false, error: coErr.message };
+  }
+
   if (await openOvertimeRecord(empId)) return { ok: false, error: "Kamu sudah clock in overtime." };
 
   const { error } = await serviceClient().from("overtime_requests").insert({
     employee_id: empId,
-    work_date: jakartaDate(),
-    clock_in: jakartaTime(),
+    work_date: today,
+    clock_in: now,
     reason_in: reason.trim(),
     status: "pending",
     source: "mobile",
