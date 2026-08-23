@@ -82,16 +82,22 @@ export function EmployeeForm({
   const [accountHolderName, setAccountHolderName] = useState(employee?.account_holder_name ?? "");
   const [basicSalary, setBasicSalary] = useState(employee?.basic_salary != null ? String(employee.basic_salary) : "");
   const [salaryUnit, setSalaryUnit] = useState<"day" | "month">(employee?.salary_unit ?? "month");
-  const [dailyAllowance, setDailyAllowance] = useState(employee?.daily_allowance != null ? String(employee.daily_allowance) : "");
-  const [allowanceRows, setAllowanceRows] = useState<EmployeeAllowance[]>(employee?.allowances ?? []);
+  const [allowanceRows, setAllowanceRows] = useState<EmployeeAllowance[]>(
+    (employee?.allowances ?? []).map((r) => ({
+      allowance_id: r.allowance_id,
+      amount: r.amount ?? 0,
+      rate_unit: r.rate_unit ?? "month",
+      per_attendance: r.per_attendance ?? false,
+    })),
+  );
   const [loginEmail, setLoginEmail] = useState("");
 
   // Basic salary is per month; part-time crew can choose per day or per month.
   const statusName = employmentStatuses.find((s) => s.id === employmentStatusId)?.name.toLowerCase() ?? "";
   const isPartTime = statusName.includes("part");
   const effectiveSalaryUnit = isPartTime ? salaryUnit : "month";
-  // Additional components: all non-default earnings and deductions.
-  const addableAllowances = allowances.filter((a) => !a.is_default);
+  // Any payroll component can be attached to a crew (including Daily allowance).
+  const addableAllowances = allowances;
   const usedIds = new Set(allowanceRows.map((r) => r.allowance_id));
   const formulaSet = new Set(formulaComponentIds);
   const availableToAdd = addableAllowances.filter((a) => !usedIds.has(a.id));
@@ -153,10 +159,15 @@ export function EmployeeForm({
         account_holder_name: accountHolderName.trim(),
         basic_salary: basicSalary === "" ? null : Number(basicSalary),
         salary_unit: effectiveSalaryUnit,
-        daily_allowance: dailyAllowance === "" ? null : Number(dailyAllowance),
+        daily_allowance: null,
         allowances: allowanceRows
           .filter((r) => r.allowance_id)
-          .map((r) => ({ allowance_id: r.allowance_id, amount: Number(r.amount) || 0 })),
+          .map((r) => ({
+            allowance_id: r.allowance_id,
+            amount: formulaSet.has(r.allowance_id) ? 0 : Number(r.amount) || 0,
+            rate_unit: r.rate_unit ?? "month",
+            per_attendance: (r.rate_unit ?? "month") === "day" ? !!r.per_attendance : false,
+          })),
         login_email: isEdit ? "" : loginEmail.trim(),
       };
 
@@ -379,62 +390,96 @@ export function EmployeeForm({
                 )}
               </div>
 
+              {/* Payroll components */}
               <div className="space-y-2">
-                <Label htmlFor="daily-allowance">Daily allowance</Label>
-                <InputGroup className="h-10">
-                  <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
-                  <InputGroupInput id="daily-allowance" type="number" min="0" value={dailyAllowance} onChange={(e) => setDailyAllowance(e.target.value)} />
-                  <InputGroupAddon align="inline-end"><InputGroupText>/day</InputGroupText></InputGroupAddon>
-                </InputGroup>
-              </div>
-
-              {/* Additional allowances */}
-              <div className="space-y-2">
-                <Label>Allowances</Label>
+                <Label>Payroll components</Label>
                 {allowanceRows.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No additional allowances.</p>
+                  <p className="text-xs text-muted-foreground">No payroll components yet.</p>
                 )}
                 {allowanceRows.map((row, i) => {
                   const opts = addableAllowances.filter(
                     (a) => a.id === row.allowance_id || !usedIds.has(a.id),
                   );
+                  const isFormula = !!row.allowance_id && formulaSet.has(row.allowance_id);
+                  const unit = row.rate_unit ?? "month";
                   return (
-                    <div key={i} className="space-y-2 rounded-lg border p-3">
-                      <Select
-                        value={row.allowance_id}
-                        onValueChange={(v) =>
-                          setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, allowance_id: v } : r)))
-                        }
-                      >
-                        <SelectTrigger className="w-full"><SelectValue placeholder="Select allowance" /></SelectTrigger>
-                        <SelectContent>
-                          {opts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div key={i} className="space-y-3 rounded-lg border p-3">
                       <div className="flex items-center gap-2">
-                        {row.allowance_id && formulaSet.has(row.allowance_id) ? (
-                          <div className="flex h-10 flex-1 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-                            Auto — computed by formula at payroll run
-                          </div>
-                        ) : (
-                          <InputGroup className="h-10 flex-1">
-                            <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
-                            <InputGroupInput
-                              type="number"
-                              min="0"
-                              value={String(row.amount ?? "")}
-                              onChange={(e) =>
-                                setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, amount: Number(e.target.value) || 0 } : r)))
-                              }
-                            />
-                          </InputGroup>
-                        )}
+                        <Select
+                          value={row.allowance_id}
+                          onValueChange={(v) =>
+                            setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, allowance_id: v } : r)))
+                          }
+                        >
+                          <SelectTrigger className="w-full"><SelectValue placeholder="Select component" /></SelectTrigger>
+                          <SelectContent>
+                            {opts.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name}
+                                <span className="ml-1 text-muted-foreground">· {a.type === "deduction" ? "Deduction" : "Earning"}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setAllowanceRows((rows) => rows.filter((_, j) => j !== i))}>
                           <Trash2 className="size-4" />
                         </Button>
                       </div>
+
+                      {isFormula ? (
+                        <p className="text-xs text-muted-foreground">
+                          Auto calculated — this component has a formula, so its amount is computed at payroll run.
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <InputGroup className="h-10 flex-1">
+                              <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+                              <InputGroupInput
+                                type="number"
+                                min="0"
+                                value={String(row.amount ?? "")}
+                                onChange={(e) =>
+                                  setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, amount: Number(e.target.value) || 0 } : r)))
+                                }
+                              />
+                            </InputGroup>
+                            <Select
+                              value={unit}
+                              onValueChange={(v) =>
+                                setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, rate_unit: v as "day" | "week" | "month" } : r)))
+                              }
+                            >
+                              <SelectTrigger className="w-36 shrink-0"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="day">per day</SelectItem>
+                                <SelectItem value="week">per week</SelectItem>
+                                <SelectItem value="month">per month</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {unit === "day" && (
+                            <div className="space-y-1">
+                              <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  className="accent-primary"
+                                  checked={!!row.per_attendance}
+                                  onChange={(e) =>
+                                    setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, per_attendance: e.target.checked } : r)))
+                                  }
+                                />
+                                Per attendance
+                              </label>
+                              <p className="text-xs text-muted-foreground">
+                                {row.per_attendance
+                                  ? "Paid only for days the crew clocked in. Absent days and day off earn nothing."
+                                  : "Paid for every working day in the period, regardless of attendance."}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -443,12 +488,12 @@ export function EmployeeForm({
                   variant="outline"
                   size="sm"
                   disabled={availableToAdd.length === 0}
-                  onClick={() => setAllowanceRows((rows) => [...rows, { allowance_id: availableToAdd[0]?.id ?? "", amount: 0 }])}
+                  onClick={() => setAllowanceRows((rows) => [...rows, { allowance_id: availableToAdd[0]?.id ?? "", amount: 0, rate_unit: "month", per_attendance: false }])}
                 >
-                  <Plus className="size-4" /> Add allowance
+                  <Plus className="size-4" /> Add component
                 </Button>
                 {addableAllowances.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Add allowance types in Settings → Allowance.</p>
+                  <p className="text-xs text-muted-foreground">Add payroll components in Settings → Payroll component.</p>
                 )}
               </div>
             </div>

@@ -60,8 +60,14 @@ export default async function EmployeeDetailPage({
     .order("start_time", { nullsFirst: true });
   const shifts = (shiftRows ?? []) as { id: string; name: string; start_time: string | null; end_time: string | null }[];
 
-  const { data: allowancesData } = await supabase.from("allowances").select("id,name");
-  const allowanceName = (aid: string) => (allowancesData ?? []).find((a) => a.id === aid)?.name ?? "Allowance";
+  const [{ data: allowancesData }, { data: formulaVers }] = await Promise.all([
+    supabase.from("allowances").select("id,name,type"),
+    supabase.from("payroll_component_versions").select("component_id").not("formula_basis", "is", null),
+  ]);
+  const allowanceMeta = (aid: string) =>
+    (allowancesData ?? []).find((a) => a.id === aid) as { id: string; name: string; type: "earning" | "deduction" } | undefined;
+  const formulaIds = new Set(((formulaVers ?? []) as { component_id: string }[]).map((v) => v.component_id));
+  const UNIT_LABEL: Record<string, string> = { day: "/day", week: "/week", month: "/month" };
 
   const { data, error } = await supabase
     .from("employees")
@@ -214,8 +220,17 @@ export default async function EmployeeDetailPage({
       {canViewCompensation ? (
         <CompensationSection
           basicSalary={emp.basic_salary != null ? `${formatRp(emp.basic_salary)} ${salaryUnit}` : null}
-          dailyAllowance={emp.daily_allowance != null ? `${formatRp(emp.daily_allowance)} per day` : null}
-          allowances={(emp.allowances ?? []).map((a) => ({ name: allowanceName(a.allowance_id), amount: formatRp(a.amount) }))}
+          allowances={(emp.allowances ?? []).map((a) => {
+            const meta = allowanceMeta(a.allowance_id);
+            const name = meta?.name ?? "Component";
+            const isDeduction = meta?.type === "deduction";
+            if (formulaIds.has(a.allowance_id)) {
+              return { name, amount: "Auto — formula", deduction: isDeduction };
+            }
+            const unit = a.rate_unit ?? "month";
+            const perAtt = unit === "day" && a.per_attendance ? " · per attendance" : "";
+            return { name, amount: `${formatRp(a.amount)} ${UNIT_LABEL[unit] ?? "/month"}${perAtt}`, deduction: isDeduction };
+          })}
         />
       ) : (
         <section className="space-y-2">
@@ -227,8 +242,7 @@ export default async function EmployeeDetailPage({
           </div>
           <dl>
             <DetailRow label="Basic salary" value={COMP_DOTS} />
-            <DetailRow label="Daily allowance" value={COMP_DOTS} />
-            <DetailRow label="Allowances" value={COMP_DOTS} />
+            <DetailRow label="Payroll components" value={COMP_DOTS} />
           </dl>
         </section>
       )}

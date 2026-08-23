@@ -68,7 +68,6 @@ export function PayrollSettingsDrawer({
   const [cutoffStart, setCutoffStart] = useState("21");
   const [cutoffEnd, setCutoffEnd] = useState("20");
   const [payday, setPayday] = useState("27");
-  const [dailyByAttendance, setDailyByAttendance] = useState(true);
   const [deductAbsence, setDeductAbsence] = useState(false);
 
   // Reset the form each time the drawer opens, from the current values.
@@ -78,7 +77,6 @@ export function PayrollSettingsDrawer({
     setCutoffStart(String(prefill.cutoff_start_day));
     setCutoffEnd(String(prefill.cutoff_end_day));
     setPayday(String(prefill.payday));
-    setDailyByAttendance(prefill.daily_allowance_by_attendance);
     setDeductAbsence(prefill.deduct_absence_from_salary);
   }, [open, prefill, today]);
 
@@ -91,7 +89,6 @@ export function PayrollSettingsDrawer({
         cutoff_start_day: Number(cutoffStart),
         cutoff_end_day: Number(cutoffEnd),
         payday: Number(payday),
-        daily_allowance_by_attendance: dailyByAttendance,
         deduct_absence_from_salary: deductAbsence,
       });
       if (!res.ok) { toast.error(res.error); return; }
@@ -132,17 +129,6 @@ export function PayrollSettingsDrawer({
               <Label htmlFor="ps-payday">Payday</Label>
               <DaySelect id="ps-payday" value={payday} onChange={setPayday} />
               <p className="text-xs text-muted-foreground">If a month has fewer days, payday falls on the last day of that month.</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-4">
-                <Label htmlFor="ps-daily">Daily allowance by attendance</Label>
-                <Switch id="ps-daily" checked={dailyByAttendance} onCheckedChange={setDailyByAttendance} />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {dailyByAttendance
-                  ? "Paid only for days the crew clocked in — absent days and day off earn no daily allowance."
-                  : "Paid for every working day in the period (total days minus Day off shifts). Crew on leave or sick still receive it."}
-              </p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-4">

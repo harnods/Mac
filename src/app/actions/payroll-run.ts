@@ -100,13 +100,14 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
   // One-time adjustments for this period, grouped by crew.
   const { data: adjData } = await supabase
     .from("payroll_adjustments")
-    .select("employee_id,label,type,amount")
+    .select("employee_id,label,type,amount,allowance_id,rate_unit,per_attendance")
     .eq("anchor_year", anchorYear)
     .eq("anchor_month", anchorMonth);
-  const adjByEmp = new Map<string, { label: string; type: "earning" | "deduction"; amount: number }[]>();
-  for (const a of (adjData ?? []) as { employee_id: string; label: string; type: "earning" | "deduction"; amount: number }[]) {
+  type AdjArg = { label: string; type: "earning" | "deduction"; amount: number; allowance_id: string | null; rate_unit: "day" | "week" | "month"; per_attendance: boolean };
+  const adjByEmp = new Map<string, AdjArg[]>();
+  for (const a of (adjData ?? []) as { employee_id: string; label: string; type: "earning" | "deduction"; amount: number; allowance_id: string | null; rate_unit: "day" | "week" | "month" | null; per_attendance: boolean | null }[]) {
     const list = adjByEmp.get(a.employee_id) ?? [];
-    list.push({ label: a.label, type: a.type, amount: Number(a.amount) });
+    list.push({ label: a.label, type: a.type, amount: Number(a.amount), allowance_id: a.allowance_id, rate_unit: a.rate_unit ?? "month", per_attendance: !!a.per_attendance });
     adjByEmp.set(a.employee_id, list);
   }
 
@@ -196,14 +197,12 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
       period: { start: effStart, end: effEnd },
       employee: {
         basic_salary: c.basic_salary,
-        daily_allowance: c.daily_allowance,
         allowances: c.allowances ?? [],
         salary_per_day: salaryPerDay,
       },
       attendance: attByEmp.get(c.id) ?? [],
       overtimeEntries: otByEmp.get(c.id) ?? [],
       settings: {
-        daily_allowance_by_attendance: settings.daily_allowance_by_attendance,
         deduct_absence_from_salary: settings.deduct_absence_from_salary,
         working_days_per_week: workingDaysPerWeek,
         late_grace_minutes: attSettings?.late_grace_minutes ?? 0,
@@ -333,13 +332,16 @@ export type PayrollAdjustment = {
   label: string;
   type: "earning" | "deduction";
   amount: number;
+  allowance_id: string | null;
+  rate_unit: "day" | "week" | "month";
+  per_attendance: boolean;
 };
 
 export async function getPayrollAdjustments(anchorYear: number, anchorMonth: number): Promise<PayrollAdjustment[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("payroll_adjustments")
-    .select("id,employee_id,label,type,amount")
+    .select("id,employee_id,label,type,amount,allowance_id,rate_unit,per_attendance")
     .eq("anchor_year", anchorYear)
     .eq("anchor_month", anchorMonth)
     .order("created_at");
@@ -349,12 +351,15 @@ export async function getPayrollAdjustments(anchorYear: number, anchorMonth: num
 export async function addPayrollAdjustment(input: {
   anchorYear: number; anchorMonth: number; employeeId: string;
   label: string; type: "earning" | "deduction"; amount: number;
+  allowanceId?: string | null; rateUnit?: "day" | "week" | "month"; perAttendance?: boolean;
 }): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  if (!input.label.trim()) return { ok: false, error: "Label is required" };
-  if (!(input.amount > 0)) return { ok: false, error: "Enter an amount" };
+  if (!input.label.trim()) return { ok: false, error: "Select a component" };
+  // Free items and non-formula components need an amount; formula components
+  // (which carry a component id but compute at run) are allowed a zero amount.
+  if (!input.allowanceId && !(input.amount > 0)) return { ok: false, error: "Enter an amount" };
 
   const supabase = await createClient();
   const { error } = await supabase.from("payroll_adjustments").insert({
@@ -364,6 +369,9 @@ export async function addPayrollAdjustment(input: {
     label: input.label.trim(),
     type: input.type,
     amount: input.amount,
+    allowance_id: input.allowanceId ?? null,
+    rate_unit: input.rateUnit ?? "month",
+    per_attendance: !!input.perAttendance,
     created_by: profile.id,
   });
   if (error) return { ok: false, error: error.message };

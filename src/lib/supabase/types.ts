@@ -270,7 +270,15 @@ export type Employee = {
   deleted_at: string | null;
 };
 
-export type EmployeeAllowance = { allowance_id: string; amount: number };
+export type EmployeeAllowance = {
+  allowance_id: string;
+  /** Per-crew amount for components without a formula (formula ones are auto). */
+  amount: number;
+  /** How `amount` is applied for non-formula components. Defaults to 'month'. */
+  rate_unit?: RateUnit;
+  /** Per-day components: paid only for attended days when true. */
+  per_attendance?: boolean;
+};
 
 export type PayrollComponentType = 'earning' | 'deduction';
 export type RateUnit = 'day' | 'week' | 'month';

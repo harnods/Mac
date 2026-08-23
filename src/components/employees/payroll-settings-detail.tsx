@@ -77,17 +77,6 @@ export function PayrollSettingsDetail({
             hint="When salaries are paid out. If a month has fewer days, it falls on the last day."
           />
           <DetailRow
-            label="Daily allowance"
-            value={current ? (current.daily_allowance_by_attendance ? "Per attendance" : "Per working day") : "—"}
-            hint={
-              current
-                ? current.daily_allowance_by_attendance
-                  ? "Paid only for days the crew clocked in. Absent days and day off earn no daily allowance."
-                  : "Paid for every working day in the period (total days minus Day off shifts). Crew on leave or sick still receive it."
-                : undefined
-            }
-          />
-          <DetailRow
             label="Absence deduction"
             value={current ? (current.deduct_absence_from_salary ? "On" : "Off") : "—"}
             hint={
@@ -108,7 +97,6 @@ export function PayrollSettingsDetail({
                 <TableHead className="w-[220px]">Effective date</TableHead>
                 <TableHead className="w-[130px]">Cutoff</TableHead>
                 <TableHead className="w-[110px]">Payday</TableHead>
-                <TableHead className="w-[150px]">Daily allowance</TableHead>
                 <TableHead className="w-[150px]">Absence deduction</TableHead>
                 <TableHead className="w-[110px]">Status</TableHead>
               </TableRow>
@@ -123,7 +111,6 @@ export function PayrollSettingsDetail({
                     {ordinal(row.version.cutoff_start_day)}–{ordinal(row.version.cutoff_end_day)}
                   </TableCell>
                   <TableCell className="text-sm tabular-nums">{ordinal(row.version.payday)}</TableCell>
-                  <TableCell className="text-sm">{row.version.daily_allowance_by_attendance ? "Per attendance" : "Per working day"}</TableCell>
                   <TableCell className="text-sm">{row.version.deduct_absence_from_salary ? "On" : "Off"}</TableCell>
                   <TableCell>
                     {row.active ? <Badge variant="success">Active</Badge> : <Badge variant="secondary">Inactive</Badge>}

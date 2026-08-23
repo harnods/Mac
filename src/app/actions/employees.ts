@@ -51,7 +51,14 @@ const employeeSchema = z.object({
   salary_unit: z.enum(["day", "month"]).nullable().optional(),
   daily_allowance: z.coerce.number().min(0).nullable().optional(),
   allowances: z
-    .array(z.object({ allowance_id: z.string().uuid(), amount: z.coerce.number().min(0) }))
+    .array(
+      z.object({
+        allowance_id: z.string().uuid(),
+        amount: z.coerce.number().min(0),
+        rate_unit: z.enum(["day", "week", "month"]).optional().default("month"),
+        per_attendance: z.coerce.boolean().optional().default(false),
+      }),
+    )
     .optional()
     .default([]),
 });

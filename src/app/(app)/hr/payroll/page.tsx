@@ -60,7 +60,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
     crewQ,
     supabase.from("allowances").select("id,name,type"),
     supabase.from("payroll_component_versions").select("component_id").not("formula_basis", "is", null),
-    supabase.from("payroll_adjustments").select("id,employee_id,label,type,amount").eq("anchor_year", anchorYear).eq("anchor_month", anchorMonth).order("created_at"),
+    supabase.from("payroll_adjustments").select("id,employee_id,label,type,amount,allowance_id,rate_unit,per_attendance").eq("anchor_year", anchorYear).eq("anchor_month", anchorMonth).order("created_at"),
     supabase.from("attendance").select("employee_id,work_date,clock_in").gte("work_date", period.start).lte("work_date", period.end).not("clock_in", "is", null),
   ]);
 
@@ -71,9 +71,17 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
     (presentByEmp.get(a.employee_id) ?? presentByEmp.set(a.employee_id, new Set()).get(a.employee_id)!).add(a.work_date);
   }
   const adjByEmp = new Map<string, PayrollRow["adjustments"]>();
-  for (const a of (adjData ?? []) as { id: string; employee_id: string; label: string; type: "earning" | "deduction"; amount: number }[]) {
-    (adjByEmp.get(a.employee_id) ?? adjByEmp.set(a.employee_id, []).get(a.employee_id)!).push({ id: a.id, label: a.label, type: a.type, amount: Number(a.amount) });
+  for (const a of (adjData ?? []) as { id: string; employee_id: string; label: string; type: "earning" | "deduction"; amount: number; allowance_id: string | null; rate_unit: "day" | "week" | "month" | null; per_attendance: boolean | null }[]) {
+    (adjByEmp.get(a.employee_id) ?? adjByEmp.set(a.employee_id, []).get(a.employee_id)!).push({
+      id: a.id, label: a.label, type: a.type, amount: Number(a.amount),
+      rateUnit: a.rate_unit ?? "month", perAttendance: !!a.per_attendance,
+      isFormula: a.allowance_id ? formulaSet.has(a.allowance_id) : false,
+    });
   }
+
+  // Assignable components for the accordion's one-time "Add component" picker.
+  const componentOptions = ((compData ?? []) as { id: string; name: string; type: "earning" | "deduction" }[])
+    .map((c) => ({ id: c.id, name: c.name, type: c.type, isFormula: formulaSet.has(c.id) }));
 
   // Payslips for this run (with line items), keyed by employee.
   const payslipByEmp = new Map<string, PayrollRow["payslip"]>();
@@ -90,7 +98,8 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
 
   type CrewRaw = {
     id: string; name: string; basic_salary: number | null; salary_unit: "day" | "month" | null;
-    daily_allowance: number | null; allowances: { allowance_id: string; amount: number }[] | null;
+    daily_allowance: number | null;
+    allowances: { allowance_id: string; amount: number; rate_unit?: "day" | "week" | "month"; per_attendance?: boolean }[] | null;
     join_date: string | null; termination_date: string | null; last_day: string | null;
     employment_statuses: { name: string } | null;
   };
@@ -106,11 +115,11 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         const m = compMeta.get(a.allowance_id);
         if (!m) continue;
         if (formulaSet.has(a.allowance_id)) formula.push({ name: m.name, type: m.type });
-        else if (a.amount) fixed.push({ name: m.name, type: m.type, amount: Number(a.amount) });
+        else if (a.amount) fixed.push({ name: m.name, type: m.type, amount: Number(a.amount), rateUnit: a.rate_unit ?? "month", perAttendance: !!a.per_attendance });
       }
       return {
         id: c.id, name: c.name, baseSalary: c.basic_salary, salaryUnit: c.salary_unit,
-        dailyAllowance: c.daily_allowance, fixed, formula,
+        fixed, formula,
         adjustments: adjByEmp.get(c.id) ?? [],
         payslip: payslipByEmp.get(c.id) ?? null,
         presentDays, isPartTime: isPT,
@@ -159,7 +168,7 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         </div>
       )}
 
-      <PayrollTable rows={rows} anchorYear={anchorYear} anchorMonth={anchorMonth} isAdmin={isAdmin} />
+      <PayrollTable rows={rows} components={componentOptions} anchorYear={anchorYear} anchorMonth={anchorMonth} isAdmin={isAdmin} />
 
       {run && rows.length > 0 && (
         <div className="flex justify-end text-sm">

@@ -11,16 +11,23 @@ export type CalcAttendance = {
   shift: { start_time: string | null; end_time: string | null } | null;
 };
 
+export type RateUnit = "day" | "week" | "month";
+
+export type CalcAllowance = {
+  allowance_id: string;
+  amount: number;
+  rate_unit?: RateUnit;
+  per_attendance?: boolean;
+};
+
 export type CalcEmployee = {
   basic_salary: number | null;
-  daily_allowance: number | null;
-  allowances: { allowance_id: string; amount: number }[];
+  allowances: CalcAllowance[];
   /** Basic salary is quoted per day (paid × present days) rather than a monthly amount. */
   salary_per_day: boolean;
 };
 
 export type CalcSettings = {
-  daily_allowance_by_attendance: boolean;
   deduct_absence_from_salary: boolean;
   /** Working days per 7-day week (rest are day off). Drives the working-day entitlement. */
   working_days_per_week: number;
@@ -88,8 +95,16 @@ export function computePayslip(args: {
   settings: CalcSettings;
   overtime: CalcOvertime;
   components: Record<string, ComponentMeta>;
-  /** One-time per-run components (bonus, deposit, …). */
-  adjustments?: { label: string; type: "earning" | "deduction"; amount: number }[];
+  /** One-time per-run components (bonus, deposit, …). May reference a payroll
+   * component (formula → computed at run; else amount × rate unit / attendance). */
+  adjustments?: {
+    label: string;
+    type: "earning" | "deduction";
+    amount: number;
+    allowance_id?: string | null;
+    rate_unit?: RateUnit;
+    per_attendance?: boolean;
+  }[];
 }): PayslipResult {
   const { period, employee, attendance, overtimeEntries, settings, overtime, components, adjustments } = args;
 
@@ -149,8 +164,29 @@ export function computePayslip(args: {
   };
 
   const basic = employee.basic_salary ?? 0;
-  const dailyAllowance = employee.daily_allowance ?? 0;
   const lines: CalcLine[] = [];
+
+  // Weeks in the period, for per-week components (rounded to the nearest week).
+  const weeksInPeriod = Math.max(1, Math.round(periodDays / 7));
+
+  // Compute the amount + breakdown for a non-formula component/adjustment,
+  // honouring its rate unit (per day / week / month) and per-attendance flag.
+  function amountFor(rate: number, unit: RateUnit, perAttendance: boolean): { amount: number; detail: string | null } {
+    if (unit === "day") {
+      const days = perAttendance ? presentDays : workingDays;
+      return {
+        amount: round(rate * days),
+        detail: `${days} ${perAttendance ? "attended" : "working"} day(s) × Rp ${rate.toLocaleString("id-ID")}`,
+      };
+    }
+    if (unit === "week") {
+      return {
+        amount: round(rate * weeksInPeriod),
+        detail: `${weeksInPeriod} week(s) × Rp ${rate.toLocaleString("id-ID")}`,
+      };
+    }
+    return { amount: round(rate), detail: null };
+  }
 
   // ── Earnings ──────────────────────────────────────────────────────────────
   if (employee.salary_per_day) {
@@ -158,16 +194,6 @@ export function computePayslip(args: {
     lines.push({ kind: "earning", label: "Basic salary", detail: `${presentDays} day(s) × Rp ${basic.toLocaleString("id-ID")}/day`, amount });
   } else {
     lines.push({ kind: "earning", label: "Basic salary", detail: "Monthly", amount: round(basic) });
-  }
-
-  if (dailyAllowance > 0) {
-    const days = settings.daily_allowance_by_attendance ? presentDays : workingDays;
-    lines.push({
-      kind: "earning",
-      label: "Daily allowance",
-      detail: `${days} ${settings.daily_allowance_by_attendance ? "attended" : "working"} day(s) × Rp ${dailyAllowance.toLocaleString("id-ID")}`,
-      amount: round(dailyAllowance * days),
-    });
   }
 
   if (overtime && overtimeHours > 0) {
@@ -195,7 +221,9 @@ export function computePayslip(args: {
         amount,
       });
     } else if (a.amount) {
-      lines.push({ kind: meta.type, label: meta.name, detail: null, amount: round(a.amount) });
+      const { amount, detail } = amountFor(a.amount, a.rate_unit ?? "month", !!a.per_attendance);
+      if (amount === 0) continue;
+      lines.push({ kind: meta.type, label: meta.name, detail, amount });
     }
   }
 
@@ -210,10 +238,26 @@ export function computePayslip(args: {
     });
   }
 
-  // One-time adjustments for this run (bonus, uniform deposit, …).
+  // One-time adjustments for this run (bonus, uniform deposit, …). A formula
+  // component computes from attendance; a non-formula one uses amount × unit.
   for (const adj of adjustments ?? []) {
-    if (!adj.amount) continue;
-    lines.push({ kind: adj.type, label: adj.label, detail: "One-time", amount: round(adj.amount) });
+    const meta = adj.allowance_id ? components[adj.allowance_id] : undefined;
+    if (meta?.formula) {
+      const value = formulaVars[meta.formula.basis] ?? 0;
+      const amount = round(meta.formula.rate * value);
+      if (amount === 0) continue;
+      lines.push({
+        kind: adj.type,
+        label: adj.label,
+        detail: `One-time · ${value} ${FORMULA_BASIS_LABELS[meta.formula.basis]} × Rp ${meta.formula.rate.toLocaleString("id-ID")}`,
+        amount,
+      });
+    } else {
+      if (!adj.amount) continue;
+      const { amount, detail } = amountFor(adj.amount, adj.rate_unit ?? "month", !!adj.per_attendance);
+      if (amount === 0) continue;
+      lines.push({ kind: adj.type, label: adj.label, detail: detail ? `One-time · ${detail}` : "One-time", amount });
+    }
   }
 
   const earnings_total = lines.filter((l) => l.kind === "earning").reduce((s, l) => s + l.amount, 0);

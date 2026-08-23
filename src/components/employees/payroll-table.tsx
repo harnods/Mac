@@ -8,19 +8,30 @@ import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRp } from "@/lib/format";
 import { addPayrollAdjustment, deletePayrollAdjustment } from "@/app/actions/payroll-run";
 
 type Line = { kind: "earning" | "deduction"; label: string; detail: string | null; amount: number };
-type Adjustment = { id: string; label: string; type: "earning" | "deduction"; amount: number };
+type RateUnit = "day" | "week" | "month";
+type Adjustment = {
+  id: string;
+  label: string;
+  type: "earning" | "deduction";
+  amount: number;
+  rateUnit: RateUnit;
+  perAttendance: boolean;
+  isFormula: boolean;
+};
+
+export type ComponentOption = { id: string; name: string; type: "earning" | "deduction"; isFormula: boolean };
 
 export type PayrollRow = {
   id: string;
   name: string;
   baseSalary: number | null;
   salaryUnit: "day" | "month" | null;
-  dailyAllowance: number | null;
-  fixed: { name: string; type: "earning" | "deduction"; amount: number }[];
+  fixed: { name: string; type: "earning" | "deduction"; amount: number; rateUnit: RateUnit; perAttendance: boolean }[];
   formula: { name: string; type: "earning" | "deduction" }[];
   adjustments: Adjustment[];
   presentDays: number;
@@ -32,11 +43,16 @@ export type PayrollRow = {
 };
 
 const dash = <span className="text-muted-foreground">—</span>;
+const UNIT_LABEL: Record<RateUnit, string> = { day: "/day", week: "/week", month: "/month" };
+
+const rateCaption = (amount: number, unit: RateUnit, perAttendance: boolean) =>
+  `Rp ${amount.toLocaleString("id-ID")} ${UNIT_LABEL[unit]}${unit === "day" && perAttendance ? " · per attendance" : ""}`;
 
 export function PayrollTable({
-  rows, anchorYear, anchorMonth, isAdmin,
+  rows, components, anchorYear, anchorMonth, isAdmin,
 }: {
   rows: PayrollRow[];
+  components: ComponentOption[];
   anchorYear: number;
   anchorMonth: number;
   isAdmin: boolean;
@@ -84,7 +100,7 @@ export function PayrollTable({
                   <tr className="border-b last:border-b-0 bg-muted/20">
                     <td />
                     <td colSpan={6} className="px-3 py-3">
-                      <PayrollDetail row={r} anchorYear={anchorYear} anchorMonth={anchorMonth} isAdmin={isAdmin} />
+                      <PayrollDetail row={r} components={components} anchorYear={anchorYear} anchorMonth={anchorMonth} isAdmin={isAdmin} />
                     </td>
                   </tr>
                 )}
@@ -99,41 +115,63 @@ export function PayrollTable({
 
 type Item = { label: string; caption: string | null; amount: number | null };
 
-function PayrollDetail({ row, anchorYear, anchorMonth, isAdmin }: { row: PayrollRow; anchorYear: number; anchorMonth: number; isAdmin: boolean }) {
+function PayrollDetail({ row, components, anchorYear, anchorMonth, isAdmin }: {
+  row: PayrollRow; components: ComponentOption[]; anchorYear: number; anchorMonth: number; isAdmin: boolean;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [adding, setAdding] = useState<"earning" | "deduction" | null>(null);
-  const [label, setLabel] = useState("");
+  const [componentId, setComponentId] = useState("");
   const [amount, setAmount] = useState("");
+  const [unit, setUnit] = useState<RateUnit>("month");
+  const [perAttendance, setPerAttendance] = useState(false);
 
   const ps = row.payslip;
+  const selected = components.find((c) => c.id === componentId);
 
-  // Items per kind. After a run, use the computed payslip lines (with their
-  // breakdown caption) except the one-time ones (shown editable below);
-  // before a run, preview the assigned components.
+  // Assigned components previewed before a run; computed payslip lines after.
   function items(kind: "earning" | "deduction"): Item[] {
     if (ps) {
       return ps.lines
-        .filter((l) => l.kind === kind && l.detail !== "One-time")
+        .filter((l) => l.kind === kind && !(l.detail ?? "").startsWith("One-time"))
         .map((l) => ({ label: l.label, caption: l.detail, amount: l.amount }));
     }
     const out: Item[] = [];
     if (kind === "earning") {
       out.push({ label: `Basic salary (${row.salaryUnit === "day" ? "per day" : "monthly"})`, caption: "computed at run", amount: null });
-      if (row.dailyAllowance) out.push({ label: "Daily allowance", caption: `Rp ${row.dailyAllowance.toLocaleString("id-ID")}/day · computed at run`, amount: null });
     }
-    for (const c of row.fixed.filter((c) => c.type === kind)) out.push({ label: c.name, caption: null, amount: c.amount });
+    for (const c of row.fixed.filter((c) => c.type === kind)) {
+      if (c.rateUnit === "month") {
+        out.push({ label: c.name, caption: null, amount: c.amount });
+      } else {
+        out.push({ label: c.name, caption: `${rateCaption(c.amount, c.rateUnit, c.perAttendance)} · computed at run`, amount: null });
+      }
+    }
     for (const c of row.formula.filter((c) => c.type === kind)) out.push({ label: c.name, caption: "formula · computed at run", amount: null });
     return out;
   }
 
+  // Post-run amount for a one-time adjustment: the computed one-time line with the same label.
+  function oneTimeAmount(kind: "earning" | "deduction", label: string): number | null {
+    if (!ps) return null;
+    const line = ps.lines.find((l) => l.kind === kind && l.label === label && (l.detail ?? "").startsWith("One-time"));
+    return line ? line.amount : null;
+  }
+
   function add(kind: "earning" | "deduction") {
-    if (!label.trim()) { toast.error("Label is required"); return; }
-    if (!(Number(amount) > 0)) { toast.error("Enter an amount"); return; }
+    if (!selected) { toast.error("Select a component"); return; }
+    if (!selected.isFormula && !(Number(amount) > 0)) { toast.error("Enter an amount"); return; }
     start(async () => {
-      const res = await addPayrollAdjustment({ anchorYear, anchorMonth, employeeId: row.id, label: label.trim(), type: kind, amount: Number(amount) });
+      const res = await addPayrollAdjustment({
+        anchorYear, anchorMonth, employeeId: row.id,
+        label: selected.name, type: kind,
+        amount: selected.isFormula ? 0 : Number(amount),
+        allowanceId: selected.id,
+        rateUnit: selected.isFormula ? "month" : unit,
+        perAttendance: !selected.isFormula && unit === "day" ? perAttendance : false,
+      });
       if (!res.ok) { toast.error(res.error); return; }
-      setLabel(""); setAmount(""); setAdding(null);
+      resetForm();
       router.refresh();
     });
   }
@@ -144,12 +182,16 @@ function PayrollDetail({ row, anchorYear, anchorMonth, isAdmin }: { row: Payroll
       router.refresh();
     });
   }
+  function resetForm() {
+    setAdding(null); setComponentId(""); setAmount(""); setUnit("month"); setPerAttendance(false);
+  }
 
   function Section({ kind, title }: { kind: "earning" | "deduction"; title: string }) {
     const sign = kind === "deduction" ? "−" : "";
     const cls = kind === "deduction" ? "text-red-600 dark:text-red-400" : "";
     const adjustments = row.adjustments.filter((a) => a.type === kind);
     const list = items(kind);
+    const options = components.filter((c) => c.type === kind);
     return (
       <div className="space-y-2">
         <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
@@ -163,37 +205,81 @@ function PayrollDetail({ row, anchorYear, anchorMonth, isAdmin }: { row: Payroll
               <span className={`shrink-0 tabular-nums ${cls}`}>{it.amount != null ? `${sign}${formatRp(it.amount)}` : ""}</span>
             </li>
           ))}
-          {adjustments.map((a) => (
-            <li key={a.id} className="flex items-baseline justify-between gap-3">
-              <span className="flex items-center gap-1.5">
-                {a.label} <span className="text-xs text-muted-foreground">(one-time)</span>
-                {isAdmin && (
-                  <button type="button" disabled={pending} onClick={() => remove(a.id)} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="size-3.5" />
-                  </button>
-                )}
-              </span>
-              <span className={`shrink-0 tabular-nums ${cls}`}>{sign}{formatRp(a.amount)}</span>
-            </li>
-          ))}
+          {adjustments.map((a) => {
+            const amt = oneTimeAmount(kind, a.label) ?? (!a.isFormula && a.rateUnit === "month" ? a.amount : null);
+            const caption = a.isFormula
+              ? "one-time · formula · computed at run"
+              : a.rateUnit === "month"
+                ? "one-time"
+                : `one-time · ${rateCaption(a.amount, a.rateUnit, a.perAttendance)}${ps ? "" : " · computed at run"}`;
+            return (
+              <li key={a.id} className="flex items-baseline justify-between gap-3">
+                <span>
+                  <span className="inline-flex items-center gap-1.5">
+                    {a.label}
+                    {isAdmin && (
+                      <button type="button" disabled={pending} onClick={() => remove(a.id)} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">{caption}</span>
+                </span>
+                <span className={`shrink-0 tabular-nums ${cls}`}>{amt != null ? `${sign}${formatRp(amt)}` : ""}</span>
+              </li>
+            );
+          })}
           {list.length === 0 && adjustments.length === 0 && <li className="text-xs text-muted-foreground">None.</li>}
         </ul>
         {isAdmin && (
           adding === kind ? (
-            <div className="flex flex-wrap items-end gap-2 pt-1">
-              <div className="space-y-1">
-                <Label className="text-xs">Label</Label>
-                <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9 w-40" autoFocus />
+            <div className="space-y-2 rounded-lg border p-3">
+              <Select value={componentId} onValueChange={(v) => { setComponentId(v); setUnit("month"); setPerAttendance(false); setAmount(""); }}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select component" /></SelectTrigger>
+                <SelectContent>
+                  {options.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No {kind} components.</div>}
+                  {options.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}{c.isFormula && <span className="ml-1 text-muted-foreground">· formula</span>}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {selected && (selected.isFormula ? (
+                <p className="text-xs text-muted-foreground">Auto calculated — computed by formula at payroll run.</p>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>
+                      <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 pl-9" autoFocus />
+                    </div>
+                    <Select value={unit} onValueChange={(v) => setUnit(v as RateUnit)}>
+                      <SelectTrigger className="h-9 w-32 shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="day">per day</SelectItem>
+                        <SelectItem value="week">per week</SelectItem>
+                        <SelectItem value="month">per month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {unit === "day" && (
+                    <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
+                      <input type="checkbox" className="accent-primary" checked={perAttendance} onChange={(e) => setPerAttendance(e.target.checked)} />
+                      Per attendance
+                    </label>
+                  )}
+                </div>
+              ))}
+
+              <div className="flex gap-2">
+                <Button type="button" size="sm" disabled={pending} onClick={() => add(kind)}>Add</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={resetForm}>Cancel</Button>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Amount (Rp)</Label>
-                <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 w-32" />
-              </div>
-              <Button type="button" size="sm" disabled={pending} onClick={() => add(kind)}>Add</Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => { setAdding(null); setLabel(""); setAmount(""); }}>Cancel</Button>
             </div>
           ) : (
-            <button type="button" onClick={() => { setAdding(kind); setLabel(""); setAmount(""); }} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+            <button type="button" onClick={() => { resetForm(); setAdding(kind); }} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
               <Plus className="size-3.5" /> Add component
             </button>
           )
@@ -203,7 +289,7 @@ function PayrollDetail({ row, anchorYear, anchorMonth, isAdmin }: { row: Payroll
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="max-w-xl space-y-6">
       <Section kind="earning" title="Earning components" />
       <Section kind="deduction" title="Deduction components" />
     </div>

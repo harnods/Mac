@@ -17,7 +17,9 @@ const versionSchema = z.object({
   cutoff_start_day: day,
   cutoff_end_day: day,
   payday: day,
-  daily_allowance_by_attendance: z.coerce.boolean(),
+  // Legacy column, kept for the versions table's NOT NULL; per-attendance is now
+  // set per payroll component on each crew, not globally.
+  daily_allowance_by_attendance: z.coerce.boolean().optional().default(true),
   deduct_absence_from_salary: z.coerce.boolean(),
 });
 

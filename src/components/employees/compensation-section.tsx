@@ -14,12 +14,10 @@ const DOTS = <span className="tracking-widest text-muted-foreground">•••�
  */
 export function CompensationSection({
   basicSalary,
-  dailyAllowance,
   allowances,
 }: {
   basicSalary: string | null;
-  dailyAllowance: string | null;
-  allowances: { name: string; amount: string }[];
+  allowances: { name: string; amount: string; deduction?: boolean }[];
 }) {
   const [shown, setShown] = useState(false);
 
@@ -39,21 +37,25 @@ export function CompensationSection({
       </div>
       <dl>
         <DetailRow label="Basic salary" value={shown ? basicSalary : DOTS} />
-        <DetailRow label="Daily allowance" value={shown ? dailyAllowance : DOTS} />
         <DetailRow
-          label="Allowances"
+          label="Payroll components"
           value={
             shown ? (
               allowances.length > 0 ? (
                 <div className="space-y-1">
                   {allowances.map((a, i) => (
                     <div key={i} className="flex justify-between gap-4">
-                      <span>{a.name}</span>
-                      <span className="tabular-nums">{a.amount}</span>
+                      <span>
+                        {a.name}
+                        {a.deduction && <span className="ml-1 text-xs text-muted-foreground">(deduction)</span>}
+                      </span>
+                      <span className="tabular-nums text-muted-foreground">{a.amount}</span>
                     </div>
                   ))}
                 </div>
-              ) : null
+              ) : (
+                <span className="text-muted-foreground">None</span>
+              )
             ) : (
               DOTS
             )
