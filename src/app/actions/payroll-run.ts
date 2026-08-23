@@ -66,12 +66,19 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
   const attSettings = await getAttendanceSettings();
   const workingDaysPerWeek = attSettings?.working_days_per_week ?? 6;
 
+  // The account owner (admin/CEO) isn't crew — never payroll them.
+  const { data: ownerRow } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+
   // Inputs: crew active in the period, payroll components, overtime rates, attendance.
   const [{ data: crewData }, { data: compData }, { data: compVerData }, { data: otComps }, { data: otVers }, { data: attData }, { data: otReqData }] = await Promise.all([
-    supabase
-      .from("employees")
-      .select("id,name,basic_salary,salary_unit,daily_allowance,allowances,job_level_id,join_date,termination_date,last_day")
-      .is("deleted_at", null),
+    (() => {
+      let q = supabase
+        .from("employees")
+        .select("id,name,basic_salary,salary_unit,daily_allowance,allowances,job_level_id,join_date,termination_date,last_day")
+        .is("deleted_at", null);
+      if (ownerRow?.id) q = q.or(`user_id.is.null,user_id.neq.${ownerRow.id}`);
+      return q;
+    })(),
     supabase.from("allowances").select("id,name,type"),
     supabase.from("payroll_component_versions").select("component_id,effective_date,formula_basis,formula_rate"),
     supabase.from("overtime_compensations").select("id,job_level_id"),
