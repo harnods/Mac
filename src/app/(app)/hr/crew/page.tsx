@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { EmployeesFilter } from "@/components/employees/employees-filter";
 import { EmployeeTable } from "@/components/employees/employee-table";
-import { GenerateCrewLoginsButton } from "@/components/employees/generate-crew-logins-button";
 import { PaginationBar, parsePageSize, DEFAULT_PAGE_SIZE } from "@/components/ui/pagination-bar";
 import type { EmployeeWithRelations } from "@/lib/supabase/types";
 
@@ -79,7 +78,6 @@ export default async function EmployeesPage({
         </div>
         {canWrite && (
           <div className="flex items-center gap-2">
-            <GenerateCrewLoginsButton />
             <Button asChild>
               <Link href="/hr/crew/new">
                 <Plus className="size-4" /> New crew
