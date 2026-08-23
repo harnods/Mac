@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -87,9 +86,7 @@ export function PayrollTable({
                   <td className="pl-3 text-muted-foreground">
                     <ChevronRight className={`size-4 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                   </td>
-                  <td className="px-3 py-2 font-medium">
-                    <Link href={`/hr/crew/${r.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{r.name}</Link>
-                  </td>
+                  <td className="px-3 py-2 font-medium">{r.name}</td>
                   <td className="px-3 py-2 tabular-nums">{ps ? (r.isPartTime ? `${ps.present_days}d` : `${ps.present_days}/${ps.working_days}`) : (r.presentDays ? `${r.presentDays}d` : dash)}</td>
                   <td className="px-3 py-2 tabular-nums">{ps ? (ps.absent_days || dash) : dash}</td>
                   <td className="px-3 py-2 tabular-nums">{ps ? formatRp(ps.earnings_total) : dash}</td>
