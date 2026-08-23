@@ -83,6 +83,16 @@ export default async function EmployeeDetailPage({
   const isResigned = !!emp.termination_date;
   const salaryUnit = emp.salary_unit === "day" ? "per day" : "per month";
   const payslips = canViewCompensation ? await getCrewPayslips(id) : [];
+  const { data: overtimeData } = await supabase
+    .from("overtime_requests")
+    .select("id,work_date,clock_in,clock_out,break_minutes,hours,reason_in,reason_out,reason,status")
+    .eq("employee_id", id)
+    .order("work_date", { ascending: false });
+  const overtime = (overtimeData ?? []).map((o) => ({ ...o, hours: Number(o.hours) || 0 })) as {
+    id: string; work_date: string; clock_in: string | null; clock_out: string | null;
+    break_minutes: number; hours: number; reason_in: string | null; reason_out: string | null;
+    reason: string | null; status: "pending" | "approved" | "rejected";
+  }[];
   const initials = emp.name
     .split(/\s+/)
     .map((part) => part[0])
@@ -129,6 +139,7 @@ export default async function EmployeeDetailPage({
         shifts={shifts}
         canWrite={isAdmin}
         payslips={payslips}
+        overtime={overtime}
       >
       {/* Body — 12 columns: info on the left (6), profile pic after it */}
       <div className="grid grid-cols-12 gap-8">

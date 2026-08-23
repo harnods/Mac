@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CrewAttendancePanel } from "@/components/employees/crew-attendance-panel";
 import { CrewPayslipPanel } from "@/components/employees/crew-payslip-panel";
+import { CrewOvertimePanel, type CrewOvertimeRow } from "@/components/employees/crew-overtime-panel";
 import type { Payslip, PayslipLine, PayrollRun } from "@/lib/supabase/types";
 
 type PayslipWithDetail = Payslip & { run: PayrollRun; lines: PayslipLine[] };
@@ -31,6 +32,7 @@ export function EmployeeDetailTabs({
   shifts = [],
   canWrite = false,
   payslips = [],
+  overtime = [],
 }: {
   children: React.ReactNode;
   employeeId: string;
@@ -45,6 +47,7 @@ export function EmployeeDetailTabs({
   shifts?: { id: string; name: string; start_time: string | null; end_time: string | null }[];
   canWrite?: boolean;
   payslips?: PayslipWithDetail[];
+  overtime?: CrewOvertimeRow[];
 }) {
   const [tab, setTab] = useState<Tab>("profile");
   const active = TABS.find((t) => t.key === tab)!;
@@ -77,6 +80,8 @@ export function EmployeeDetailTabs({
           shifts={shifts}
           canWrite={canWrite}
         />
+      ) : tab === "overtime" ? (
+        <CrewOvertimePanel overtime={overtime} />
       ) : tab === "payroll" ? (
         <CrewPayslipPanel payslips={payslips} />
       ) : (
