@@ -36,6 +36,7 @@ type Props = {
   employmentStatuses: EmploymentStatus[];
   jobLevels: JobLevel[];
   allowances: Allowance[];
+  formulaComponentIds?: string[];
   employee?: Employee;
   onSuccess?: () => void;
   onCancel?: () => void;
@@ -53,6 +54,7 @@ export function EmployeeForm({
   employmentStatuses,
   jobLevels,
   allowances,
+  formulaComponentIds = [],
   employee,
   onSuccess,
   onCancel,
@@ -88,9 +90,10 @@ export function EmployeeForm({
   const statusName = employmentStatuses.find((s) => s.id === employmentStatusId)?.name.toLowerCase() ?? "";
   const isPartTime = statusName.includes("part");
   const effectiveSalaryUnit = isPartTime ? salaryUnit : "month";
-  // Additional allowances come from the non-default master entries.
-  const addableAllowances = allowances.filter((a) => !a.is_default && a.type === "earning");
+  // Additional components: all non-default earnings and deductions.
+  const addableAllowances = allowances.filter((a) => !a.is_default);
   const usedIds = new Set(allowanceRows.map((r) => r.allowance_id));
+  const formulaSet = new Set(formulaComponentIds);
   const availableToAdd = addableAllowances.filter((a) => !usedIds.has(a.id));
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -411,17 +414,23 @@ export function EmployeeForm({
                         </SelectContent>
                       </Select>
                       <div className="flex items-center gap-2">
-                        <InputGroup className="h-10 flex-1">
-                          <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
-                          <InputGroupInput
-                            type="number"
-                            min="0"
-                            value={String(row.amount ?? "")}
-                            onChange={(e) =>
-                              setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, amount: Number(e.target.value) || 0 } : r)))
-                            }
-                          />
-                        </InputGroup>
+                        {row.allowance_id && formulaSet.has(row.allowance_id) ? (
+                          <div className="flex h-10 flex-1 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                            Auto — computed by formula at payroll run
+                          </div>
+                        ) : (
+                          <InputGroup className="h-10 flex-1">
+                            <InputGroupAddon align="inline-start"><InputGroupText>Rp</InputGroupText></InputGroupAddon>
+                            <InputGroupInput
+                              type="number"
+                              min="0"
+                              value={String(row.amount ?? "")}
+                              onChange={(e) =>
+                                setAllowanceRows((rows) => rows.map((r, j) => (j === i ? { ...r, amount: Number(e.target.value) || 0 } : r)))
+                              }
+                            />
+                          </InputGroup>
+                        )}
                         <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => setAllowanceRows((rows) => rows.filter((_, j) => j !== i))}>
                           <Trash2 className="size-4" />
                         </Button>

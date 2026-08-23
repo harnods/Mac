@@ -275,12 +275,25 @@ export type EmployeeAllowance = { allowance_id: string; amount: number };
 export type PayrollComponentType = 'earning' | 'deduction';
 export type RateUnit = 'day' | 'week' | 'month';
 
+/** Attendance-derived variables a component formula can be based on. */
+export type FormulaBasis =
+  | 'late_days'
+  | 'missing_clock_in_days'
+  | 'missing_clock_out_days'
+  | 'incomplete_days'
+  | 'absent_days'
+  | 'present_days'
+  | 'working_days'
+  | 'overtime_hours';
+
 export type PayrollComponentVersion = {
   id: string;
   component_id: string;
   effective_date: string;
   amount: number;
   rate_unit: RateUnit;
+  formula_basis: FormulaBasis | null;
+  formula_rate: number | null;
   created_by: string | null;
   created_at: string;
 };

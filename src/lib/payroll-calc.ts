@@ -24,11 +24,38 @@ export type CalcSettings = {
   deduct_absence_from_salary: boolean;
   /** Working days per 7-day week (rest are day off). Drives the working-day entitlement. */
   working_days_per_week: number;
+  /** Late grace, mirroring the attendance settings, used by formula variables. */
+  late_grace_minutes?: number;
+  late_tolerance_direction?: "before" | "after";
 };
 
 export type CalcOvertime = { amount_per_hour: number; cap_hours: boolean; max_hours_per_day: number } | null;
 
-export type ComponentMeta = { name: string; type: "earning" | "deduction" };
+export type FormulaBasis =
+  | "late_days" | "missing_clock_in_days" | "missing_clock_out_days" | "incomplete_days"
+  | "absent_days" | "present_days" | "working_days" | "overtime_hours";
+
+export const FORMULA_BASIS_LABELS: Record<FormulaBasis, string> = {
+  late_days: "late day(s)",
+  missing_clock_in_days: "missing clock-in day(s)",
+  missing_clock_out_days: "missing clock-out day(s)",
+  incomplete_days: "incomplete day(s)",
+  absent_days: "absent day(s)",
+  present_days: "present day(s)",
+  working_days: "working day(s)",
+  overtime_hours: "overtime hour(s)",
+};
+
+export type ComponentMeta = {
+  name: string;
+  type: "earning" | "deduction";
+  formula?: { basis: FormulaBasis; rate: number } | null;
+};
+
+function toMin(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + (m || 0);
+}
 
 export type PayslipResult = {
   working_days: number;
@@ -89,6 +116,36 @@ export function computePayslip(args: {
     overtimeHours = Math.round(overtimeHours * 100) / 100;
   }
 
+  // Attendance-derived variables available to component formulas.
+  const lateOffset =
+    settings.late_tolerance_direction === "before"
+      ? -(settings.late_grace_minutes ?? 0)
+      : settings.late_grace_minutes ?? 0;
+  const lateDates = new Set<string>();
+  const missingInDates = new Set<string>();
+  const missingOutDates = new Set<string>();
+  const incompleteDates = new Set<string>();
+  for (const a of attendance) {
+    const working = !!a.shift?.start_time;
+    if (!working) continue;
+    if (a.clock_in && a.shift?.start_time && toMin(a.clock_in) > toMin(a.shift.start_time) + lateOffset) {
+      lateDates.add(a.work_date);
+    }
+    if (!a.clock_in) missingInDates.add(a.work_date);
+    if (a.clock_in && !a.clock_out) missingOutDates.add(a.work_date);
+    if (!a.clock_in || !a.clock_out) incompleteDates.add(a.work_date);
+  }
+  const formulaVars: Record<FormulaBasis, number> = {
+    late_days: lateDates.size,
+    missing_clock_in_days: missingInDates.size,
+    missing_clock_out_days: missingOutDates.size,
+    incomplete_days: incompleteDates.size,
+    absent_days: absentDays,
+    present_days: presentDays,
+    working_days: workingDays,
+    overtime_hours: overtimeHours,
+  };
+
   const basic = employee.basic_salary ?? 0;
   const dailyAllowance = employee.daily_allowance ?? 0;
   const lines: CalcLine[] = [];
@@ -120,11 +177,24 @@ export function computePayslip(args: {
     });
   }
 
-  // Per-employee allowances, split by their component type.
+  // Per-employee components. Formula components compute from attendance vars
+  // (with a breakdown); the rest use their fixed per-crew amount.
   for (const a of employee.allowances) {
     const meta = components[a.allowance_id];
-    if (!meta || !a.amount) continue;
-    lines.push({ kind: meta.type, label: meta.name, detail: null, amount: round(a.amount) });
+    if (!meta) continue;
+    if (meta.formula) {
+      const value = formulaVars[meta.formula.basis] ?? 0;
+      const amount = round(meta.formula.rate * value);
+      if (amount === 0) continue;
+      lines.push({
+        kind: meta.type,
+        label: meta.name,
+        detail: `${value} ${FORMULA_BASIS_LABELS[meta.formula.basis]} × Rp ${meta.formula.rate.toLocaleString("id-ID")}`,
+        amount,
+      });
+    } else if (a.amount) {
+      lines.push({ kind: meta.type, label: meta.name, detail: null, amount: round(a.amount) });
+    }
   }
 
   // ── Deductions ──────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@ export default async function PayrollComponentsPage() {
 
   const [{ data: comps }, { data: vers }] = await Promise.all([
     supabase.from("allowances").select("id,name,type,is_default,updated_by,updated_at").order("is_default", { ascending: false }).order("name"),
-    supabase.from("payroll_component_versions").select("id,component_id,effective_date,amount,rate_unit,created_by,created_at").order("effective_date", { ascending: true }),
+    supabase.from("payroll_component_versions").select("id,component_id,effective_date,amount,rate_unit,formula_basis,formula_rate,created_by,created_at").order("effective_date", { ascending: true }),
   ]);
 
   const components = (comps ?? []) as Allowance[];

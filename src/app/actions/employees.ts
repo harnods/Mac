@@ -358,6 +358,8 @@ export type EmployeeFormData = {
   employmentStatuses: EmploymentStatus[];
   jobLevels: JobLevel[];
   allowances: Allowance[];
+  /** Component ids whose amount is computed by a formula (no manual amount). */
+  formulaComponentIds: string[];
   employee: Employee | null;
 };
 
@@ -381,8 +383,14 @@ export async function getEmployeeFormData(employeeId?: string): Promise<Employee
   const jobLevels = (levelResult.data ?? []) as JobLevel[];
   const allowances = (allowanceResult.data ?? []) as Allowance[];
 
+  const { data: fvers } = await supabase
+    .from("payroll_component_versions")
+    .select("component_id")
+    .not("formula_basis", "is", null);
+  const formulaComponentIds = [...new Set(((fvers ?? []) as { component_id: string }[]).map((v) => v.component_id))];
+
   if (!employeeId) {
-    return { departments, jobPositions, employmentStatuses, jobLevels, allowances, employee: null };
+    return { departments, jobPositions, employmentStatuses, jobLevels, allowances, formulaComponentIds, employee: null };
   }
 
   const { data: employeeData } = await supabase
@@ -398,16 +406,24 @@ export async function getEmployeeFormData(employeeId?: string): Promise<Employee
     employmentStatuses,
     jobLevels,
     allowances,
+    formulaComponentIds,
     employee: (employeeData ?? null) as Employee | null,
   };
 }
 
 // ─── Allowances (master) ────────────────────────────────────────────────────
 
+const FORMULA_BASES = [
+  "late_days", "missing_clock_in_days", "missing_clock_out_days", "incomplete_days",
+  "absent_days", "present_days", "working_days", "overtime_hours",
+] as const;
+
 const payrollComponentSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   type: z.enum(["earning", "deduction"]),
   effective_date: z.string().trim().min(1, "Effective date is required"),
+  formula_basis: z.enum(FORMULA_BASES).nullable().optional(),
+  formula_rate: z.coerce.number().min(0).nullable().optional(),
 });
 
 export async function createAllowance(input: unknown): Promise<ActionResult> {
@@ -430,6 +446,8 @@ export async function createAllowance(input: unknown): Promise<ActionResult> {
   const { error: verr } = await supabase.from("payroll_component_versions").insert({
     component_id: data.id,
     effective_date: d.effective_date,
+    formula_basis: d.formula_basis ?? null,
+    formula_rate: d.formula_basis ? d.formula_rate ?? 0 : null,
     created_by: profile.id,
   });
   if (verr) return { ok: false, error: verr.message };
@@ -458,7 +476,13 @@ export async function updateAllowance(id: string, input: unknown): Promise<Actio
   const { error: verr } = await supabase
     .from("payroll_component_versions")
     .upsert(
-      { component_id: id, effective_date: d.effective_date, created_by: profile.id },
+      {
+        component_id: id,
+        effective_date: d.effective_date,
+        formula_basis: d.formula_basis ?? null,
+        formula_rate: d.formula_basis ? d.formula_rate ?? 0 : null,
+        created_by: profile.id,
+      },
       { onConflict: "component_id,effective_date" },
     );
   if (verr) return { ok: false, error: verr.message };
@@ -471,7 +495,7 @@ export async function getPayrollComponent(id: string) {
   const supabase = await createClient();
   const [{ data: component }, { data: versions }] = await Promise.all([
     supabase.from("allowances").select("id,name,type,is_default,updated_by,updated_at").eq("id", id).maybeSingle(),
-    supabase.from("payroll_component_versions").select("id,component_id,effective_date,amount,rate_unit,created_by,created_at").eq("component_id", id).order("effective_date", { ascending: true }),
+    supabase.from("payroll_component_versions").select("id,component_id,effective_date,amount,rate_unit,formula_basis,formula_rate,created_by,created_at").eq("component_id", id).order("effective_date", { ascending: true }),
   ]);
   return { component: component as Allowance | null, versions: (versions ?? []) as PayrollComponentVersion[] };
 }

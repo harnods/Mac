@@ -26,6 +26,7 @@ export default async function NewEmployeePage() {
         employmentStatuses={formData.employmentStatuses}
         jobLevels={formData.jobLevels}
         allowances={formData.allowances}
+        formulaComponentIds={formData.formulaComponentIds}
       />
     </div>
   );

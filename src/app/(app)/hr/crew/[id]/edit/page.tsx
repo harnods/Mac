@@ -34,6 +34,7 @@ export default async function EditEmployeePage({
         employmentStatuses={formData.employmentStatuses}
         jobLevels={formData.jobLevels}
         allowances={formData.allowances}
+        formulaComponentIds={formData.formulaComponentIds}
         employee={formData.employee}
       />
     </div>

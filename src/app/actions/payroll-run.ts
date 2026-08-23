@@ -7,7 +7,7 @@ import { can, P } from "@/lib/permissions";
 import { payrollPeriod } from "@/lib/payroll";
 import { activeSettingsVersion } from "@/lib/payroll-settings";
 import { activeOvertimeVersion } from "@/lib/overtime";
-import { computePayslip, type CalcAttendance, type ComponentMeta } from "@/lib/payroll-calc";
+import { computePayslip, type CalcAttendance, type ComponentMeta, type FormulaBasis } from "@/lib/payroll-calc";
 import { getAttendanceSettings } from "@/app/actions/attendance";
 import type {
   PayrollSettingsVersion,
@@ -67,12 +67,13 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
   const workingDaysPerWeek = attSettings?.working_days_per_week ?? 6;
 
   // Inputs: crew active in the period, payroll components, overtime rates, attendance.
-  const [{ data: crewData }, { data: compData }, { data: otComps }, { data: otVers }, { data: attData }, { data: otReqData }] = await Promise.all([
+  const [{ data: crewData }, { data: compData }, { data: compVerData }, { data: otComps }, { data: otVers }, { data: attData }, { data: otReqData }] = await Promise.all([
     supabase
       .from("employees")
       .select("id,name,basic_salary,salary_unit,daily_allowance,allowances,job_level_id,join_date,termination_date,last_day")
       .is("deleted_at", null),
     supabase.from("allowances").select("id,name,type"),
+    supabase.from("payroll_component_versions").select("component_id,effective_date,formula_basis,formula_rate"),
     supabase.from("overtime_compensations").select("id,job_level_id"),
     supabase.from("overtime_compensation_versions").select("id,compensation_id,effective_date,amount_per_hour,cap_hours,max_hours_per_day,created_by,created_at"),
     supabase
@@ -89,9 +90,21 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
   ]);
 
   const crew = (crewData ?? []) as unknown as CrewRow[];
+  // Active formula per component (latest version effective on/before period end).
+  const activeFormula = new Map<string, { basis: string; rate: number; eff: string }>();
+  for (const v of (compVerData ?? []) as { component_id: string; effective_date: string; formula_basis: string | null; formula_rate: number | null }[]) {
+    if (!v.formula_basis || v.formula_rate == null) continue;
+    if (v.effective_date > period.end) continue;
+    const cur = activeFormula.get(v.component_id);
+    if (!cur || v.effective_date > cur.eff) {
+      activeFormula.set(v.component_id, { basis: v.formula_basis, rate: Number(v.formula_rate), eff: v.effective_date });
+    }
+  }
+
   const components: Record<string, ComponentMeta> = {};
   for (const c of (compData ?? []) as { id: string; name: string; type: "earning" | "deduction" }[]) {
-    components[c.id] = { name: c.name, type: c.type };
+    const f = activeFormula.get(c.id);
+    components[c.id] = { name: c.name, type: c.type, formula: f ? { basis: f.basis as FormulaBasis, rate: f.rate } : null };
   }
 
   // Active overtime version per job level (as of period end).
@@ -165,6 +178,8 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
         daily_allowance_by_attendance: settings.daily_allowance_by_attendance,
         deduct_absence_from_salary: settings.deduct_absence_from_salary,
         working_days_per_week: workingDaysPerWeek,
+        late_grace_minutes: attSettings?.late_grace_minutes ?? 0,
+        late_tolerance_direction: attSettings?.late_tolerance_direction ?? "after",
       },
       overtime,
       components,
