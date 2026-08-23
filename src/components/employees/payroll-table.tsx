@@ -8,9 +8,6 @@ import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { formatRp } from "@/lib/format";
 import { addPayrollAdjustment, deletePayrollAdjustment } from "@/app/actions/payroll-run";
 
@@ -100,20 +97,43 @@ export function PayrollTable({
   );
 }
 
+type Item = { label: string; caption: string | null; amount: number | null };
+
 function PayrollDetail({ row, anchorYear, anchorMonth, isAdmin }: { row: PayrollRow; anchorYear: number; anchorMonth: number; isAdmin: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [adding, setAdding] = useState<"earning" | "deduction" | null>(null);
   const [label, setLabel] = useState("");
-  const [type, setType] = useState<"earning" | "deduction">("earning");
   const [amount, setAmount] = useState("");
 
-  function add() {
+  const ps = row.payslip;
+
+  // Items per kind. After a run, use the computed payslip lines (with their
+  // breakdown caption) except the one-time ones (shown editable below);
+  // before a run, preview the assigned components.
+  function items(kind: "earning" | "deduction"): Item[] {
+    if (ps) {
+      return ps.lines
+        .filter((l) => l.kind === kind && l.detail !== "One-time")
+        .map((l) => ({ label: l.label, caption: l.detail, amount: l.amount }));
+    }
+    const out: Item[] = [];
+    if (kind === "earning") {
+      out.push({ label: `Basic salary (${row.salaryUnit === "day" ? "per day" : "monthly"})`, caption: "computed at run", amount: null });
+      if (row.dailyAllowance) out.push({ label: "Daily allowance", caption: `Rp ${row.dailyAllowance.toLocaleString("id-ID")}/day · computed at run`, amount: null });
+    }
+    for (const c of row.fixed.filter((c) => c.type === kind)) out.push({ label: c.name, caption: null, amount: c.amount });
+    for (const c of row.formula.filter((c) => c.type === kind)) out.push({ label: c.name, caption: "formula · computed at run", amount: null });
+    return out;
+  }
+
+  function add(kind: "earning" | "deduction") {
     if (!label.trim()) { toast.error("Label is required"); return; }
     if (!(Number(amount) > 0)) { toast.error("Enter an amount"); return; }
     start(async () => {
-      const res = await addPayrollAdjustment({ anchorYear, anchorMonth, employeeId: row.id, label: label.trim(), type, amount: Number(amount) });
+      const res = await addPayrollAdjustment({ anchorYear, anchorMonth, employeeId: row.id, label: label.trim(), type: kind, amount: Number(amount) });
       if (!res.ok) { toast.error(res.error); return; }
-      setLabel(""); setAmount(""); setType("earning");
+      setLabel(""); setAmount(""); setAdding(null);
       router.refresh();
     });
   }
@@ -125,94 +145,67 @@ function PayrollDetail({ row, anchorYear, anchorMonth, isAdmin }: { row: Payroll
     });
   }
 
-  const ps = row.payslip;
+  function Section({ kind, title }: { kind: "earning" | "deduction"; title: string }) {
+    const sign = kind === "deduction" ? "−" : "";
+    const cls = kind === "deduction" ? "text-red-600 dark:text-red-400" : "";
+    const adjustments = row.adjustments.filter((a) => a.type === kind);
+    const list = items(kind);
+    return (
+      <div className="space-y-2">
+        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</div>
+        <ul className="space-y-1.5">
+          {list.map((it, i) => (
+            <li key={`i${i}`} className="flex items-baseline justify-between gap-3">
+              <span>
+                {it.label}
+                {it.caption && <span className="block text-xs text-muted-foreground">{it.caption}</span>}
+              </span>
+              <span className={`shrink-0 tabular-nums ${cls}`}>{it.amount != null ? `${sign}${formatRp(it.amount)}` : ""}</span>
+            </li>
+          ))}
+          {adjustments.map((a) => (
+            <li key={a.id} className="flex items-baseline justify-between gap-3">
+              <span className="flex items-center gap-1.5">
+                {a.label} <span className="text-xs text-muted-foreground">(one-time)</span>
+                {isAdmin && (
+                  <button type="button" disabled={pending} onClick={() => remove(a.id)} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
+              </span>
+              <span className={`shrink-0 tabular-nums ${cls}`}>{sign}{formatRp(a.amount)}</span>
+            </li>
+          ))}
+          {list.length === 0 && adjustments.length === 0 && <li className="text-xs text-muted-foreground">None.</li>}
+        </ul>
+        {isAdmin && (
+          adding === kind ? (
+            <div className="flex flex-wrap items-end gap-2 pt-1">
+              <div className="space-y-1">
+                <Label className="text-xs">Label</Label>
+                <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9 w-40" autoFocus />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Amount (Rp)</Label>
+                <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 w-32" />
+              </div>
+              <Button type="button" size="sm" disabled={pending} onClick={() => add(kind)}>Add</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setAdding(null); setLabel(""); setAmount(""); }}>Cancel</Button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => { setAdding(kind); setLabel(""); setAmount(""); }} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              <Plus className="size-3.5" /> Add component
+            </button>
+          )
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {/* Components / breakdown */}
-      <div className="space-y-1.5">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Components</div>
-        {ps ? (
-          <ul className="space-y-1">
-            {ps.lines.map((l, i) => (
-              <li key={i} className="flex items-baseline justify-between gap-3">
-                <span>
-                  {l.label}
-                  {l.detail && <span className="ml-1 text-xs text-muted-foreground">· {l.detail}</span>}
-                </span>
-                <span className={`tabular-nums ${l.kind === "deduction" ? "text-red-600 dark:text-red-400" : ""}`}>
-                  {l.kind === "deduction" ? "−" : ""}{formatRp(l.amount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <ul className="space-y-1">
-            <li className="flex justify-between gap-3"><span>Basic salary {row.salaryUnit === "day" ? "(per day)" : "(monthly)"}</span><span className="text-xs text-muted-foreground">computed at run</span></li>
-            {row.dailyAllowance ? <li className="flex justify-between gap-3"><span>Daily allowance</span><span className="text-xs text-muted-foreground">computed at run</span></li> : null}
-            {row.fixed.map((c, i) => (
-              <li key={`f${i}`} className="flex justify-between gap-3">
-                <span>{c.name}</span>
-                <span className={`tabular-nums ${c.type === "deduction" ? "text-red-600 dark:text-red-400" : ""}`}>{c.type === "deduction" ? "−" : ""}{formatRp(c.amount)}</span>
-              </li>
-            ))}
-            {row.formula.map((c, i) => (
-              <li key={`fo${i}`} className="flex justify-between gap-3">
-                <span>{c.name}</span>
-                <span className="text-xs text-muted-foreground">formula · computed at run</span>
-              </li>
-            ))}
-            {row.fixed.length === 0 && row.formula.length === 0 && !row.dailyAllowance && (
-              <li className="text-xs text-muted-foreground">Only basic salary. Add one-time components on the right if needed.</li>
-            )}
-          </ul>
-        )}
-      </div>
-
-      {/* One-time components for this period */}
-      <div className="space-y-2">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">One-time this period</div>
-        {row.adjustments.length === 0 && <p className="text-xs text-muted-foreground">None.</p>}
-        {row.adjustments.map((a) => (
-          <div key={a.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-1.5">
-            <span>{a.label} <span className="text-xs text-muted-foreground">({a.type})</span></span>
-            <span className="flex items-center gap-2">
-              <span className={`tabular-nums ${a.type === "deduction" ? "text-red-600 dark:text-red-400" : ""}`}>{a.type === "deduction" ? "−" : ""}{formatRp(a.amount)}</span>
-              {isAdmin && (
-                <button type="button" disabled={pending} onClick={() => remove(a.id)} className="text-muted-foreground hover:text-destructive">
-                  <Trash2 className="size-3.5" />
-                </button>
-              )}
-            </span>
-          </div>
-        ))}
-        {isAdmin && (
-          <div className="flex flex-wrap items-end gap-2 pt-1">
-            <div className="space-y-1">
-              <Label className="text-xs">Label</Label>
-              <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-9 w-40" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as "earning" | "deduction")}>
-                <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="earning">Earning</SelectItem>
-                  <SelectItem value="deduction">Deduction</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Amount (Rp)</Label>
-              <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 w-32" />
-            </div>
-            <Button type="button" size="sm" disabled={pending} onClick={add}><Plus className="size-4" /> Add</Button>
-          </div>
-        )}
-        {row.adjustments.length > 0 && !ps && (
-          <p className="text-[11px] text-muted-foreground">These apply when you run payroll for this period.</p>
-        )}
-      </div>
+    <div className="grid gap-6 md:grid-cols-2">
+      <Section kind="earning" title="Earning components" />
+      <Section kind="deduction" title="Deduction components" />
     </div>
   );
 }
