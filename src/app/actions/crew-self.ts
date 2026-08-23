@@ -103,11 +103,15 @@ async function punchGuard(
   return { ip, lat, lng };
 }
 
+export type OpenOvertime = { id: string; clock_in: string | null; break_start: string | null; break_minutes: number };
+
 export type MyContext = {
   employee: { id: string; name: string; photo_url: string | null } | null;
   today: AttendanceWithRelations | null;
   shifts: { id: string; name: string; start_time: string | null; end_time: string | null }[];
   scheduledShift: { id: string; name: string; start_time: string | null; end_time: string | null } | null;
+  overtimeEligible: boolean;
+  openOvertime: OpenOvertime | null;
   onStoreNetwork: boolean;
   detectedIp: string | null;
   restricted: boolean;
@@ -120,7 +124,7 @@ export async function getMyContext(): Promise<MyContext | null> {
 
   const { data: emp } = await supabase
     .from("employees")
-    .select("id,name,photo_url")
+    .select("id,name,photo_url,job_level_id")
     .eq("user_id", profile.id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -130,7 +134,7 @@ export async function getMyContext(): Promise<MyContext | null> {
   const restricted = !!settings?.allowed_ips?.trim();
   const onStoreNetwork = isIpAllowed(detectedIp, settings?.allowed_ips);
 
-  if (!emp) return { employee: null, today: null, shifts: [], scheduledShift: null, onStoreNetwork, detectedIp, restricted };
+  if (!emp) return { employee: null, today: null, shifts: [], scheduledShift: null, overtimeEligible: false, openOvertime: null, onStoreNetwork, detectedIp, restricted };
 
   const today = jakartaDate();
   const [{ data: todayRec }, { data: shifts }] = await Promise.all([
@@ -157,11 +161,34 @@ export async function getMyContext(): Promise<MyContext | null> {
     | { id: string; name: string; start_time: string | null; end_time: string | null }
     | null;
 
+  // Overtime eligibility: the crew's job level must have a compensation rate set.
+  const empJobLevel = (emp as { job_level_id: string | null }).job_level_id;
+  let overtimeEligible = false;
+  if (empJobLevel) {
+    const { count } = await supabase
+      .from("overtime_compensations")
+      .select("id", { count: "exact", head: true })
+      .eq("job_level_id", empJobLevel);
+    overtimeEligible = (count ?? 0) > 0;
+  }
+
+  // An open overtime session (clocked in, not yet out) for today.
+  const { data: openOt } = await supabase
+    .from("overtime_requests")
+    .select("id,clock_in,break_start,break_minutes")
+    .eq("employee_id", emp.id)
+    .eq("work_date", today)
+    .not("clock_in", "is", null)
+    .is("clock_out", null)
+    .maybeSingle();
+
   return {
     employee: emp as { id: string; name: string; photo_url: string | null },
     today: (todayRec ?? null) as AttendanceWithRelations | null,
     shifts: (shifts ?? []) as { id: string; name: string; start_time: string | null; end_time: string | null }[],
     scheduledShift: sShift,
+    overtimeEligible,
+    openOvertime: (openOt ?? null) as OpenOvertime | null,
     onStoreNetwork,
     detectedIp,
     restricted,
@@ -307,6 +334,150 @@ export async function breakEnd(): Promise<ActionResult> {
   return { ok: true };
 }
 
+// ─── Overtime (clock-based) ──────────────────────────────────────────────────
+
+function otHours(clockIn: string, clockOut: string, breakMin: number): number {
+  let diff = toMin(clockOut) - toMin(clockIn);
+  if (diff < 0) diff += 24 * 60;
+  diff -= breakMin;
+  return Math.max(0, Math.round((diff / 60) * 100) / 100);
+}
+
+async function openOvertimeRecord(empId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("overtime_requests")
+    .select("id,clock_in,break_start,break_minutes,breaks")
+    .eq("employee_id", empId)
+    .eq("work_date", jakartaDate())
+    .not("clock_in", "is", null)
+    .is("clock_out", null)
+    .maybeSingle();
+  return data;
+}
+
+export async function clockInOvertime(reason: string, geo?: PunchGeo): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!reason.trim()) return { ok: false, error: "Isi alasan overtime dulu." };
+  const empId = await myEmployeeId(profile.id);
+  if (!empId) return { ok: false, error: "No crew profile linked to this account." };
+
+  const supabase = await createClient();
+
+  // Must be eligible: their job level needs an overtime rate.
+  const { data: emp } = await supabase.from("employees").select("job_level_id").eq("id", empId).maybeSingle();
+  if (!emp?.job_level_id) return { ok: false, error: "Kamu tidak eligible untuk overtime." };
+  const { count } = await supabase
+    .from("overtime_compensations")
+    .select("id", { count: "exact", head: true })
+    .eq("job_level_id", emp.job_level_id);
+  if (!count) return { ok: false, error: "Kamu tidak eligible untuk overtime." };
+
+  const guard = await punchGuard(geo, { checkTimeWindow: false });
+  if (guard.error) return { ok: false, error: guard.error };
+
+  // One open session at a time (either a shift or overtime).
+  if (await openRecord(empId)) return { ok: false, error: "Kamu masih clock in shift — clock out dulu." };
+  if (await openOvertimeRecord(empId)) return { ok: false, error: "Kamu sudah clock in overtime." };
+
+  const { error } = await serviceClient().from("overtime_requests").insert({
+    employee_id: empId,
+    work_date: jakartaDate(),
+    clock_in: jakartaTime(),
+    reason_in: reason.trim(),
+    status: "pending",
+    source: "mobile",
+    requested_by: profile.id,
+    break_minutes: 0,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/me");
+  return { ok: true };
+}
+
+export async function clockOutOvertime(reason: string, geo?: PunchGeo): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!reason.trim()) return { ok: false, error: "Isi alasan overtime dulu." };
+  const empId = await myEmployeeId(profile.id);
+  if (!empId) return { ok: false, error: "No crew profile linked to this account." };
+  const guard = await punchGuard(geo, { checkTimeWindow: false });
+  if (guard.error) return { ok: false, error: guard.error };
+
+  const open = await openOvertimeRecord(empId);
+  if (!open) return { ok: false, error: "Kamu belum clock in overtime." };
+
+  const now = jakartaTime();
+  let breakMin = open.break_minutes ?? 0;
+  const breaks = (Array.isArray(open.breaks) ? open.breaks : []) as { start: string; end: string }[];
+  if (open.break_start) {
+    breakMin += Math.max(0, toMin(now) - toMin(open.break_start));
+    breaks.push({ start: open.break_start, end: now });
+  }
+
+  const { error } = await serviceClient()
+    .from("overtime_requests")
+    .update({
+      clock_out: now,
+      break_minutes: breakMin,
+      break_start: null,
+      breaks,
+      reason_out: reason.trim(),
+      hours: otHours(open.clock_in as string, now, breakMin),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", open.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/me");
+  return { ok: true };
+}
+
+export async function overtimeBreakStart(): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  const empId = await myEmployeeId(profile.id);
+  if (!empId) return { ok: false, error: "No crew profile linked to this account." };
+  const net = await networkError();
+  if (net) return { ok: false, error: net };
+
+  const open = await openOvertimeRecord(empId);
+  if (!open) return { ok: false, error: "Kamu belum clock in overtime." };
+  if (open.break_start) return { ok: false, error: "Kamu sudah break." };
+
+  const { error } = await serviceClient()
+    .from("overtime_requests")
+    .update({ break_start: jakartaTime(), updated_at: new Date().toISOString() })
+    .eq("id", open.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/me");
+  return { ok: true };
+}
+
+export async function overtimeBreakEnd(): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  const empId = await myEmployeeId(profile.id);
+  if (!empId) return { ok: false, error: "No crew profile linked to this account." };
+  const net = await networkError();
+  if (net) return { ok: false, error: net };
+
+  const open = await openOvertimeRecord(empId);
+  if (!open || !open.break_start) return { ok: false, error: "Tidak ada break berjalan." };
+
+  const now = jakartaTime();
+  const breakMin = (open.break_minutes ?? 0) + Math.max(0, toMin(now) - toMin(open.break_start));
+  const breaks = (Array.isArray(open.breaks) ? open.breaks : []) as { start: string; end: string }[];
+  breaks.push({ start: open.break_start, end: now });
+  const { error } = await serviceClient()
+    .from("overtime_requests")
+    .update({ break_minutes: breakMin, break_start: null, breaks, updated_at: new Date().toISOString() })
+    .eq("id", open.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/me");
+  return { ok: true };
+}
+
 /** The current crew's attendance in a date range (newest first). */
 export async function getMyAttendance(start: string, end: string): Promise<AttendanceWithRelations[]> {
   const profile = await getCurrentProfile();
@@ -429,7 +600,12 @@ export async function getMyProfile(): Promise<MyProfile | null> {
   };
 }
 
-export type MyOvertime = { id: string; work_date: string; hours: number; reason: string | null; status: "pending" | "approved" | "rejected" };
+export type MyOvertime = {
+  id: string; work_date: string; hours: number;
+  clock_in: string | null; clock_out: string | null; break_minutes: number;
+  reason_in: string | null; reason_out: string | null; reason: string | null;
+  status: "pending" | "approved" | "rejected";
+};
 
 /** The current crew's overtime requests (newest first). */
 export async function getMyOvertime(): Promise<MyOvertime[]> {
@@ -440,7 +616,7 @@ export async function getMyOvertime(): Promise<MyOvertime[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("overtime_requests")
-    .select("id,work_date,hours,reason,status")
+    .select("id,work_date,hours,clock_in,clock_out,break_minutes,reason_in,reason_out,reason,status")
     .eq("employee_id", empId)
     .order("work_date", { ascending: false });
   return (data ?? []) as MyOvertime[];

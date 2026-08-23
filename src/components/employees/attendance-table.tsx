@@ -14,12 +14,17 @@ import type { AttendanceFormData } from "@/app/actions/attendance";
 import type { AttendanceWithRelations } from "@/lib/supabase/types";
 import type { AttendanceGrace } from "@/lib/attendance";
 
+export type OvertimeSummary = { clock_in: string | null; clock_out: string | null; break_minutes: number; hours: number };
+
 export const ATTENDANCE_COLUMNS: ColumnDef[] = [
   { key: "date", label: "Date", defaultHidden: true },
   { key: "shift", label: "Shift" },
   { key: "clockIn", label: "Clock in" },
   { key: "clockOut", label: "Clock out" },
   { key: "breakDuration", label: "Break" },
+  { key: "otClockIn", label: "Overtime clock in" },
+  { key: "otClockOut", label: "Overtime clock out" },
+  { key: "otBreak", label: "Overtime break" },
   { key: "duration", label: "Duration" },
   { key: "status", label: "Status" },
   { key: "note", label: "Note" },
@@ -29,7 +34,7 @@ export const ATTENDANCE_COLUMNS: ColumnDef[] = [
   { key: "lastUpdated", label: "Last updated" },
 ];
 
-export function AttendanceTable({ list, canWrite, formData, grace }: { list: AttendanceWithRelations[]; canWrite: boolean; formData: AttendanceFormData; grace?: AttendanceGrace }) {
+export function AttendanceTable({ list, overtimeByEmp = {}, canWrite, formData, grace }: { list: AttendanceWithRelations[]; overtimeByEmp?: Record<string, OvertimeSummary>; canWrite: boolean; formData: AttendanceFormData; grace?: AttendanceGrace }) {
   const { isVisible } = useColumnVisibility("attendance", ATTENDANCE_COLUMNS);
 
   return (
@@ -43,6 +48,9 @@ export function AttendanceTable({ list, canWrite, formData, grace }: { list: Att
             {isVisible("clockIn") && <TableHead className="w-[110px]">Clock in</TableHead>}
             {isVisible("clockOut") && <TableHead className="w-[110px]">Clock out</TableHead>}
             {isVisible("breakDuration") && <TableHead className="w-[100px]">Break</TableHead>}
+            {isVisible("otClockIn") && <TableHead className="w-[130px]">Overtime clock in</TableHead>}
+            {isVisible("otClockOut") && <TableHead className="w-[130px]">Overtime clock out</TableHead>}
+            {isVisible("otBreak") && <TableHead className="w-[120px]">Overtime break</TableHead>}
             {isVisible("duration") && <TableHead className="w-[120px]">Duration</TableHead>}
             {isVisible("status") && <TableHead className="w-[160px]">Status</TableHead>}
             {isVisible("note") && <TableHead className="w-[200px]">Note</TableHead>}
@@ -59,6 +67,7 @@ export function AttendanceTable({ list, canWrite, formData, grace }: { list: Att
             <AttendanceTableRow
               key={record.id}
               record={record}
+              overtime={overtimeByEmp[record.employee_id] ?? null}
               canWrite={canWrite}
               formData={formData}
               grace={grace}
@@ -67,6 +76,9 @@ export function AttendanceTable({ list, canWrite, formData, grace }: { list: Att
               showClockIn={isVisible("clockIn")}
               showClockOut={isVisible("clockOut")}
               showBreak={isVisible("breakDuration")}
+              showOtClockIn={isVisible("otClockIn")}
+              showOtClockOut={isVisible("otClockOut")}
+              showOtBreak={isVisible("otBreak")}
               showDuration={isVisible("duration")}
               showStatus={isVisible("status")}
               showNote={isVisible("note")}

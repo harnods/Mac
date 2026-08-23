@@ -32,7 +32,7 @@ export default async function AttendancePage({
   const supabase = await createClient();
   const canWrite = can(profile, P.EMPLOYEES_WRITE);
 
-  const [{ data: items }, formData, settings] = await Promise.all([
+  const [{ data: items }, { data: otItems }, formData, settings] = await Promise.all([
     (() => {
       let query = supabase
         .from("attendance")
@@ -44,9 +44,28 @@ export default async function AttendancePage({
       if (q.trim()) query = query.ilike("employees.name", `%${q.trim()}%`);
       return query;
     })(),
+    supabase
+      .from("overtime_requests")
+      .select("employee_id,clock_in,clock_out,break_minutes,hours,status")
+      .eq("work_date", date)
+      .not("clock_in", "is", null),
     getAttendanceFormData(),
     getAttendanceSettings(),
   ]);
+
+  // Overtime for the day, aggregated per crew (earliest in, latest out, summed).
+  const overtimeByEmp: Record<string, { clock_in: string | null; clock_out: string | null; break_minutes: number; hours: number }> = {};
+  for (const o of (otItems ?? []) as { employee_id: string; clock_in: string | null; clock_out: string | null; break_minutes: number; hours: number }[]) {
+    const cur = overtimeByEmp[o.employee_id];
+    if (!cur) {
+      overtimeByEmp[o.employee_id] = { clock_in: o.clock_in, clock_out: o.clock_out, break_minutes: o.break_minutes ?? 0, hours: Number(o.hours) || 0 };
+    } else {
+      if (o.clock_in && (!cur.clock_in || o.clock_in < cur.clock_in)) cur.clock_in = o.clock_in;
+      if (o.clock_out && (!cur.clock_out || o.clock_out > cur.clock_out)) cur.clock_out = o.clock_out;
+      cur.break_minutes += o.break_minutes ?? 0;
+      cur.hours += Number(o.hours) || 0;
+    }
+  }
 
   const grace = {
     lateGraceMinutes: settings?.late_grace_minutes ?? 0,
@@ -89,7 +108,7 @@ export default async function AttendancePage({
           {q.trim() ? "No crew match your search on this day." : "No attendance recorded on this day."}
         </div>
       ) : (
-        <AttendanceTable list={list} canWrite={canWrite} formData={formData ?? emptyFormData} grace={grace} />
+        <AttendanceTable list={list} overtimeByEmp={overtimeByEmp} canWrite={canWrite} formData={formData ?? emptyFormData} grace={grace} />
       )}
     </div>
   );

@@ -29,6 +29,7 @@ import { deleteAttendance, updateAttendanceShift, type AttendanceFormData } from
 import { formatDate, formatDateTime, updaterName } from "@/lib/format";
 import { attendanceStatuses, workDurationMinutes, formatMinutes, formatTime, type AttendanceGrace } from "@/lib/attendance";
 import type { AttendanceWithRelations } from "@/lib/supabase/types";
+import type { OvertimeSummary } from "@/components/employees/attendance-table";
 
 const STATUS_META: Record<string, { label: string; variant: "success" | "secondary"; className?: string }> = {
   present: { label: "Present", variant: "success" },
@@ -40,6 +41,7 @@ const dash = <span className="text-muted-foreground">—</span>;
 
 export function AttendanceTableRow({
   record,
+  overtime = null,
   canWrite,
   formData,
   grace,
@@ -48,6 +50,9 @@ export function AttendanceTableRow({
   showClockIn = true,
   showClockOut = true,
   showBreak = true,
+  showOtClockIn = false,
+  showOtClockOut = false,
+  showOtBreak = false,
   showDuration = true,
   showStatus = true,
   showNote = true,
@@ -57,6 +62,7 @@ export function AttendanceTableRow({
   showLastUpdated = true,
 }: {
   record: AttendanceWithRelations;
+  overtime?: OvertimeSummary | null;
   canWrite: boolean;
   formData: AttendanceFormData;
   grace?: AttendanceGrace;
@@ -65,6 +71,9 @@ export function AttendanceTableRow({
   showClockIn?: boolean;
   showClockOut?: boolean;
   showBreak?: boolean;
+  showOtClockIn?: boolean;
+  showOtClockOut?: boolean;
+  showOtBreak?: boolean;
   showDuration?: boolean;
   showStatus?: boolean;
   showNote?: boolean;
@@ -80,7 +89,10 @@ export function AttendanceTableRow({
   const [pending, start] = useTransition();
 
   const statuses = attendanceStatuses(record, grace);
-  const duration = workDurationMinutes(record);
+  const shiftDuration = workDurationMinutes(record);
+  const otMinutes = overtime ? Math.round((overtime.hours || 0) * 60) : 0;
+  // Total = shift worked + overtime. Dash only when there's neither.
+  const duration = shiftDuration == null && otMinutes === 0 ? null : (shiftDuration ?? 0) + otMinutes;
 
   function handleDelete() {
     start(async () => {
@@ -130,6 +142,9 @@ export function AttendanceTableRow({
         {showClockIn && <TableCell className="text-sm tabular-nums">{formatTime(record.clock_in) || dash}</TableCell>}
         {showClockOut && <TableCell className="text-sm tabular-nums">{formatTime(record.clock_out) || dash}</TableCell>}
         {showBreak && <TableCell className="text-sm tabular-nums text-muted-foreground">{record.clock_in ? `${record.break_minutes}m` : dash}</TableCell>}
+        {showOtClockIn && <TableCell className="text-sm tabular-nums">{overtime?.clock_in ? formatTime(overtime.clock_in) : dash}</TableCell>}
+        {showOtClockOut && <TableCell className="text-sm tabular-nums">{overtime?.clock_out ? formatTime(overtime.clock_out) : dash}</TableCell>}
+        {showOtBreak && <TableCell className="text-sm tabular-nums text-muted-foreground">{overtime?.clock_in ? `${overtime.break_minutes}m` : dash}</TableCell>}
         {showDuration && <TableCell className="text-sm tabular-nums">{duration != null ? formatMinutes(duration) : dash}</TableCell>}
         {showStatus && (
           <TableCell>

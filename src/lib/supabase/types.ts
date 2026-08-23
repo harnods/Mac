@@ -426,7 +426,15 @@ export type OvertimeRequest = {
   employee_id: string;
   work_date: string;
   hours: number;
+  clock_in: string | null;
+  clock_out: string | null;
+  break_minutes: number;
+  break_start: string | null;
+  breaks: BreakInterval[];
   reason: string | null;
+  reason_in: string | null;
+  reason_out: string | null;
+  source: string;
   status: OvertimeRequestStatus;
   requested_by: string | null;
   reviewed_by: string | null;

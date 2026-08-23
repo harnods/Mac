@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { getMyOvertime, type MyOvertime } from "@/app/actions/crew-self";
 import { formatWeekdayDate } from "@/lib/format";
-import { formatMinutes } from "@/lib/attendance";
+import { formatMinutes, formatTime } from "@/lib/attendance";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +27,16 @@ export default async function MeOvertimePage() {
         <ul className="divide-y">
           {rows.map((r) => (
             <li key={r.id} className="py-3">
-              <div className="text-sm font-medium">{formatWeekdayDate(r.work_date)}</div>
-              <div className="text-sm tabular-nums text-muted-foreground">{formatMinutes(Math.round(r.hours * 60))}</div>
-              {r.reason && <div className="text-sm text-muted-foreground">{r.reason}</div>}
-              <div className={`text-sm ${STATUS[r.status].className}`}>{STATUS[r.status].label}</div>
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="text-sm font-medium">{formatWeekdayDate(r.work_date)}</div>
+                <div className={`text-sm ${STATUS[r.status].className}`}>{STATUS[r.status].label}</div>
+              </div>
+              <div className="text-sm tabular-nums text-muted-foreground">
+                {r.clock_in ? `${formatTime(r.clock_in)}–${r.clock_out ? formatTime(r.clock_out) : "…"}` : ""}
+                {r.hours ? ` · ${formatMinutes(Math.round(r.hours * 60))}` : ""}
+              </div>
+              {(r.reason_in || r.reason) && <div className="text-sm text-muted-foreground">In: {r.reason_in || r.reason}</div>}
+              {r.reason_out && <div className="text-sm text-muted-foreground">Out: {r.reason_out}</div>}
             </li>
           ))}
         </ul>

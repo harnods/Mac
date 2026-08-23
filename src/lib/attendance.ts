@@ -50,6 +50,15 @@ export function workDurationMinutes(a: AttendanceWithRelations): number | null {
   return Math.max(0, diff);
 }
 
+/** Net minutes between two "HH:MM[:SS]" times minus break. Handles overnight. null if incomplete. */
+export function netMinutes(clockIn: string | null, clockOut: string | null, breakMinutes = 0): number | null {
+  if (!clockIn || !clockOut) return null;
+  let diff = toMinutes(clockOut) - toMinutes(clockIn);
+  if (diff < 0) diff += 24 * 60;
+  diff -= breakMinutes ?? 0;
+  return Math.max(0, diff);
+}
+
 /** 450 -> "7h 30m", 45 -> "45m", 120 -> "2h" */
 export function formatMinutes(min: number | null | undefined): string {
   if (min == null) return "—";
