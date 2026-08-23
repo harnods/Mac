@@ -16,7 +16,7 @@ const TABS = [
 export function CrewNav() {
   const pathname = usePathname();
   return (
-    <nav className="sticky bottom-0 z-10 grid grid-cols-5 border-t bg-background/95 backdrop-blur">
+    <nav className="sticky bottom-0 z-10 grid grid-cols-5 border-t bg-background/95 pb-10 backdrop-blur">
       {TABS.map((t) => {
         const active = t.match(pathname);
         const Icon = t.icon;
