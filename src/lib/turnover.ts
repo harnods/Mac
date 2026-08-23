@@ -6,6 +6,7 @@ export type TurnoverEmployee = {
   department: string | null;
   join_date: string | null; // YYYY-MM-DD
   leave_date: string | null; // last_day ?? termination_date
+  active?: boolean; // current inactive flag (false = marked inactive)
 };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -77,7 +78,9 @@ export function turnoverForYear(emps: TurnoverEmployee[], year: number, today: s
   const avg = (headcount(emps, yearStart) + headcount(emps, yearEndIso)) / 2;
 
   return {
-    activeNow: headcount(emps, today),
+    // "Active crew" today matches the crew roster: employed today AND not
+    // marked inactive.
+    activeNow: emps.filter((e) => activeOn(e, today) && e.active !== false).length,
     joined,
     left,
     turnover: rate(left, avg),

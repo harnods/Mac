@@ -35,15 +35,18 @@ export default async function TurnoverReportPage({
   const currentYear = Number(today.slice(0, 4));
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+  let empQuery = supabase
     .from("employees")
-    .select("id,name,join_date,termination_date,last_day,departments(name)")
+    .select("id,name,join_date,termination_date,last_day,active,departments(name)")
     .is("deleted_at", null);
+  if (owner?.id) empQuery = empQuery.or(`user_id.is.null,user_id.neq.${owner.id}`);
+  const { data } = await empQuery;
 
   const emps: TurnoverEmployee[] = (data ?? []).map((e) => {
     const r = e as unknown as {
       id: string; name: string; join_date: string | null;
-      termination_date: string | null; last_day: string | null;
+      termination_date: string | null; last_day: string | null; active: boolean;
       departments: { name: string } | null;
     };
     return {
@@ -52,6 +55,7 @@ export default async function TurnoverReportPage({
       department: r.departments?.name ?? null,
       join_date: r.join_date,
       leave_date: r.last_day ?? r.termination_date ?? null,
+      active: r.active,
     };
   });
 
