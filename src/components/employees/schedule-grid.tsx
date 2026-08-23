@@ -133,8 +133,8 @@ export function ScheduleGrid({
                 const { wd, dm } = label(day);
                 const isToday = day === today;
                 return (
-                  <th key={day} className={`border-b border-l px-2 py-1.5 text-center font-medium w-[78px] min-w-[78px] ${isToday ? "bg-accent" : ""}`}>
-                    <div className="text-[11px] text-muted-foreground">{wd}</div>
+                  <th key={day} className={`border-b border-l px-2 py-1.5 text-center font-medium w-[78px] min-w-[78px] ${isToday ? "bg-foreground text-background" : ""}`}>
+                    <div className={`text-[11px] ${isToday ? "text-background/80" : "text-muted-foreground"}`}>{wd}</div>
                     <div className="tabular-nums">{dm}</div>
                   </th>
                 );
