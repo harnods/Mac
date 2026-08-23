@@ -88,8 +88,10 @@ export function computePayslip(args: {
   settings: CalcSettings;
   overtime: CalcOvertime;
   components: Record<string, ComponentMeta>;
+  /** One-time per-run components (bonus, deposit, …). */
+  adjustments?: { label: string; type: "earning" | "deduction"; amount: number }[];
 }): PayslipResult {
-  const { period, employee, attendance, overtimeEntries, settings, overtime, components } = args;
+  const { period, employee, attendance, overtimeEntries, settings, overtime, components, adjustments } = args;
 
   const periodDays = daysInclusive(period.start, period.end);
 
@@ -206,6 +208,12 @@ export function computePayslip(args: {
       detail: `${absentDays} absent day(s) × (Rp ${basic.toLocaleString("id-ID")} ÷ ${workingDays})`,
       amount,
     });
+  }
+
+  // One-time adjustments for this run (bonus, uniform deposit, …).
+  for (const adj of adjustments ?? []) {
+    if (!adj.amount) continue;
+    lines.push({ kind: adj.type, label: adj.label, detail: "One-time", amount: round(adj.amount) });
   }
 
   const earnings_total = lines.filter((l) => l.kind === "earning").reduce((s, l) => s + l.amount, 0);

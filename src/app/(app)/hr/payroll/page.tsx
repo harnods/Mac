@@ -1,21 +1,13 @@
-import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { getPayrollSettingsVersions } from "@/app/actions/payroll";
 import { activeSettingsVersion } from "@/lib/payroll-settings";
-import { getRunByAnchor, getRunPayslips } from "@/app/actions/payroll-run";
+import { getRunByAnchor } from "@/app/actions/payroll-run";
 import { payrollPeriod, currentPeriodAnchor } from "@/lib/payroll";
 import { formatRp, formatDate } from "@/lib/format";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { PayrollRunBar } from "@/components/employees/payroll-run-bar";
+import { PayrollTable, type PayrollRow } from "@/components/employees/payroll-table";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +45,81 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
   }).reverse();
 
   const run = await getRunByAnchor(anchorYear, anchorMonth);
-  const payslips = run ? await getRunPayslips(run.id) : [];
-  const totalThp = payslips.reduce((s, p) => s + p.thp, 0);
+
+  const supabase = await createClient();
+  const { data: owner } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+
+  let crewQ = supabase
+    .from("employees")
+    .select("id,name,basic_salary,salary_unit,daily_allowance,allowances,join_date,termination_date,last_day,employment_statuses(name)")
+    .is("deleted_at", null)
+    .order("name");
+  if (owner?.id) crewQ = crewQ.or(`user_id.is.null,user_id.neq.${owner.id}`);
+
+  const [{ data: crewData }, { data: compData }, { data: fverData }, { data: adjData }, { data: attData }] = await Promise.all([
+    crewQ,
+    supabase.from("allowances").select("id,name,type"),
+    supabase.from("payroll_component_versions").select("component_id").not("formula_basis", "is", null),
+    supabase.from("payroll_adjustments").select("id,employee_id,label,type,amount").eq("anchor_year", anchorYear).eq("anchor_month", anchorMonth).order("created_at"),
+    supabase.from("attendance").select("employee_id,work_date,clock_in").gte("work_date", period.start).lte("work_date", period.end).not("clock_in", "is", null),
+  ]);
+
+  const compMeta = new Map((((compData ?? []) as { id: string; name: string; type: "earning" | "deduction" }[]).map((c) => [c.id, c])));
+  const formulaSet = new Set(((fverData ?? []) as { component_id: string }[]).map((v) => v.component_id));
+  const presentByEmp = new Map<string, Set<string>>();
+  for (const a of (attData ?? []) as { employee_id: string; work_date: string }[]) {
+    (presentByEmp.get(a.employee_id) ?? presentByEmp.set(a.employee_id, new Set()).get(a.employee_id)!).add(a.work_date);
+  }
+  const adjByEmp = new Map<string, PayrollRow["adjustments"]>();
+  for (const a of (adjData ?? []) as { id: string; employee_id: string; label: string; type: "earning" | "deduction"; amount: number }[]) {
+    (adjByEmp.get(a.employee_id) ?? adjByEmp.set(a.employee_id, []).get(a.employee_id)!).push({ id: a.id, label: a.label, type: a.type, amount: Number(a.amount) });
+  }
+
+  // Payslips for this run (with line items), keyed by employee.
+  const payslipByEmp = new Map<string, PayrollRow["payslip"]>();
+  if (run) {
+    const { data: psData } = await supabase
+      .from("payslips")
+      .select("employee_id,present_days,working_days,day_off_days,absent_days,overtime_hours,earnings_total,deductions_total,thp,lines:payslip_lines(kind,label,detail,amount,sort)")
+      .eq("run_id", run.id);
+    for (const p of (psData ?? []) as unknown as (NonNullable<PayrollRow["payslip"]> & { employee_id: string; lines: (NonNullable<PayrollRow["payslip"]>["lines"][number] & { sort: number })[] })[]) {
+      const lines = [...(p.lines ?? [])].sort((a, b) => a.sort - b.sort);
+      payslipByEmp.set(p.employee_id, { ...p, lines });
+    }
+  }
+
+  type CrewRaw = {
+    id: string; name: string; basic_salary: number | null; salary_unit: "day" | "month" | null;
+    daily_allowance: number | null; allowances: { allowance_id: string; amount: number }[] | null;
+    join_date: string | null; termination_date: string | null; last_day: string | null;
+    employment_statuses: { name: string } | null;
+  };
+
+  const rows: PayrollRow[] = ((crewData ?? []) as unknown as CrewRaw[])
+    .filter((c) => (!c.join_date || c.join_date <= period.end) && (!c.termination_date || (c.last_day ?? c.termination_date) >= period.start))
+    .map((c) => {
+      const isPT = (c.employment_statuses?.name ?? "").toLowerCase().includes("part");
+      const presentDays = presentByEmp.get(c.id)?.size ?? 0;
+      const fixed: PayrollRow["fixed"] = [];
+      const formula: PayrollRow["formula"] = [];
+      for (const a of c.allowances ?? []) {
+        const m = compMeta.get(a.allowance_id);
+        if (!m) continue;
+        if (formulaSet.has(a.allowance_id)) formula.push({ name: m.name, type: m.type });
+        else if (a.amount) fixed.push({ name: m.name, type: m.type, amount: Number(a.amount) });
+      }
+      return {
+        id: c.id, name: c.name, baseSalary: c.basic_salary, salaryUnit: c.salary_unit,
+        dailyAllowance: c.daily_allowance, fixed, formula,
+        adjustments: adjByEmp.get(c.id) ?? [],
+        payslip: payslipByEmp.get(c.id) ?? null,
+        presentDays, isPartTime: isPT,
+      };
+    })
+    // Part-timers only appear if they actually attended in the period.
+    .filter((r) => !r.isPartTime || r.presentDays > 0 || r.payslip);
+
+  const totalThp = rows.reduce((s, r) => s + (r.payslip?.thp ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -88,54 +153,15 @@ export default async function PayrollPage({ searchParams }: { searchParams: Prom
         </div>
       )}
 
-      {!run ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Payroll hasn&rsquo;t been run for this period yet.
-          {isAdmin && " Click Run payroll to generate payslips."}
-        </div>
-      ) : (
-        <div className="border table-outer rounded-lg overflow-x-auto">
-          <Table className="w-auto min-w-full table-fixed">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[220px]">Crew</TableHead>
-                <TableHead className="w-[110px]">Present</TableHead>
-                <TableHead className="w-[110px]">Day off</TableHead>
-                <TableHead className="w-[110px]">Absent</TableHead>
-                <TableHead className="w-[110px]">Overtime</TableHead>
-                <TableHead className="w-[150px]">Earnings</TableHead>
-                <TableHead className="w-[150px]">Deductions</TableHead>
-                <TableHead className="w-[160px]">Take home pay</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payslips.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">No crew in this period.</TableCell>
-                </TableRow>
-              )}
-              {payslips.map((p) => (
-                <ClickableTableRow key={p.id} href={`/hr/crew/${p.employee_id}`}>
-                  <TableCell className="font-medium">
-                    <Link href={`/hr/crew/${p.employee_id}`} className="hover:underline">
-                      {p.employee?.name ?? "—"}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">{p.present_days}/{p.working_days}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{p.day_off_days || "—"}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{p.absent_days || "—"}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{p.overtime_hours ? `${p.overtime_hours}h` : "—"}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{formatRp(p.earnings_total)}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{p.deductions_total ? `−${formatRp(p.deductions_total)}` : "—"}</TableCell>
-                  <TableCell className="text-sm font-medium tabular-nums">{formatRp(p.thp)}</TableCell>
-                </ClickableTableRow>
-              ))}
-            </TableBody>
-          </Table>
+      {!run && (
+        <div className="rounded-lg border border-dashed px-4 py-2.5 text-sm text-muted-foreground">
+          Preview below — review each crew&rsquo;s components and add any one-time items, then Run payroll to compute.
         </div>
       )}
 
-      {run && payslips.length > 0 && (
+      <PayrollTable rows={rows} anchorYear={anchorYear} anchorMonth={anchorMonth} isAdmin={isAdmin} />
+
+      {run && rows.length > 0 && (
         <div className="flex justify-end text-sm">
           <span className="text-muted-foreground">Total take home pay:&nbsp;</span>
           <span className="font-semibold tabular-nums">{formatRp(totalThp)}</span>

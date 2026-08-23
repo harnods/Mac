@@ -42,6 +42,7 @@ type CrewRow = {
   join_date: string | null;
   termination_date: string | null;
   last_day: string | null;
+  employment_statuses: { name: string } | null;
 };
 
 /** Generate (or regenerate) payroll for a cutoff period, identified by its end-month anchor. */
@@ -74,7 +75,7 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
     (() => {
       let q = supabase
         .from("employees")
-        .select("id,name,basic_salary,salary_unit,daily_allowance,allowances,job_level_id,join_date,termination_date,last_day")
+        .select("id,name,basic_salary,salary_unit,daily_allowance,allowances,job_level_id,join_date,termination_date,last_day,employment_statuses(name)")
         .is("deleted_at", null);
       if (ownerRow?.id) q = q.or(`user_id.is.null,user_id.neq.${ownerRow.id}`);
       return q;
@@ -95,6 +96,19 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
       .gte("work_date", period.start)
       .lte("work_date", period.end),
   ]);
+
+  // One-time adjustments for this period, grouped by crew.
+  const { data: adjData } = await supabase
+    .from("payroll_adjustments")
+    .select("employee_id,label,type,amount")
+    .eq("anchor_year", anchorYear)
+    .eq("anchor_month", anchorMonth);
+  const adjByEmp = new Map<string, { label: string; type: "earning" | "deduction"; amount: number }[]>();
+  for (const a of (adjData ?? []) as { employee_id: string; label: string; type: "earning" | "deduction"; amount: number }[]) {
+    const list = adjByEmp.get(a.employee_id) ?? [];
+    list.push({ label: a.label, type: a.type, amount: Number(a.amount) });
+    adjByEmp.set(a.employee_id, list);
+  }
 
   const crew = (crewData ?? []) as unknown as CrewRow[];
   // Active formula per component (latest version effective on/before period end).
@@ -144,10 +158,17 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
     otByEmp.set(r.employee_id, list);
   }
 
-  // Only crew employed during the period: joined on/before it ends, not gone before it starts.
-  const activeCrew = crew.filter(
-    (c) => (!c.join_date || c.join_date <= period.end) && (!c.termination_date || (c.last_day ?? c.termination_date) >= period.start),
-  );
+  // Only crew employed during the period: joined on/before it ends, not gone
+  // before it starts. Part-timers are paid per attended day, so they're only
+  // included if they actually clocked in during the period.
+  const hasPresent = (id: string) => (attByEmp.get(id) ?? []).some((a) => a.clock_in);
+  const activeCrew = crew.filter((c) => {
+    const employed = (!c.join_date || c.join_date <= period.end) && (!c.termination_date || (c.last_day ?? c.termination_date) >= period.start);
+    if (!employed) return false;
+    const isPT = (c.employment_statuses?.name ?? "").toLowerCase().includes("part");
+    if (isPT && !hasPresent(c.id)) return false;
+    return true;
+  });
 
   // Upsert the run and clear its previous payslips.
   const { data: runRow, error: runErr } = await supabase
@@ -190,6 +211,7 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
       },
       overtime,
       components,
+      adjustments: adjByEmp.get(c.id) ?? [],
     });
 
     const { data: ps, error: psErr } = await supabase
@@ -301,4 +323,61 @@ export async function getCrewPayslips(employeeId: string): Promise<PayslipWithDe
   finalized.sort((a, b) => (b.run?.period_end ?? "").localeCompare(a.run?.period_end ?? ""));
   for (const r of finalized) r.lines?.sort((a, b) => a.sort - b.sort);
   return finalized;
+}
+
+// ─── One-time payroll adjustments (per crew, per period) ─────────────────────
+
+export type PayrollAdjustment = {
+  id: string;
+  employee_id: string;
+  label: string;
+  type: "earning" | "deduction";
+  amount: number;
+};
+
+export async function getPayrollAdjustments(anchorYear: number, anchorMonth: number): Promise<PayrollAdjustment[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("payroll_adjustments")
+    .select("id,employee_id,label,type,amount")
+    .eq("anchor_year", anchorYear)
+    .eq("anchor_month", anchorMonth)
+    .order("created_at");
+  return (data ?? []) as PayrollAdjustment[];
+}
+
+export async function addPayrollAdjustment(input: {
+  anchorYear: number; anchorMonth: number; employeeId: string;
+  label: string; type: "earning" | "deduction"; amount: number;
+}): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+  if (!input.label.trim()) return { ok: false, error: "Label is required" };
+  if (!(input.amount > 0)) return { ok: false, error: "Enter an amount" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("payroll_adjustments").insert({
+    anchor_year: input.anchorYear,
+    anchor_month: input.anchorMonth,
+    employee_id: input.employeeId,
+    label: input.label.trim(),
+    type: input.type,
+    amount: input.amount,
+    created_by: profile.id,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/hr/payroll");
+  return { ok: true };
+}
+
+export async function deletePayrollAdjustment(id: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+  const supabase = await createClient();
+  const { error } = await supabase.from("payroll_adjustments").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/hr/payroll");
+  return { ok: true };
 }
