@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { P } from "@/lib/permissions";
 
-export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: boolean; permissions?: string[] }) {
+export function MainNavMobile({ canHr = true, permissions = [], pendingOvertime = 0 }: { canHr?: boolean; permissions?: string[]; pendingOvertime?: number }) {
   const has = (perm: string) => permissions.includes(perm);
   return (
     <DropdownMenu>
@@ -132,7 +132,14 @@ export function MainNavMobile({ canHr = true, permissions = [] }: { canHr?: bool
           <Link prefetch={false} href="/hr/attendance" className="cursor-pointer">Attendance</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link prefetch={false} href="/hr/overtime" className="cursor-pointer">Overtime</Link>
+          <Link prefetch={false} href="/hr/overtime" className="cursor-pointer">
+            Overtime
+            {pendingOvertime > 0 && (
+              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-none text-white">
+                {pendingOvertime}
+              </span>
+            )}
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link prefetch={false} href="/hr/time-off" className="cursor-pointer">Time off</Link>

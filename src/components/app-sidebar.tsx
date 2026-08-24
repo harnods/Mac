@@ -192,7 +192,7 @@ export function filterMenu(menu: MenuNode[], permissions: string[]): MenuNode[] 
   return result;
 }
 
-export function AppSidebar({ canHr = true, permissions = [] }: { canHr?: boolean; permissions?: string[] }) {
+export function AppSidebar({ canHr = true, permissions = [], pendingOvertime = 0 }: { canHr?: boolean; permissions?: string[]; pendingOvertime?: number }) {
   const pathname = usePathname();
   const rail = RAIL.filter((r) => r.label !== "HR" || canHr);
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -261,7 +261,12 @@ export function AppSidebar({ canHr = true, permissions = [] }: { canHr?: boolean
           </Link>
           <nav className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
             {menu.map((node) => (
-              <MenuItem key={node.label} node={node} pathname={pathname} />
+              <MenuItem
+                key={node.label}
+                node={node}
+                pathname={pathname}
+                badge={node.href === "/hr/overtime" ? pendingOvertime : 0}
+              />
             ))}
           </nav>
           {isOrders && <OrderShiftSidebar />}
@@ -271,7 +276,16 @@ export function AppSidebar({ canHr = true, permissions = [] }: { canHr?: boolean
   );
 }
 
-function MenuItem({ node, pathname }: { node: MenuNode; pathname: string }) {
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-none text-white">
+      {count}
+    </span>
+  );
+}
+
+function MenuItem({ node, pathname, badge = 0 }: { node: MenuNode; pathname: string; badge?: number }) {
   const active = isNodeActive(pathname, node);
   const Icon = node.icon;
   const [open, setOpen] = useState(active);
@@ -287,6 +301,7 @@ function MenuItem({ node, pathname }: { node: MenuNode; pathname: string }) {
       <Link href={node.href} prefetch={false} className={rowClass(active)}>
         <Icon className="size-5 shrink-0" strokeWidth={1.75} />
         <span className="truncate">{node.label}</span>
+        <CountBadge count={badge} />
       </Link>
     );
   }

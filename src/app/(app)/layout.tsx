@@ -32,21 +32,31 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Roles list for the Super admin "View as" preview switcher.
   const isRealSuperAdmin = !!profile.viewingAsRole || isSuperRole(profile.role);
   let roleNames: string[] = [];
-  if (isRealSuperAdmin) {
+  let pendingOvertime = 0;
+  if (isRealSuperAdmin || canHr) {
     const supabase = await createClient();
-    const { data } = await supabase.from("roles").select("name").order("name");
-    roleNames = (data ?? []).map((r: { name: string }) => r.name);
+    if (isRealSuperAdmin) {
+      const { data } = await supabase.from("roles").select("name").order("name");
+      roleNames = (data ?? []).map((r: { name: string }) => r.name);
+    }
+    if (canHr) {
+      const { count } = await supabase
+        .from("overtime_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      pendingOvertime = count ?? 0;
+    }
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f8fafe]">
-      <AppSidebar canHr={canHr} permissions={profile.permissions} />
+      <AppSidebar canHr={canHr} permissions={profile.permissions} pendingOvertime={pendingOvertime} />
 
       <div className="flex-1 flex flex-col min-w-0">
         {profile.viewingAsRole && <ViewAsBanner role={profile.viewingAsRole} />}
         <header className="h-[72px] shrink-0 flex items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3 md:hidden">
-            <MainNavMobile canHr={canHr} permissions={profile.permissions} />
+            <MainNavMobile canHr={canHr} permissions={profile.permissions} pendingOvertime={pendingOvertime} />
             <span className="text-2xl font-bold tracking-tight text-[#0a0a0a]">Mac</span>
           </div>
           <div className="ml-auto">
