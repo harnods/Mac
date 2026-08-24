@@ -21,8 +21,8 @@ function daysInclusive(start: string, end: string) {
   return Math.floor((Date.UTC(ye, me - 1, de) - Date.UTC(ys, ms - 1, ds)) / 86400000) + 1;
 }
 
-type AttRow = { employee_id: string; work_date: string; clock_in: string | null; clock_out: string | null; break_minutes: number; shifts: { start_time: string | null; end_time: string | null } | null };
-type CrewRow = { id: string; name: string; join_date: string | null; termination_date: string | null; last_day: string | null; departments: { name: string } | null };
+type AttRow = { employee_id: string; work_date: string; clock_in: string | null; clock_out: string | null; break_minutes: number; shifts: { name: string | null; start_time: string | null; end_time: string | null } | null };
+type CrewRow = { id: string; name: string; join_date: string | null; termination_date: string | null; last_day: string | null; inactive_date: string | null; active: boolean | null; departments: { name: string } | null };
 
 export default async function AttendanceReportPage({ searchParams }: { searchParams: Promise<{ ym?: string }> }) {
   const { ym: ymParam } = await searchParams;
@@ -68,11 +68,11 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
 
   const [{ data: crewData }, { data: attData }, { data: otData }, { data: deptData }] = await Promise.all([
     (() => {
-      let q = supabase.from("employees").select("id,name,join_date,termination_date,last_day,departments(name)").is("deleted_at", null).order("name");
+      let q = supabase.from("employees").select("id,name,join_date,termination_date,last_day,inactive_date,active,departments(name)").is("deleted_at", null).order("name");
       if (owner?.id) q = q.or(`user_id.is.null,user_id.neq.${owner.id}`);
       return q;
     })(),
-    supabase.from("attendance").select("employee_id,work_date,clock_in,clock_out,break_minutes,shifts(start_time,end_time)").gte("work_date", period.start).lte("work_date", period.end),
+    supabase.from("attendance").select("employee_id,work_date,clock_in,clock_out,break_minutes,shifts(name,start_time,end_time)").gte("work_date", period.start).lte("work_date", period.end),
     supabase.from("overtime_requests").select("employee_id,hours,work_date").eq("status", "approved").gte("work_date", period.start).lte("work_date", period.end),
     supabase.from("departments").select("id,name").order("name"),
   ]);
@@ -91,9 +91,16 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
     otByEmp.set(r.employee_id, (otByEmp.get(r.employee_id) ?? 0) + (r.hours || 0));
   }
 
-  const activeCrew = crew.filter(
-    (c) => (!c.join_date || c.join_date <= period.end) && (!c.termination_date || (c.last_day ?? c.termination_date) >= period.start),
-  );
+  // Earliest date the crew stops appearing (resigned or marked inactive).
+  const stopDateOf = (c: CrewRow) =>
+    [c.inactive_date, c.last_day, c.termination_date].filter(Boolean).sort()[0] ?? null;
+  const activeCrew = crew.filter((c) => {
+    if (c.join_date && c.join_date > period.end) return false; // not yet joined
+    const stop = stopDateOf(c);
+    if (stop && stop < period.start) return false; // already inactive/resigned before this period
+    if (c.active === false && !stop) return false; // inactive with no date → not active
+    return true;
+  });
 
   const rows: ReportRow[] = activeCrew.map((c) => {
     const recs = attByEmp.get(c.id) ?? [];
@@ -103,20 +110,23 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
     let workedMinutes = 0;
     let noClockIn = 0;
     let noClockOut = 0;
+    let noSchedule = 0;
     for (const r of recs) {
       const pseudo = { clock_in: r.clock_in, clock_out: r.clock_out, break_minutes: r.break_minutes, shifts: r.shifts } as unknown as AttendanceWithRelations;
       const st = attendanceStatuses(pseudo, graceCfg);
       if (st.includes("late")) late++;
       if (st.includes("early-leave")) earlyLeave++;
       workedMinutes += workDurationMinutes(pseudo) ?? 0;
+      const isNoSchedule = r.shifts?.name === "No schedule";
       const isDayOff = !!r.shifts && !r.shifts.start_time && !r.shifts.end_time;
-      if (!r.clock_in && !isDayOff) noClockIn++; // scheduled shift, never tapped in
+      if (isNoSchedule) noSchedule++; // part-timer, not rostered that day — not absent
+      if (!r.clock_in && !isDayOff && !isNoSchedule) noClockIn++; // scheduled shift, never tapped in
       if (r.clock_in && !r.clock_out) noClockOut++; // tapped in, never tapped out
     }
     const presentDays = present.size;
     // Prorate working days to the crew's tenure within the period.
     const effStart = c.join_date && c.join_date > period.start ? c.join_date : period.start;
-    const effEndRaw = c.last_day ?? c.termination_date;
+    const effEndRaw = stopDateOf(c);
     const effEnd = effEndRaw && effEndRaw < period.end ? effEndRaw : period.end;
     const effDays = daysInclusive(effStart, effEnd);
     const workingDays = Math.round((effDays * workingDaysPerWeek) / 7);
@@ -129,7 +139,9 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
       workingDays,
       present: presentDays,
       dayOff,
-      absent: Math.max(0, workingDays - presentDays),
+      // "No schedule" days aren't scheduled work, so they don't count as absent.
+      absent: Math.max(0, workingDays - presentDays - noSchedule),
+      noSchedule,
       noClockIn,
       noClockOut,
       late,

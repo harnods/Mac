@@ -30,6 +30,7 @@ export type ReportRow = {
   workingDays: number;
   present: number;
   dayOff: number;
+  noSchedule: number;
   absent: number;
   noClockIn: number;
   noClockOut: number;
@@ -122,13 +123,14 @@ export function AttendanceReportView({
   }
 
   function exportCsv() {
-    const header = ["Crew", "Department", "Working days", "Present", "Day off", "Absent", "No clock-in", "No clock-out", "Late", "Early leave", "Worked hours", "Overtime hours", "Attendance rate"];
+    const header = ["Crew", "Department", "Working days", "Present", "Day off", "No schedule", "Absent", "No clock-in", "No clock-out", "Late", "Early leave", "Worked hours", "Overtime hours", "Attendance rate"];
     const lines = shown.map((r) => [
       r.name,
       r.department ?? "",
       r.workingDays,
       r.present,
       r.dayOff,
+      r.noSchedule,
       r.absent,
       r.noClockIn,
       r.noClockOut,
@@ -194,7 +196,8 @@ export function AttendanceReportView({
               <Th label="Department" className="w-[150px]" />
               <Th label="Present" className="w-[100px]" hint="Days clocked in ÷ scheduled working days." />
               <Th label="Day off" className="w-[90px]" hint="Scheduled days off in this period." />
-              <Th label="Absent" className="w-[90px]" hint="Scheduled working days with no attendance at all." />
+              <Th label="No schedule" className="w-[110px]" hint="Part-timer days with no shift rostered — not counted as absent." />
+              <Th label="Absent" className="w-[90px]" hint="Scheduled working days with no attendance (excludes No schedule)." />
               <Th label="No clock-in" className="w-[120px]" hint="Days with a shift but the crew never tapped clock-in." />
               <Th label="No clock-out" className="w-[120px]" hint="Days the crew clocked in but never tapped clock-out." />
               <Th label="Late" className="w-[80px]" hint="Days clocked in after the shift start (beyond grace)." />
@@ -207,7 +210,7 @@ export function AttendanceReportView({
           <TableBody>
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={12} className="py-8 text-center text-sm text-muted-foreground">No crew match.</TableCell>
+                <TableCell colSpan={13} className="py-8 text-center text-sm text-muted-foreground">No crew match.</TableCell>
               </TableRow>
             )}
             {shown.map((r) => (
@@ -216,6 +219,7 @@ export function AttendanceReportView({
                 <TableCell className="text-sm">{r.department ?? <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className="text-sm tabular-nums">{r.present}/{r.workingDays}</TableCell>
                 <TableCell className="text-sm tabular-nums">{r.dayOff || "—"}</TableCell>
+                <TableCell className="text-sm tabular-nums text-muted-foreground">{r.noSchedule || "—"}</TableCell>
                 <TableCell className="text-sm tabular-nums">
                   <span className="inline-flex items-center gap-1">
                     {r.absent || "—"}
