@@ -56,7 +56,6 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
   }).reverse();
 
   const attSettings = await getAttendanceSettings();
-  const workingDaysPerWeek = attSettings?.working_days_per_week ?? 6;
   const graceCfg = {
     lateGraceMinutes: attSettings?.late_grace_minutes ?? 0,
     lateToleranceDirection: attSettings?.late_tolerance_direction ?? ("after" as const),
@@ -111,6 +110,7 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
     let noClockIn = 0;
     let noClockOut = 0;
     let noSchedule = 0;
+    let dayOffCount = 0;
     for (const r of recs) {
       const pseudo = { clock_in: r.clock_in, clock_out: r.clock_out, break_minutes: r.break_minutes, shifts: r.shifts } as unknown as AttendanceWithRelations;
       const st = attendanceStatuses(pseudo, graceCfg);
@@ -120,17 +120,20 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
       const isNoSchedule = r.shifts?.name === "No schedule";
       const isDayOff = !!r.shifts && !r.shifts.start_time && !r.shifts.end_time;
       if (isNoSchedule) noSchedule++; // part-timer, not rostered that day — not absent
+      if (r.shifts?.name === "Day off") dayOffCount++;
       if (!r.clock_in && !isDayOff && !isNoSchedule) noClockIn++; // scheduled shift, never tapped in
       if (r.clock_in && !r.clock_out) noClockOut++; // tapped in, never tapped out
     }
     const presentDays = present.size;
-    // Prorate working days to the crew's tenure within the period.
+    // Prorate to the crew's tenure within the period.
     const effStart = c.join_date && c.join_date > period.start ? c.join_date : period.start;
     const effEndRaw = stopDateOf(c);
     const effEnd = effEndRaw && effEndRaw < period.end ? effEndRaw : period.end;
     const effDays = daysInclusive(effStart, effEnd);
-    const workingDays = Math.round((effDays * workingDaysPerWeek) / 7);
-    const dayOff = Math.max(0, effDays - workingDays);
+    // Working days = the days they were actually expected to work: tenure minus
+    // day-off and No-schedule (part-timer off-roster) days. For full-timers this
+    // equals the standard entitlement; for part-timers it's their real roster.
+    const workingDays = Math.max(0, effDays - dayOffCount - noSchedule);
     const joinedMid = !!c.join_date && c.join_date > period.start && c.join_date <= period.end;
     return {
       employeeId: c.id,
@@ -138,9 +141,8 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
       department: c.departments?.name ?? null,
       workingDays,
       present: presentDays,
-      dayOff,
-      // "No schedule" days aren't scheduled work, so they don't count as absent.
-      absent: Math.max(0, workingDays - presentDays - noSchedule),
+      dayOff: dayOffCount,
+      absent: Math.max(0, workingDays - presentDays),
       noSchedule,
       noClockIn,
       noClockOut,
