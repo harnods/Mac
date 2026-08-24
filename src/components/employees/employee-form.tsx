@@ -190,7 +190,7 @@ export function EmployeeForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col flex-1 gap-6">
+    <form onSubmit={submit} className="flex flex-col gap-6">
       <div className="flex flex-col gap-8 md:flex-row md:gap-10">
         {/* Left: the 6-column form */}
         <div className="order-2 flex min-w-0 flex-1 flex-col gap-8 md:order-1">
