@@ -108,50 +108,52 @@ export default async function AttendanceReportPage({ searchParams }: { searchPar
   const rows: ReportRow[] = activeCrew.map((c) => {
     const sched = schedByEmp.get(c.id) ?? [];
     const attMap = attByEmpDate.get(c.id) ?? new Map<string, AttRow>();
+    const stop = stopDateOf(c);
+    const inTenure = (date: string) => (!c.join_date || date >= c.join_date) && (!stop || date <= stop);
 
     // Roster totals for the FULL period — a fixed number, independent of how
     // many days have elapsed. Working days = rostered real shifts.
     let workingDays = 0;
     let dayOff = 0;
     let noSchedule = 0;
-    // Attendance outcomes, evaluated against each rostered real-shift day.
-    let present = 0;
+    for (const s of sched) {
+      const name = s.shifts?.name ?? null;
+      if (name === "Day off") dayOff++;
+      else if (name === "No schedule") noSchedule++;
+      else if (s.shifts?.start_time) workingDays++;
+    }
+
+    // Attendance outcomes from the actual records. Absent = an elapsed day with
+    // NEITHER a clock-in nor a clock-out, regardless of roster — except excused
+    // days (Day off / No schedule). One missing punch is incomplete.
+    const EXCUSED = new Set(["Day off", "No schedule"]);
+    const presentDates = new Set<string>();
     let late = 0;
     let earlyLeave = 0;
     let workedMinutes = 0;
     let noClockIn = 0;
     let noClockOut = 0;
     let absent = 0;
-
-    for (const s of sched) {
-      const name = s.shifts?.name ?? null;
-      const isRealShift = !!s.shifts?.start_time;
-      if (name === "Day off") { dayOff++; continue; }
-      if (name === "No schedule") { noSchedule++; continue; }
-      if (!isRealShift) continue; // Unpaid or unknown → not a rostered work day
-      workingDays++;
-
-      const att = attMap.get(s.work_date);
-      const hasIn = !!att?.clock_in;
-      const hasOut = !!att?.clock_out;
+    for (const [date, a] of attMap) {
+      const hasIn = !!a.clock_in;
+      const hasOut = !!a.clock_out;
       if (hasIn) {
-        present++;
-        const pseudo = { clock_in: att!.clock_in, clock_out: att!.clock_out, break_minutes: att!.break_minutes, shifts: att!.shifts } as unknown as AttendanceWithRelations;
+        presentDates.add(date);
+        const pseudo = { clock_in: a.clock_in, clock_out: a.clock_out, break_minutes: a.break_minutes, shifts: a.shifts } as unknown as AttendanceWithRelations;
         const st = attendanceStatuses(pseudo, graceCfg);
         if (st.includes("late")) late++;
         if (st.includes("early-leave")) earlyLeave++;
         workedMinutes += workDurationMinutes(pseudo) ?? 0;
       }
-      // Absent only when BOTH punches missing (and the day has elapsed). One
-      // missing punch is incomplete (no clock-in / no clock-out).
-      if (!hasIn && !hasOut) {
-        if (s.work_date < today) absent++; // don't count future rostered days
-      } else if (!hasIn) {
-        noClockIn++; // clocked out but never in
-      } else if (!hasOut) {
-        noClockOut++; // clocked in but never out
-      }
+      const name = a.shifts?.name ?? null;
+      if (name && EXCUSED.has(name)) continue; // excused → never absent/incomplete
+      if (date >= today) continue; // don't count today or future
+      if (!inTenure(date)) continue; // before join / after stop
+      if (!hasIn && !hasOut) absent++; // no clock-in AND no clock-out → absent
+      else if (!hasIn) noClockIn++; // clocked out but never in
+      else if (!hasOut) noClockOut++; // clocked in but never out
     }
+    const present = presentDates.size;
 
     const joinedMid = !!c.join_date && c.join_date > period.start && c.join_date <= period.end;
     return {
