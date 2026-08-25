@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import type { Updater } from "@/lib/supabase/types";
 
 export type ScheduleCell = { employee_id: string; work_date: string; shift_id: string | null };
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -30,6 +31,16 @@ export async function setSchedule(
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
 
   const supabase = await createClient();
+
+  // Snapshot the previous shift so we can log the change (from → to).
+  const { data: prev } = await supabase
+    .from("schedules")
+    .select("shift_id")
+    .eq("employee_id", employeeId)
+    .eq("work_date", workDate)
+    .maybeSingle();
+  const prevShiftId = prev?.shift_id ?? null;
+
   const { error } = await supabase
     .from("schedules")
     .upsert(
@@ -37,8 +48,59 @@ export async function setSchedule(
       { onConflict: "employee_id,work_date" },
     );
   if (error) return { ok: false, error: error.message };
+
+  // Log the manual edit if the shift actually changed.
+  if (prevShiftId !== shiftId) {
+    const ids = [prevShiftId, shiftId].filter(Boolean) as string[];
+    const names = new Map<string, string>();
+    if (ids.length) {
+      const { data: sh } = await supabase.from("shifts").select("id,name").in("id", ids);
+      for (const s of (sh ?? []) as { id: string; name: string }[]) names.set(s.id, s.name);
+    }
+    const label = (sid: string | null) => (sid ? names.get(sid) ?? "Shift" : "None");
+    await supabase.from("schedule_logs").insert({
+      employee_id: employeeId,
+      work_date: workDate,
+      from_shift: label(prevShiftId),
+      to_shift: label(shiftId),
+      actor_id: profile.id,
+    });
+  }
+
   revalidatePath("/hr/schedule");
   return { ok: true };
+}
+
+export type ScheduleLog = {
+  id: string;
+  employeeName: string | null;
+  work_date: string;
+  from_shift: string | null;
+  to_shift: string | null;
+  actor: Updater | null;
+  created_at: string;
+};
+
+/** Recent manual schedule edits, newest first. */
+export async function getScheduleLogs(limit = 50): Promise<ScheduleLog[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("schedule_logs")
+    .select("id,work_date,from_shift,to_shift,created_at,employees(name),actor:profiles!actor_id(full_name,email)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return ((data ?? []) as unknown as {
+    id: string; work_date: string; from_shift: string | null; to_shift: string | null; created_at: string;
+    employees: { name: string } | null; actor: Updater | null;
+  }[]).map((l) => ({
+    id: l.id,
+    employeeName: l.employees?.name ?? null,
+    work_date: l.work_date,
+    from_shift: l.from_shift,
+    to_shift: l.to_shift,
+    actor: l.actor,
+    created_at: l.created_at,
+  }));
 }
 
 export type RosterPattern = { id: string; name: string | null; effective_date: string };

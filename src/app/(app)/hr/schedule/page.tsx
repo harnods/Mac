@@ -5,7 +5,9 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { getPayrollSettings } from "@/app/actions/payroll";
+import { getScheduleLogs } from "@/app/actions/schedule";
 import { ScheduleGrid } from "@/components/employees/schedule-grid";
+import { ScheduleChangelog } from "@/components/employees/schedule-changelog";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +32,10 @@ export default async function SchedulePage() {
     .order("name");
   if (owner?.id) crewQuery = crewQuery.or(`user_id.is.null,user_id.neq.${owner.id}`);
 
-  const [{ data: crewData }, { data: shiftRows }] = await Promise.all([
+  const [{ data: crewData }, { data: shiftRows }, scheduleLogs] = await Promise.all([
     crewQuery,
     supabase.from("shifts").select("id,name,start_time,end_time,active").order("start_time", { nullsFirst: true }),
+    getScheduleLogs(),
   ]);
 
   const crew = (crewData ?? []) as {
@@ -59,6 +62,7 @@ export default async function SchedulePage() {
         today={today}
         canWrite={canWrite}
       />
+      <ScheduleChangelog logs={scheduleLogs} />
     </div>
   );
 }
