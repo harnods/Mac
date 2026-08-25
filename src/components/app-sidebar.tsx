@@ -144,7 +144,7 @@ const ORDERS_MENU: MenuNode[] = [
 
 const RAIL = [
   { label: "Orders", icon: OrdersIcon, href: "/orders", match: (p: string) => p.startsWith("/orders") },
-  { label: "Office", icon: OfficeIcon, href: "/inventory/ingredients", match: (p: string) => !p.startsWith("/orders") && !p.startsWith("/hr") },
+  { label: "Store", icon: OfficeIcon, href: "/inventory/ingredients", match: (p: string) => !p.startsWith("/orders") && !p.startsWith("/hr") },
   { label: "HR", icon: HrIcon, href: "/hr/crew", match: (p: string) => p.startsWith("/hr") },
 ];
 
