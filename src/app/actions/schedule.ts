@@ -70,9 +70,10 @@ export async function createRosterPattern(
   if (!input.effectiveDate) return { ok: false, error: "Pick an effective date" };
 
   const supabase = await createClient();
+  const now = new Date().toISOString();
   const { data: pattern, error: pErr } = await supabase
     .from("roster_patterns")
-    .insert({ name: input.name?.trim() || null, effective_date: input.effectiveDate, created_by: profile.id })
+    .insert({ name: input.name?.trim() || null, effective_date: input.effectiveDate, created_by: profile.id, updated_by: profile.id, updated_at: now })
     .select("id")
     .single();
   if (pErr || !pattern) return { ok: false, error: pErr?.message ?? "Failed to create pattern" };
@@ -84,6 +85,8 @@ export async function createRosterPattern(
     const { error: rErr } = await supabase.from("roster_shifts").insert(rows);
     if (rErr) return { ok: false, error: rErr.message };
   }
+
+  await supabase.from("roster_pattern_logs").insert({ pattern_id: pattern.id, actor_id: profile.id, action: "created", changes: [] });
 
   const { error: applyErr } = await supabase.rpc("rebuild_all_rosters");
   if (applyErr) return { ok: false, error: applyErr.message };
@@ -129,9 +132,48 @@ export async function updateRosterPattern(
   if (!input.effectiveDate) return { ok: false, error: "Pick an effective date" };
 
   const supabase = await createClient();
+
+  // Snapshot the old state so we can log what changed (from → to).
+  const [{ data: oldPattern }, { data: oldShifts }, { data: empData }, { data: shiftData }] = await Promise.all([
+    supabase.from("roster_patterns").select("name, effective_date").eq("id", id).maybeSingle(),
+    supabase.from("roster_shifts").select("employee_id, weekday, shift_id").eq("pattern_id", id),
+    supabase.from("employees").select("id, name"),
+    supabase.from("shifts").select("id, name"),
+  ]);
+  const empName = new Map((((empData ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name])));
+  const shiftName = new Map((((shiftData ?? []) as { id: string; name: string }[]).map((s) => [s.id, s.name])));
+  const nameOf = (sid: string | null) => (sid ? shiftName.get(sid) ?? "Shift" : "None");
+  const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  const changes: { label: string; from: string; to: string }[] = [];
+  const oldName = oldPattern?.name ?? null;
+  const newName = input.name?.trim() || null;
+  if (oldName !== newName) changes.push({ label: "Name", from: oldName ?? "—", to: newName ?? "—" });
+  if (oldPattern && oldPattern.effective_date !== input.effectiveDate) {
+    changes.push({ label: "Effective date", from: oldPattern.effective_date, to: input.effectiveDate });
+  }
+  // Per crew/weekday shift changes.
+  const oldMap = new Map<string, string | null>();
+  for (const r of (oldShifts ?? []) as { employee_id: string; weekday: number; shift_id: string | null }[]) {
+    oldMap.set(`${r.employee_id}|${r.weekday}`, r.shift_id);
+  }
+  const newMap = new Map<string, string | null>();
+  for (const c of input.cells) {
+    if (c.weekday >= 0 && c.weekday <= 6) newMap.set(`${c.employeeId}|${c.weekday}`, c.shiftId);
+  }
+  for (const key of new Set([...oldMap.keys(), ...newMap.keys()])) {
+    const [emp, wd] = key.split("|");
+    const before = oldMap.get(key) ?? null;
+    const after = newMap.get(key) ?? null;
+    if (before !== after) {
+      changes.push({ label: `${empName.get(emp) ?? "Crew"} · ${WD[Number(wd)] ?? wd}`, from: nameOf(before), to: nameOf(after) });
+    }
+  }
+
+  const now = new Date().toISOString();
   const { error: uErr } = await supabase
     .from("roster_patterns")
-    .update({ name: input.name?.trim() || null, effective_date: input.effectiveDate })
+    .update({ name: newName, effective_date: input.effectiveDate, updated_by: profile.id, updated_at: now })
     .eq("id", id);
   if (uErr) return { ok: false, error: uErr.message };
 
@@ -143,6 +185,11 @@ export async function updateRosterPattern(
     const { error: rErr } = await supabase.from("roster_shifts").insert(rows);
     if (rErr) return { ok: false, error: rErr.message };
   }
+
+  if (changes.length > 0) {
+    await supabase.from("roster_pattern_logs").insert({ pattern_id: id, actor_id: profile.id, action: "updated", changes });
+  }
+
   const { error: applyErr } = await supabase.rpc("rebuild_all_rosters");
   if (applyErr) return { ok: false, error: applyErr.message };
   revalidatePath("/hr/schedule", "layout");

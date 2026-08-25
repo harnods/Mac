@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { MoreHorizontal, Plus, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,15 +31,28 @@ import {
   STICKY_ACTION_HEAD,
   STICKY_ACTION_CELL,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { deleteRosterPattern } from "@/app/actions/schedule";
 
-type Pattern = { id: string; name: string | null; effective_date: string };
+export type PatternRow = { id: string; name: string | null; effective_date: string; updatedAt: string | null; updatedBy: string | null };
+export type PatternLog = { id: string; action: string; createdAt: string; actor: string | null; changes: { label: string; from: string; to: string }[] };
 
-export function SchedulePatternsManager({ patterns, isAdmin }: { patterns: Pattern[]; isAdmin: boolean }) {
+const dash = <span className="text-muted-foreground">—</span>;
+
+export function SchedulePatternsManager({
+  patterns,
+  logsByPattern,
+  isAdmin,
+}: {
+  patterns: PatternRow[];
+  logsByPattern: Record<string, PatternLog[]>;
+  isAdmin: boolean;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [del, setDel] = useState<Pattern | null>(null);
+  const [del, setDel] = useState<PatternRow | null>(null);
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   function handleDelete() {
     if (!del) return;
@@ -51,6 +64,8 @@ export function SchedulePatternsManager({ patterns, isAdmin }: { patterns: Patte
       router.refresh();
     });
   }
+
+  const colSpan = isAdmin ? 6 : 4;
 
   return (
     <>
@@ -72,8 +87,10 @@ export function SchedulePatternsManager({ patterns, isAdmin }: { patterns: Patte
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[180px]">Effective date</TableHead>
-              <TableHead className="w-[280px]">Name</TableHead>
+              <TableHead className="w-8" />
+              <TableHead className="w-[160px]">Effective date</TableHead>
+              <TableHead className="w-[240px]">Name</TableHead>
+              <TableHead className="w-[240px]">Last updated</TableHead>
               {isAdmin && <TableHead className="p-0" />}
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
@@ -81,38 +98,86 @@ export function SchedulePatternsManager({ patterns, isAdmin }: { patterns: Patte
           <TableBody>
             {patterns.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 4 : 2} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={colSpan} className="text-center text-sm text-muted-foreground py-8">
                   No schedules yet.
                 </TableCell>
               </TableRow>
             )}
-            {patterns.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-medium">
-                  <Link href={`/hr/schedule-patterns/${p.id}`} className="hover:underline">{formatDate(p.effective_date)}</Link>
-                </TableCell>
-                <TableCell className="text-sm">{p.name ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                {isAdmin && <TableCell className="p-0" />}
-                {isAdmin && (
-                  <TableCell className={STICKY_ACTION_CELL}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8">
-                          <MoreHorizontal className="size-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-auto">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/hr/schedule-patterns/${p.id}`}>Edit</Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setDel(p)}>Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
+            {patterns.map((p) => {
+              const logs = logsByPattern[p.id] ?? [];
+              const isOpen = open.has(p.id);
+              return (
+                <>
+                  <TableRow key={p.id} className="cursor-pointer" onClick={() => toggle(p.id)}>
+                    <TableCell className="pl-3 text-muted-foreground">
+                      <ChevronRight className={`size-4 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/hr/schedule-patterns/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{formatDate(p.effective_date)}</Link>
+                    </TableCell>
+                    <TableCell className="text-sm">{p.name ?? dash}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {p.updatedAt ? (
+                        <>
+                          <span className="tabular-nums">{formatDateTime(p.updatedAt)}</span>
+                          {p.updatedBy && <span className="block text-xs">by {p.updatedBy}</span>}
+                        </>
+                      ) : dash}
+                    </TableCell>
+                    {isAdmin && <TableCell className="p-0" />}
+                    {isAdmin && (
+                      <TableCell className={STICKY_ACTION_CELL} onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8">
+                              <MoreHorizontal className="size-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-auto">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/hr/schedule-patterns/${p.id}`}>Edit</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setDel(p)}>Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                  {isOpen && (
+                    <TableRow className="bg-muted/20">
+                      <TableCell />
+                      <TableCell colSpan={colSpan - 1} className="py-3">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Change log</div>
+                        {logs.length === 0 ? (
+                          <p className="mt-2 text-sm text-muted-foreground">No changes recorded.</p>
+                        ) : (
+                          <ul className="mt-2 space-y-3">
+                            {logs.map((l) => (
+                              <li key={l.id} className="text-sm">
+                                <div className="text-muted-foreground">
+                                  <span className="text-foreground capitalize">{l.action}</span>
+                                  {l.actor ? ` by ${l.actor}` : ""} · <span className="tabular-nums">{formatDateTime(l.createdAt)}</span>
+                                </div>
+                                {l.changes.length > 0 && (
+                                  <ul className="mt-1 space-y-0.5 pl-3">
+                                    {l.changes.map((c, i) => (
+                                      <li key={i} className="text-muted-foreground">
+                                        <span className="text-foreground">{c.label}:</span> {c.from} <span className="text-muted-foreground">→</span> {c.to}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
