@@ -116,10 +116,14 @@ export function computePayslip(args: {
   const workingDays = Math.round((periodDays * settings.working_days_per_week) / 7);
   const dayOffDays = Math.max(0, periodDays - workingDays);
 
-  // Present = distinct days actually clocked in. Absent = working days not worked.
+  // Present = distinct days actually clocked in.
   const presentDates = new Set(attendance.filter((a) => a.clock_in).map((a) => a.work_date));
   const presentDays = presentDates.size;
-  const absentDays = Math.max(0, workingDays - presentDays);
+  // Absence is only a FULL absence — a day with neither a clock-in nor a
+  // clock-out. Days with just one punch are "incomplete" (handled by the
+  // no-clock-in/out formula), not absent, so they must not be deducted here.
+  const clockOutOnlyDates = new Set(attendance.filter((a) => !a.clock_in && a.clock_out).map((a) => a.work_date));
+  const absentDays = Math.max(0, workingDays - presentDays - clockOutOnlyDates.size);
 
   // Overtime is by approved request. Sum per day, round each day up to whole
   // hours (a remainder over 30 min rounds up, ≤30 min rounds down), then cap

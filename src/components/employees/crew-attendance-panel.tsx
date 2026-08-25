@@ -145,19 +145,23 @@ export function CrewAttendancePanel({
       }
     }
 
-    // Absent = unpaid: a past day (before today) with no clock-in that isn't an
-    // excused non-working day. "Day off" (paid) and "No schedule" (not rostered)
-    // are excused; "Unpaid" and plain no-shows count as unpaid/absent.
+    // Unpaid = a FULL absence: a past day with NEITHER a clock-in nor a
+    // clock-out that isn't excused. A day with just one punch is "incomplete",
+    // not absent. "Day off" (paid) and "No schedule" (not rostered) are excused.
     const EXCUSED = new Set(["Day off", "No schedule"]);
     let absent = 0;
+    let incomplete = 0;
     for (const day of eachDay(period.start, period.end)) {
       if (day >= today) continue; // don't count today or future days
       if (joinDate && day < joinDate) continue; // not employed yet
       if (stopDate && day > stopDate) continue; // no longer working
       const recs = byDate.get(day);
-      const hasClockIn = recs?.some((r) => r.clock_in);
       const isExcused = !!recs?.length && recs.every((r) => EXCUSED.has(r.shifts?.name ?? ""));
-      if (!hasClockIn && !isExcused) absent++;
+      if (isExcused) continue;
+      const hasClockIn = !!recs?.some((r) => r.clock_in);
+      const hasClockOut = !!recs?.some((r) => r.clock_out);
+      if (!hasClockIn && !hasClockOut) absent++; // neither punch → unpaid
+      else if (hasClockIn !== hasClockOut) incomplete++; // exactly one → incomplete
     }
 
     return {
@@ -168,6 +172,7 @@ export function CrewAttendancePanel({
       early: early.size,
       onTime: onTime.size,
       absent,
+      incomplete,
     };
   }, [rows, period.start, period.end, today, joinDate, stopDate, lateGraceMinutes, lateToleranceDirection, earlyLeaveGraceMinutes]);
 
@@ -210,11 +215,12 @@ export function CrewAttendancePanel({
         </div>
 
         {/* Box 2 — attendance breakdown */}
-        <div className="grid grid-cols-3 gap-3 rounded-lg border p-3">
+        <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
           {([
             { label: "Present", value: stats.present },
             { label: "Day offs", value: stats.dayOff },
             { label: "Unpaid", value: stats.absent },
+            { label: "Incomplete", value: stats.incomplete },
           ] as const).map((s) => (
             <div key={s.label}>
               <div className="text-xs text-muted-foreground">{s.label}</div>
