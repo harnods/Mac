@@ -10,6 +10,7 @@ import { EmployeeDetailActions } from "@/components/employees/employee-detail-ac
 import { CrewLoginButton } from "@/components/employees/crew-login-button";
 import { CompensationSection } from "@/components/employees/compensation-section";
 import { EmployeeDetailTabs } from "@/components/employees/employee-detail-tabs";
+import { CrewSwitcher } from "@/components/employees/crew-switcher";
 import { getPayrollSettings } from "@/app/actions/payroll";
 import { getAttendanceSettings } from "@/app/actions/attendance";
 import { getCrewPayslips } from "@/app/actions/payroll-run";
@@ -83,6 +84,22 @@ export default async function EmployeeDetailPage({
   const isResigned = !!emp.termination_date;
   const salaryUnit = emp.salary_unit === "day" ? "per day" : "per month";
   const payslips = canViewCompensation ? await getCrewPayslips(id) : [];
+
+  // Crew list for the title switcher (owner excluded). Default view shows active;
+  // searching in the dropdown spans inactive/resigned too.
+  const { data: ownerRow } = await supabase.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+  let switcherQ = supabase
+    .from("employees")
+    .select("id,name,active,termination_date,last_day")
+    .is("deleted_at", null)
+    .order("name");
+  if (ownerRow?.id) switcherQ = switcherQ.or(`user_id.is.null,user_id.neq.${ownerRow.id}`);
+  const { data: switcherData } = await switcherQ;
+  const crewOptions = ((switcherData ?? []) as { id: string; name: string; active: boolean | null; termination_date: string | null; last_day: string | null }[]).map((c) => ({
+    id: c.id,
+    name: c.name,
+    status: (c.termination_date || c.last_day ? "resigned" : c.active === false ? "inactive" : "active") as "active" | "inactive" | "resigned",
+  }));
   const { data: overtimeData } = await supabase
     .from("overtime_requests")
     .select("id,work_date,clock_in,clock_out,break_minutes,hours,reason_in,reason_out,reason,status")
@@ -107,7 +124,7 @@ export default async function EmployeeDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <DetailBackButton href="/hr/crew" />
-          <h1 className="text-2xl font-semibold tracking-tight">{emp.name}</h1>
+          <CrewSwitcher currentId={id} name={emp.name} crew={crewOptions} />
           {isResigned && <Badge variant="secondary">Resigned</Badge>}
           {!isResigned && !emp.active && (
             <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Inactive</Badge>
