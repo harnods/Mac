@@ -31,10 +31,11 @@ import {
   STICKY_ACTION_HEAD,
   STICKY_ACTION_CELL,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { deleteRosterPattern } from "@/app/actions/schedule";
 
-export type PatternRow = { id: string; name: string | null; effective_date: string; updatedAt: string | null; updatedBy: string | null };
+export type PatternRow = { id: string; name: string | null; effective_date: string; updatedAt: string | null; updatedBy: string | null; active: boolean };
 export type PatternLog = { id: string; action: string; createdAt: string; actor: string | null; changes: { label: string; from: string; to: string }[] };
 
 const dash = <span className="text-muted-foreground">—</span>;
@@ -113,7 +114,10 @@ export function SchedulePatternsManager({
                       <ChevronRight className={`size-4 transition-transform ${isOpen ? "rotate-90" : ""}`} />
                     </TableCell>
                     <TableCell className="font-medium">
-                      <Link href={`/hr/schedule-patterns/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{formatDate(p.effective_date)}</Link>
+                      <span className="inline-flex items-center gap-2">
+                        <Link href={`/hr/schedule-patterns/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{formatDate(p.effective_date)}</Link>
+                        {p.active && <Badge variant="success">Active</Badge>}
+                      </span>
                     </TableCell>
                     <TableCell className="text-sm">{p.name ?? dash}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">

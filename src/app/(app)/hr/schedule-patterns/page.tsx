@@ -23,6 +23,12 @@ export default async function SchedulePatternsPage() {
       .order("created_at", { ascending: false }),
   ]);
 
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  // The active pattern is the latest one whose effective date is on/before today.
+  const activeId = ((patternData ?? []) as { id: string; effective_date: string }[])
+    .filter((p) => p.effective_date <= today)
+    .sort((a, b) => b.effective_date.localeCompare(a.effective_date))[0]?.id ?? null;
+
   const patterns: PatternRow[] = ((patternData ?? []) as unknown as {
     id: string; name: string | null; effective_date: string; updated_at: string | null; updater: Updater | null;
   }[]).map((p) => ({
@@ -31,6 +37,7 @@ export default async function SchedulePatternsPage() {
     effective_date: p.effective_date,
     updatedAt: p.updated_at,
     updatedBy: p.updater ? updaterName(p.updater) : null,
+    active: p.id === activeId,
   }));
 
   const logsByPattern: Record<string, PatternLog[]> = {};
