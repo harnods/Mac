@@ -86,7 +86,7 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
     supabase.from("overtime_compensation_versions").select("id,compensation_id,effective_date,amount_per_hour,cap_hours,max_hours_per_day,created_by,created_at"),
     supabase
       .from("attendance")
-      .select("employee_id,work_date,clock_in,clock_out,break_minutes,shifts(start_time,end_time)")
+      .select("employee_id,work_date,clock_in,clock_out,break_minutes,shifts(name,start_time,end_time)")
       .gte("work_date", period.start)
       .lte("work_date", period.end),
     supabase

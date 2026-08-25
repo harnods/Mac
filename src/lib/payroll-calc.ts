@@ -8,7 +8,7 @@ export type CalcAttendance = {
   clock_in: string | null;
   clock_out: string | null;
   break_minutes: number;
-  shift: { start_time: string | null; end_time: string | null } | null;
+  shift: { name?: string | null; start_time: string | null; end_time: string | null } | null;
 };
 
 export type RateUnit = "day" | "week" | "month";
@@ -119,11 +119,19 @@ export function computePayslip(args: {
   // Present = distinct days actually clocked in.
   const presentDates = new Set(attendance.filter((a) => a.clock_in).map((a) => a.work_date));
   const presentDays = presentDates.size;
-  // Absence is only a FULL absence — a day with neither a clock-in nor a
-  // clock-out. Days with just one punch are "incomplete" (handled by the
-  // no-clock-in/out formula), not absent, so they must not be deducted here.
-  const clockOutOnlyDates = new Set(attendance.filter((a) => !a.clock_in && a.clock_out).map((a) => a.work_date));
-  const absentDays = Math.max(0, workingDays - presentDays - clockOutOnlyDates.size);
+  // Absence is a FULL absence on an obligated day: a record whose shift is a
+  // work obligation (a real shift or "Unpaid") with NEITHER a clock-in nor a
+  // clock-out. Counting from actual records (not entitlement − present) means
+  // future days with no record aren't wrongly counted as absent, and a day with
+  // just one punch is "incomplete" (handled by the no-clock formula), not absent.
+  const EXCUSED = new Set(["Day off", "No schedule"]);
+  const absentDates = new Set<string>();
+  for (const a of attendance) {
+    if (!a.shift) continue; // no shift record → not an obligation
+    if (a.shift.name && EXCUSED.has(a.shift.name)) continue; // excused day
+    if (!a.clock_in && !a.clock_out) absentDates.add(a.work_date);
+  }
+  const absentDays = absentDates.size;
 
   // Overtime is by approved request. Sum per day, round each day up to whole
   // hours (a remainder over 30 min rounds up, ≤30 min rounds down), then cap

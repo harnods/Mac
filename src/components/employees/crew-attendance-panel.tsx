@@ -156,10 +156,11 @@ export function CrewAttendancePanel({
       if (joinDate && day < joinDate) continue; // not employed yet
       if (stopDate && day > stopDate) continue; // no longer working
       const recs = byDate.get(day);
-      const isExcused = !!recs?.length && recs.every((r) => EXCUSED.has(r.shifts?.name ?? ""));
+      if (!recs?.length) continue; // no scheduled record → not counted
+      const isExcused = recs.every((r) => EXCUSED.has(r.shifts?.name ?? ""));
       if (isExcused) continue;
-      const hasClockIn = !!recs?.some((r) => r.clock_in);
-      const hasClockOut = !!recs?.some((r) => r.clock_out);
+      const hasClockIn = recs.some((r) => r.clock_in);
+      const hasClockOut = recs.some((r) => r.clock_out);
       if (!hasClockIn && !hasClockOut) absent++; // neither punch → unpaid
       else if (hasClockIn !== hasClockOut) incomplete++; // exactly one → incomplete
     }
