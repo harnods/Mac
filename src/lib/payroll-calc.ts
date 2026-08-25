@@ -151,7 +151,13 @@ export function computePayslip(args: {
     if (a.clock_in && a.shift?.start_time && toMin(a.clock_in) > toMin(a.shift.start_time) + lateOffset) {
       lateDates.add(a.work_date);
     }
-    if (!a.clock_in) missingInDates.add(a.work_date);
+    // A day missing BOTH punches is a full absence (handled by the absence
+    // deduction) — it must NOT also count as an incomplete-punch day, or it
+    // gets deducted twice. Only count days where the crew showed up but one
+    // side of the punch is missing.
+    const bothMissing = !a.clock_in && !a.clock_out;
+    if (bothMissing) continue;
+    if (!a.clock_in) missingInDates.add(a.work_date); // clocked out but never in
     if (a.clock_in && !a.clock_out) missingOutDates.add(a.work_date);
     if (!a.clock_in || !a.clock_out) incompleteDates.add(a.work_date);
   }
