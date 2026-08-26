@@ -35,31 +35,50 @@ export function OrderView({ order, items, charge, token }: { order: OnlineOrder;
       <div className="min-h-dvh px-5 py-6">
         <div className="text-center">
           <div className="text-sm font-medium text-stone-500">Order {order.order_number}</div>
-          <h1 className="mt-1 text-xl font-bold">Scan to pay</h1>
+          <h1 className="mt-1 text-xl font-bold">{charge.kind === "redirect" ? "Complete your payment" : "Scan to pay"}</h1>
           <p className="mt-1 text-sm text-stone-500">QRIS · GoPay · OVO · ShopeePay · DANA</p>
         </div>
 
-        <div className="mx-auto mt-5 w-full max-w-xs rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={charge.qrDataUrl} alt="QRIS" className="mx-auto aspect-square w-full rounded-xl" />
-          <div className="mt-4 text-center">
-            <div className="text-xs text-stone-500">Total</div>
-            <div className="text-2xl font-bold tabular-nums">{formatRp(order.total)}</div>
+        {charge.kind === "redirect" ? (
+          <div className="mx-auto mt-6 w-full max-w-xs">
+            <div className="rounded-3xl border border-stone-200 bg-white p-6 text-center shadow-sm">
+              <div className="text-xs text-stone-500">Total to pay</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums">{formatRp(order.total)}</div>
+            </div>
+            <a
+              href={charge.paymentUrl}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-stone-900 py-4 text-base font-semibold text-white active:scale-[0.99]"
+            >
+              Pay now
+            </a>
+            <p className="mt-3 text-center text-xs text-stone-400">
+              You&rsquo;ll choose QRIS or your e-wallet on the secure DOKU page, then return here. This page updates automatically once paid.
+            </p>
           </div>
-        </div>
-
-        {charge.mock && (
-          <button
-            disabled={pending}
-            onClick={() => start(async () => { const r = await simulatePayment(token); if (r.ok) router.refresh(); })}
-            className="mx-auto mt-5 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-stone-900 py-3.5 font-semibold text-white disabled:opacity-50 active:scale-[0.99]"
-          >
-            {pending ? <><Loader2 className="size-4 animate-spin" /> Confirming…</> : "Simulate payment (demo)"}
-          </button>
+        ) : (
+          <>
+            <div className="mx-auto mt-5 w-full max-w-xs rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={charge.qrDataUrl} alt="QRIS" className="mx-auto aspect-square w-full rounded-xl" />
+              <div className="mt-4 text-center">
+                <div className="text-xs text-stone-500">Total</div>
+                <div className="text-2xl font-bold tabular-nums">{formatRp(order.total)}</div>
+              </div>
+            </div>
+            {charge.mock && (
+              <button
+                disabled={pending}
+                onClick={() => start(async () => { const r = await simulatePayment(token); if (r.ok) router.refresh(); })}
+                className="mx-auto mt-5 flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-stone-900 py-3.5 font-semibold text-white disabled:opacity-50 active:scale-[0.99]"
+              >
+                {pending ? <><Loader2 className="size-4 animate-spin" /> Confirming…</> : "Simulate payment (demo)"}
+              </button>
+            )}
+            <p className="mx-auto mt-3 max-w-xs text-center text-xs text-stone-400">
+              Keep this page open — it updates automatically once payment is received.
+            </p>
+          </>
         )}
-        <p className="mx-auto mt-3 max-w-xs text-center text-xs text-stone-400">
-          Keep this page open — it updates automatically once payment is received.
-        </p>
       </div>
     );
   }

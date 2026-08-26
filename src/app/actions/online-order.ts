@@ -15,6 +15,10 @@ function service() {
   });
 }
 
+function orderBaseUrl() {
+  return process.env.ORDER_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://order.machimoto.cafe";
+}
+
 // ─── Menu (public) ────────────────────────────────────────────────────────────
 
 export type MenuItem = { id: string; name: string; description: string | null; price: number; imageUrl: string | null };
@@ -84,15 +88,39 @@ export async function createOnlineOrder(input: {
 
   const { data: order, error: oErr } = await db
     .from("online_orders")
-    .insert({ order_number: "", pickup_code: "", customer_name: name, customer_phone: phone, note: input.note?.trim() || null, subtotal, total: subtotal, payment_method: "qris" })
-    .select("id, access_token")
+    .insert({ order_number: "", pickup_code: "", customer_name: name, customer_phone: phone, note: input.note?.trim() || null, subtotal, total: subtotal })
+    .select("id, access_token, order_number")
     .single();
   if (oErr || !order) return { ok: false, error: oErr?.message ?? "Could not create order." };
 
   const { error: iErr } = await db.from("online_order_items").insert(lines.map((l) => ({ ...l, order_id: order.id })));
   if (iErr) return { ok: false, error: iErr.message };
 
-  return { ok: true, data: { token: order.access_token as string } };
+  const token = order.access_token as string;
+
+  // Start the payment. A redirect provider (DOKU) gives us a hosted page URL
+  // to store; the mock provider is generated lazily on the order page.
+  try {
+    const charge = await getPaymentProvider().createCharge({
+      orderId: order.id,
+      orderNumber: order.order_number,
+      amount: subtotal,
+      customerName: name,
+      customerPhone: phone,
+      callbackUrl: `${orderBaseUrl()}/order/o/${token}`,
+    });
+    await db.from("online_orders").update({
+      payment_method: charge.method,
+      payment_ref: charge.providerRef,
+      payment_url: charge.paymentUrl ?? null,
+      payment_expires_at: charge.expiresAt,
+    }).eq("id", order.id);
+  } catch (e) {
+    await db.from("online_orders").delete().eq("id", order.id); // roll back so retry is clean
+    return { ok: false, error: e instanceof Error ? e.message : "Payment could not be started. Please try again." };
+  }
+
+  return { ok: true, data: { token } };
 }
 
 /** Fetch an order + items by its access token (public status/pay page). */
@@ -100,7 +128,7 @@ export async function getOnlineOrder(token: string): Promise<{ order: OnlineOrde
   const db = service();
   const { data: order } = await db
     .from("online_orders")
-    .select("id,order_number,pickup_code,customer_name,customer_phone,note,status,payment_status,payment_method,subtotal,total,created_at,paid_at")
+    .select("id,order_number,pickup_code,customer_name,customer_phone,note,status,payment_status,payment_method,payment_url,payment_expires_at,subtotal,total,created_at,paid_at")
     .eq("access_token", token)
     .maybeSingle();
   if (!order) return null;
@@ -108,7 +136,13 @@ export async function getOnlineOrder(token: string): Promise<{ order: OnlineOrde
 
   let charge: Charge | null = null;
   if (order.payment_status === "unpaid" && order.status === "pending_payment") {
-    charge = await getPaymentProvider().createCharge({ orderId: order.id, orderNumber: order.order_number, amount: Number(order.total) });
+    if (order.payment_url) {
+      // Redirect provider (DOKU): reuse the stored hosted-checkout URL.
+      charge = { kind: "redirect", method: order.payment_method ?? "doku", paymentUrl: order.payment_url, providerRef: "", expiresAt: order.payment_expires_at ?? "", mock: false };
+    } else {
+      // Mock provider: generate the QR for display.
+      charge = await getPaymentProvider().createCharge({ orderId: order.id, orderNumber: order.order_number, amount: Number(order.total), customerName: order.customer_name, customerPhone: order.customer_phone, callbackUrl: `${orderBaseUrl()}/order/o/${token}` });
+    }
   }
   return { order: order as OnlineOrder, items: (items ?? []) as OnlineOrderItem[], charge };
 }
