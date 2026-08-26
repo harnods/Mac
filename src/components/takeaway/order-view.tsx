@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Check, Clock, ChefHat, PackageCheck, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import { formatRp } from "@/lib/format";
-import { simulatePayment, getOrderStatus, type OnlineOrder, type OnlineOrderItem } from "@/app/actions/online-order";
+import { simulatePayment, getOrderStatus, setOnlineOrderContact, type OnlineOrder, type OnlineOrderItem } from "@/app/actions/online-order";
 import type { Charge } from "@/lib/payments";
 
 const STEPS: { key: OnlineOrder["status"]; label: string; icon: typeof Clock }[] = [
@@ -20,7 +23,10 @@ const ORDER: OnlineOrder["status"][] = ["paid", "preparing", "ready", "picked_up
 export function TakeawayOrderView({ order, items, charge, token }: { order: OnlineOrder; items: OnlineOrderItem[]; charge: Charge | null; token: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const unpaid = order.payment_status === "unpaid" && order.status === "pending_payment";
+  const needsContact = order.payment_status === "paid" && (!order.customer_name?.trim() || !order.customer_phone?.trim());
 
   useEffect(() => {
     const iv = setInterval(async () => {
@@ -69,6 +75,44 @@ export function TakeawayOrderView({ order, items, charge, token }: { order: Onli
             <p className="mt-3 text-center text-xs text-muted-foreground">Keep this page open — it updates automatically once payment is received.</p>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ── CONTACT (collected after payment) ────────────────────────────
+  if (needsContact) {
+    function submitContact() {
+      const digits = phone.replace(/[^\d]/g, "");
+      if (!name.trim()) { toast.error("Enter your name"); return; }
+      if (digits.length < 8) { toast.error("Enter a valid WhatsApp number"); return; }
+      start(async () => {
+        const r = await setOnlineOrderContact(token, name, phone);
+        if (!r.ok) { toast.error(r.error); return; }
+        router.refresh();
+      });
+    }
+    return (
+      <div className="flex flex-1 flex-col px-5 py-6">
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-400">
+          ✓ Payment received — order {order.order_number}
+        </div>
+        <div className="mt-6">
+          <h1 className="text-xl font-semibold tracking-tight">Almost done</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Enter your details so we can hand your order to the right person at pickup.</p>
+        </div>
+        <div className="mt-5 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="c-name">Name</Label>
+            <Input id="c-name" value={name} onChange={(e) => setName(e.target.value)} className="h-12 text-base" autoFocus />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="c-phone">WhatsApp number</Label>
+            <Input id="c-phone" type="tel" inputMode="numeric" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="h-12 text-base" />
+          </div>
+          <Button className="h-12 w-full text-base" disabled={pending} onClick={submitContact}>
+            {pending ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : "Show my pickup code"}
+          </Button>
+        </div>
       </div>
     );
   }

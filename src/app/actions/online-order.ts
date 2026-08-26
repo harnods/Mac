@@ -61,15 +61,16 @@ export type OnlineOrderItem = { id: string; name_snapshot: string; unit_price: n
 
 const phoneOk = (p: string) => /^[0-9+][0-9\s-]{6,}$/.test(p.trim());
 
-/** Create a guest take-away order from a cart, priced server-side. */
+/** Create a guest take-away order from a cart, priced server-side. Contact
+ *  (name + WhatsApp) is optional here — for the take-away flow it's collected
+ *  after payment via setOnlineOrderContact. */
 export async function createOnlineOrder(input: {
-  name: string; phone: string; note?: string;
+  name?: string; phone?: string; note?: string;
   items: { itemId: string; qty: number }[];
 }): Promise<ActionResult<{ token: string }>> {
-  const name = input.name?.trim();
-  const phone = input.phone?.trim();
-  if (!name) return { ok: false, error: "Please enter your name." };
-  if (!phone || !phoneOk(phone)) return { ok: false, error: "Please enter a valid WhatsApp number." };
+  const name = input.name?.trim() ?? "";
+  const phone = input.phone?.trim() ?? "";
+  if (phone && !phoneOk(phone)) return { ok: false, error: "Please enter a valid WhatsApp number." };
   const wanted = (input.items ?? []).filter((i) => i.itemId && i.qty > 0);
   if (wanted.length === 0) return { ok: false, error: "Your cart is empty." };
 
@@ -105,8 +106,8 @@ export async function createOnlineOrder(input: {
       orderId: order.id,
       orderNumber: order.order_number,
       amount: subtotal,
-      customerName: name,
-      customerPhone: phone,
+      customerName: name || "Machimoto Customer",
+      customerPhone: phone || "0000000000",
       callbackUrl: `${orderBaseUrl()}/takeaway/o/${token}`,
     });
     await db.from("online_orders").update({
@@ -145,6 +146,19 @@ export async function getOnlineOrder(token: string): Promise<{ order: OnlineOrde
     }
   }
   return { order: order as OnlineOrder, items: (items ?? []) as OnlineOrderItem[], charge };
+}
+
+/** Save the pickup contact after payment (take-away collects it last). */
+export async function setOnlineOrderContact(token: string, name: string, phone: string): Promise<ActionResult> {
+  const n = name?.trim();
+  const p = phone?.trim();
+  if (!n) return { ok: false, error: "Please enter your name." };
+  if (!p || !phoneOk(p)) return { ok: false, error: "Please enter a valid WhatsApp number." };
+  const db = service();
+  const { error } = await db.from("online_orders").update({ customer_name: n, customer_phone: p, updated_at: new Date().toISOString() }).eq("access_token", token);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/orders/online");
+  return { ok: true };
 }
 
 /** Light poll for the pay/status page. */

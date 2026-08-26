@@ -13,8 +13,6 @@ import { createOnlineOrder, type MenuCategory, type MenuItem } from "@/app/actio
 
 export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] }) {
   const router = useRouter();
-  const [phone] = useState<string | null>(() => (typeof window === "undefined" ? null : sessionStorage.getItem("takeaway_phone")));
-  const [name] = useState(() => (typeof window === "undefined" ? "" : sessionStorage.getItem("takeaway_name") ?? ""));
   const [cart, setCart] = useState<Record<string, number>>({});
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
@@ -31,10 +29,6 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
   }, []);
 
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
-
-  useEffect(() => {
-    if (!phone) router.replace("/takeaway");
-  }, [phone, router]);
 
   const allItems = useMemo(() => {
     const map: Record<string, MenuItem> = {};
@@ -67,26 +61,20 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
   }
 
   function confirm() {
-    if (totalQty === 0 || !phone) return;
+    if (totalQty === 0) return;
     // Fold per-item notes + the general note into the order note.
     const parts: string[] = [];
     for (const [id, note] of Object.entries(itemNotes)) if (note && cart[id]) parts.push(`${allItems[id]?.name}: ${note}`);
     if (notes.trim()) parts.unshift(notes.trim());
     startSubmit(async () => {
       const res = await createOnlineOrder({
-        name,
-        phone,
         note: parts.join(" · ") || undefined,
         items: lines.map(([itemId, qty]) => ({ itemId, qty })),
       });
       if (!res.ok) { toast.error(res.error); return; }
-      sessionStorage.removeItem("takeaway_phone");
-      sessionStorage.removeItem("takeaway_name");
       router.push(`/takeaway/o/${res.data!.token}`);
     });
   }
-
-  if (!phone) return null;
 
   // ── REVIEW ──────────────────────────────────────────────────────
   if (view === "review") {
@@ -147,7 +135,7 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none text-sm" rows={3} placeholder="Contoh: kurangi es, pedas sedang…" />
           </div>
 
-          <p className="text-xs text-muted-foreground">Picking up as <span className="font-medium text-foreground">{name}</span> · {phone}</p>
+          <p className="text-xs text-muted-foreground">Pay first — we&rsquo;ll ask your name &amp; WhatsApp for pickup right after.</p>
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-20">
@@ -168,7 +156,7 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/machimoto-logotype.svg" alt="Machimoto" className="h-6 w-auto" />
         <div className="mt-4">
-          <h1 className="text-2xl font-semibold tracking-tight">{greeting}{name ? `, ${name}` : ""}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
           <p className="text-sm text-muted-foreground">Take-away — what would you like?</p>
         </div>
       </div>
