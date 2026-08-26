@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ArrowLeft, Minus, Plus, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,10 +98,9 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
               if (!item) return null;
               return (
                 <div key={id} className="flex items-center gap-3 px-4 py-3">
-                  <div className="size-11 rounded-lg bg-muted overflow-hidden shrink-0">
+                  <div className="relative size-11 rounded-lg bg-muted overflow-hidden shrink-0">
                     {item.imageUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                      <Image src={item.imageUrl} alt={item.name} fill sizes="44px" quality={70} className="object-cover" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -239,8 +239,7 @@ function MenuCard({ item, qty, onAdd, onOpen }: { item: MenuItem; qty: number; o
     <button onClick={onOpen} className="group flex flex-col overflow-hidden rounded-xl border text-left transition-shadow hover:shadow-sm">
       <div className="relative aspect-square w-full bg-muted">
         {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+          <Image src={item.imageUrl} alt={item.name} fill sizes="(max-width: 480px) 45vw, 200px" quality={70} className="object-cover" />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground"><UtensilsCrossed className="size-8" /></div>
         )}
@@ -290,8 +289,7 @@ function ItemSheet({ item, onClose, onAdd }: { item: MenuItem | null; onClose: (
             <div className="flex-1 overflow-y-auto">
               <div className="relative aspect-square w-full bg-muted">
                 {item.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                  <Image src={item.imageUrl} alt={item.name} fill sizes="(max-width: 480px) 100vw, 448px" quality={72} className="object-cover" />
                 ) : (
                   <div className="flex size-full items-center justify-center text-muted-foreground"><UtensilsCrossed className="size-10" /></div>
                 )}

@@ -3,6 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["machitori.local"],
   compress: true,
+  images: {
+    // Product photos live in Supabase Storage; let next/image resize + serve
+    // WebP/AVIF per device (big win on mobile).
+    remotePatterns: [
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
+    ],
+    formats: ["image/avif", "image/webp"],
+  },
   experimental: {
     // Keep already-rendered pages in the client router cache so navigating
     // back to a visited page is instant instead of re-fetching. Mutations
