@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Minus, Plus, Search, ShoppingBag, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Search, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -273,9 +273,21 @@ function ItemSheet({ item, onClose, onAdd }: { item: MenuItem | null; onClose: (
 
   return (
     <Sheet open={!!item} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="bottom" className="p-0 overflow-hidden rounded-t-[32px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <SheetContent
+        side="bottom"
+        className="p-0 overflow-hidden rounded-t-[32px] h-dvh max-h-dvh duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         {item && (
           <>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-white/90 text-black shadow-sm backdrop-blur active:scale-95"
+            >
+              <X className="size-5" />
+            </button>
             <div className="flex-1 overflow-y-auto">
               <div className="relative aspect-square w-full bg-muted">
                 {item.imageUrl ? (
