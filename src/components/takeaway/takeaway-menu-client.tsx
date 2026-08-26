@@ -135,7 +135,6 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="resize-none text-sm" rows={3} placeholder="Contoh: kurangi es, pedas sedang…" />
           </div>
 
-          <p className="text-xs text-muted-foreground">Pay first — we&rsquo;ll ask your name &amp; WhatsApp for pickup right after.</p>
         </div>
 
         <div className="fixed inset-x-0 bottom-0 z-20">
