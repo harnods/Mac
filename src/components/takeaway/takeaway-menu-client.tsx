@@ -273,24 +273,26 @@ function ItemSheet({ item, onClose, onAdd }: { item: MenuItem | null; onClose: (
 
   return (
     <Sheet open={!!item} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="bottom" className="p-0">
+      <SheetContent side="bottom" className="p-0 overflow-hidden rounded-t-[32px]" onOpenAutoFocus={(e) => e.preventDefault()}>
         {item && (
           <>
-            <div className="relative aspect-square w-full bg-muted">
-              {item.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
-              ) : (
-                <div className="flex size-full items-center justify-center text-muted-foreground"><UtensilsCrossed className="size-10" /></div>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              <h2 className="text-lg font-semibold tracking-tight">{item.name}</h2>
-              {item.description && <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>}
-              <p className="mt-2 text-base font-semibold tabular-nums">{formatRp(item.price)}</p>
-              <div className="mt-5 space-y-2">
-                <p className="text-sm font-semibold">Note <span className="font-normal text-muted-foreground">(optional)</span></p>
-                <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={200} placeholder="e.g. no onion, extra spicy" className="resize-none text-sm" />
+            <div className="flex-1 overflow-y-auto">
+              <div className="relative aspect-square w-full bg-muted">
+                {item.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.imageUrl} alt={item.name} className="size-full object-cover" />
+                ) : (
+                  <div className="flex size-full items-center justify-center text-muted-foreground"><UtensilsCrossed className="size-10" /></div>
+                )}
+              </div>
+              <div className="px-5 py-4">
+                <h2 className="text-lg font-semibold tracking-tight">{item.name}</h2>
+                {item.description && <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>}
+                <p className="mt-2 text-base font-semibold tabular-nums">{formatRp(item.price)}</p>
+                <div className="mt-5 space-y-2">
+                  <p className="text-sm font-semibold">Note <span className="font-normal text-muted-foreground">(optional)</span></p>
+                  <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} maxLength={200} placeholder="e.g. no onion, extra spicy" className="resize-none text-sm" />
+                </div>
               </div>
             </div>
             <div className="border-t px-5 py-3 flex items-center gap-3">
