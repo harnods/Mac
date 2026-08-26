@@ -86,7 +86,7 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
           </button>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Review order</h1>
-            <p className="text-sm text-muted-foreground">Take-away · pick up in store</p>
+            <p className="text-sm text-muted-foreground">Grab &amp; Go · pick up in store</p>
           </div>
         </header>
 
@@ -156,7 +156,7 @@ export function TakeawayMenuClient({ categories }: { categories: MenuCategory[] 
         <img src="/machimoto-logotype.svg" alt="Machimoto" className="h-6 w-auto" />
         <div className="mt-4">
           <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
-          <p className="text-sm text-muted-foreground">Take-away — what would you like?</p>
+          <p className="text-sm text-muted-foreground">Grab &amp; Go — what would you like?</p>
         </div>
       </div>
 

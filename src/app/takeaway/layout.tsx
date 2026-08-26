@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Machimoto — Take-away",
-  description: "Order ahead for take-away and pick up in store.",
+  title: "Machimoto — Grab & Go",
+  description: "Order ahead for Grab & Go and pick up in store.",
 };
 
 export default function TakeawayLayout({ children }: { children: React.ReactNode }) {
