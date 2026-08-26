@@ -95,15 +95,19 @@ const DokuProvider: PaymentProvider = {
       body: rawBody,
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json?.payment?.url) {
-      throw new Error(json?.error?.message || json?.message || `DOKU error (${res.status})`);
+    // DOKU Checkout wraps the result in `response`: response.payment.url / token_id.
+    const payment = json?.response?.payment ?? json?.payment;
+    if (!res.ok || !payment?.url) {
+      const msg = json?.error?.message ?? (Array.isArray(json?.message) ? json.message.join(", ") : json?.message);
+      throw new Error(msg || `DOKU error (${res.status})`);
     }
     return {
       kind: "redirect",
       method: "doku",
-      paymentUrl: json.payment.url as string,
-      providerRef: (json.payment.token_id as string) ?? requestId,
-      expiresAt: (json.payment.expired_date as string) ?? new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      paymentUrl: payment.url as string,
+      providerRef: (payment.token_id as string) ?? requestId,
+      // DOKU's expired_date is yyyyMMddHHmmss (UTC+7); derive a clean ISO expiry from our due date instead.
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       mock: false,
     };
   },
