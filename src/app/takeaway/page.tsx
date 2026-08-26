@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function OrderStartPage() {
+export default function TakeawayStartPage() {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -19,9 +19,13 @@ export default function OrderStartPage() {
       setError("Enter a valid WhatsApp number");
       return;
     }
-    sessionStorage.setItem("order_phone", phone.trim());
-    sessionStorage.setItem("order_name", name.trim());
-    router.push("/order/menu");
+    if (!name.trim()) {
+      setError("Enter your name for pickup");
+      return;
+    }
+    sessionStorage.setItem("takeaway_phone", phone.trim());
+    sessionStorage.setItem("takeaway_name", name.trim());
+    router.push("/takeaway/menu");
   }
 
   return (
@@ -30,9 +34,9 @@ export default function OrderStartPage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/machimoto-logotype.svg" alt="Machimoto" className="h-7 w-auto" />
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">Order</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Take-away</h1>
           <p className="text-sm text-muted-foreground">
-            Enter your WhatsApp number to start ordering.
+            Order ahead, pay with QRIS / e-wallet, and pick up in store.
           </p>
         </div>
       </div>
@@ -46,26 +50,22 @@ export default function OrderStartPage() {
             inputMode="numeric"
             autoComplete="tel"
             value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value);
-              setError("");
-            }}
+            onChange={(e) => { setPhone(e.target.value); setError(""); }}
             className="h-12 text-base"
           />
-          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="name">
-            Name <span className="text-muted-foreground font-normal">(optional)</span>
-          </Label>
+          <Label htmlFor="name">Name</Label>
           <Input
             id="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => { setName(e.target.value); setError(""); }}
             className="h-12 text-base"
           />
         </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" className="w-full h-12 text-base">
           View menu

@@ -107,7 +107,7 @@ export async function createOnlineOrder(input: {
       amount: subtotal,
       customerName: name,
       customerPhone: phone,
-      callbackUrl: `${orderBaseUrl()}/order/o/${token}`,
+      callbackUrl: `${orderBaseUrl()}/takeaway/o/${token}`,
     });
     await db.from("online_orders").update({
       payment_method: charge.method,
@@ -141,7 +141,7 @@ export async function getOnlineOrder(token: string): Promise<{ order: OnlineOrde
       charge = { kind: "redirect", method: order.payment_method ?? "doku", paymentUrl: order.payment_url, providerRef: "", expiresAt: order.payment_expires_at ?? "", mock: false };
     } else {
       // Mock provider: generate the QR for display.
-      charge = await getPaymentProvider().createCharge({ orderId: order.id, orderNumber: order.order_number, amount: Number(order.total), customerName: order.customer_name, customerPhone: order.customer_phone, callbackUrl: `${orderBaseUrl()}/order/o/${token}` });
+      charge = await getPaymentProvider().createCharge({ orderId: order.id, orderNumber: order.order_number, amount: Number(order.total), customerName: order.customer_name, customerPhone: order.customer_phone, callbackUrl: `${orderBaseUrl()}/takeaway/o/${token}` });
     }
   }
   return { order: order as OnlineOrder, items: (items ?? []) as OnlineOrderItem[], charge };
