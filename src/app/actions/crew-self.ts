@@ -638,6 +638,49 @@ export async function getMySchedule(start: string, end: string): Promise<MySched
   }));
 }
 
+export type CrewDayShift = {
+  employee_id: string;
+  name: string;
+  shift: { name: string; start_time: string | null; end_time: string | null } | null;
+};
+
+/** Every active crew member and their scheduled shift on a single date. */
+export async function getAllSchedule(date: string): Promise<CrewDayShift[]> {
+  const profile = await getCurrentProfile();
+  if (!profile) return [];
+  const db = serviceClient();
+
+  // Exclude the account owner/CEO from the roster, matching the admin grid.
+  const { data: owner } = await db.from("profiles").select("id").eq("is_owner", true).maybeSingle();
+
+  let crewQuery = db
+    .from("employees")
+    .select("id, name, join_date, termination_date, last_day")
+    .is("deleted_at", null)
+    .order("name");
+  if (owner?.id) crewQuery = crewQuery.or(`user_id.is.null,user_id.neq.${owner.id}`);
+
+  const [{ data: emps }, { data: scheds }] = await Promise.all([
+    crewQuery,
+    db.from("schedules").select("employee_id, shifts(name,start_time,end_time)").eq("work_date", date),
+  ]);
+
+  const byEmp = new Map<string, CrewDayShift["shift"]>();
+  for (const s of (scheds ?? []) as unknown as { employee_id: string; shifts: CrewDayShift["shift"] }[]) {
+    byEmp.set(s.employee_id, (s.shifts ?? null) as CrewDayShift["shift"]);
+  }
+
+  return ((emps ?? []) as { id: string; name: string; join_date: string | null; termination_date: string | null; last_day: string | null }[])
+    // Only crew whose employment window covers the viewed date.
+    .filter((e) => {
+      if (e.join_date && e.join_date > date) return false;
+      const end = e.last_day ?? e.termination_date;
+      if (end && end < date) return false;
+      return true;
+    })
+    .map((e) => ({ employee_id: e.id, name: e.name, shift: byEmp.get(e.id) ?? null }));
+}
+
 export async function changeMyPassword(newPassword: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
