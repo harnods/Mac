@@ -16,7 +16,7 @@ function service() {
 }
 
 function orderBaseUrl() {
-  return process.env.ORDER_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://myorder.machimoto.cafe";
+  return process.env.ORDER_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://order.machimoto.cafe";
 }
 
 // ─── Menu (public) ────────────────────────────────────────────────────────────
