@@ -131,6 +131,7 @@ const HR_MENU: MenuNode[] = [
 
 const ORDERS_MENU: MenuNode[] = [
   { label: "POS", icon: OrdersIcon, href: "/orders" },
+  { label: "Online orders", icon: OrdersIcon, href: "/orders/online" },
   {
     label: "Pipeline",
     icon: OrdersIcon,

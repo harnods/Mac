@@ -7,6 +7,8 @@ export async function updateSession(request: NextRequest) {
   // Crew subdomain (me.machimoto.cafe) serves the /me/* app; every other host
   // (admin.machimoto.cafe, *.vercel.app, apex) serves the back-office.
   const isCrewHost = host.startsWith("me.");
+  // Public consumer storefront (order.machimoto.cafe) → /order/*.
+  const isOrderHost = host.startsWith("order.");
   // Apex + www show a public placeholder landing page.
   const isApexHost = host === "machimoto.cafe" || host === "www.machimoto.cafe";
 
@@ -29,6 +31,21 @@ export async function updateSession(request: NextRequest) {
 
   const isInfra =
     pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico";
+
+  // --- Order subdomain: map the root onto /order/*, fully public (no auth) ---
+  if (isOrderHost && !isInfra) {
+    const target = pathname.startsWith("/order")
+      ? pathname
+      : pathname === "/"
+        ? "/order"
+        : `/order${pathname}`;
+    if (target !== pathname) {
+      const rw = url.clone();
+      rw.pathname = target;
+      return NextResponse.rewrite(rw);
+    }
+    return NextResponse.next({ request });
+  }
 
   // --- Crew subdomain: map the root onto the /me/* routes ---
   if (isCrewHost && !isInfra) {
