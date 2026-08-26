@@ -678,7 +678,9 @@ export async function getAllSchedule(date: string): Promise<CrewDayShift[]> {
       if (end && end < date) return false;
       return true;
     })
-    .map((e) => ({ employee_id: e.id, name: e.name, shift: byEmp.get(e.id) ?? null }));
+    .map((e) => ({ employee_id: e.id, name: e.name, shift: byEmp.get(e.id) ?? null }))
+    // Only crew actually scheduled to work that day.
+    .filter((c) => !!c.shift && c.shift.name !== "No schedule");
 }
 
 export async function changeMyPassword(newPassword: string): Promise<ActionResult> {

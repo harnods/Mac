@@ -1,8 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { getMySchedule, getAllSchedule } from "@/app/actions/crew-self";
-import { ScheduleDateSelect } from "@/components/crew/schedule-date-select";
+import { AttendanceDateBar } from "@/components/employees/attendance-date-bar";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function MeSchedulePage({ searchParams }: { searchParams: P
       </div>
 
       {isAll ? (
-        <AllSchedule today={today} ty={ty} tm={tm} td={td} date={date} />
+        <AllSchedule today={today} date={date} />
       ) : (
         <MySchedule today={today} ty={ty} tm={tm} td={td} />
       )}
@@ -96,24 +97,18 @@ async function MySchedule({ today, ty, tm, td }: { today: string; ty: number; tm
   );
 }
 
-async function AllSchedule({ today, ty, tm, td, date }: { today: string; ty: number; tm: number; td: number; date?: string }) {
+async function AllSchedule({ today, date }: { today: string; date?: string }) {
   const selected = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : today;
-
-  // Date options: one week back through three weeks ahead.
-  const options = Array.from({ length: 28 }, (_, i) => {
-    const d = new Date(ty, tm - 1, td - 7 + i);
-    const iso = toISO(d);
-    return { key: iso, label: `${WD[d.getDay()]}, ${d.getDate()} ${MONTH[d.getMonth()]}${iso === today ? " · Today" : ""}` };
-  });
-
   const crew = await getAllSchedule(selected);
 
   return (
     <div className="space-y-4">
-      <ScheduleDateSelect value={selected} options={options} />
+      <Suspense fallback={null}>
+        <AttendanceDateBar selectedDate={selected} today={today} />
+      </Suspense>
 
       {crew.length === 0 ? (
-        <p className="rounded-lg border px-4 py-8 text-center text-sm text-muted-foreground">No crew for this date.</p>
+        <p className="rounded-lg border px-4 py-8 text-center text-sm text-muted-foreground">No crew scheduled for this date.</p>
       ) : (
         <div className="divide-y rounded-lg border">
           {crew.map((c) => {
