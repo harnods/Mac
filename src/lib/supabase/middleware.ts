@@ -7,8 +7,8 @@ export async function updateSession(request: NextRequest) {
   // Crew subdomain (me.machimoto.cafe) serves the /me/* app; every other host
   // (admin.machimoto.cafe, *.vercel.app, apex) serves the back-office.
   const isCrewHost = host.startsWith("me.");
-  // Public consumer storefront (order.machimoto.cafe) → /order/*.
-  const isOrderHost = host.startsWith("order.");
+  // Public consumer storefront (order./myorder.machimoto.cafe) → /order/*.
+  const isOrderHost = host.startsWith("order.") || host.startsWith("myorder.");
   // Apex + www show a public placeholder landing page.
   const isApexHost = host === "machimoto.cafe" || host === "www.machimoto.cafe";
 
