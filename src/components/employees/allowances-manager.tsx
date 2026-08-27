@@ -59,6 +59,8 @@ export function AllowancesManager({ items, isAdmin, today }: { items: ComponentR
       name: row.component.name,
       type: row.component.type,
       effective_date: v?.effective_date ?? today,
+      formula_basis: v?.formula_basis ?? null,
+      formula_rate: v?.formula_rate ?? null,
     });
     setDrawerOpen(true);
   }

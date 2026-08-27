@@ -10,8 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { componentHistory, activeVersion } from "@/lib/payroll-component";
-import { formatDate } from "@/lib/format";
+import { componentHistory, activeVersion, FORMULA_BASIS_LABEL } from "@/lib/payroll-component";
+import { formatDate, formatRp } from "@/lib/format";
 import type { Allowance, PayrollComponentVersion } from "@/lib/supabase/types";
 
 type Tab = "details" | "history";
@@ -67,6 +67,14 @@ export function PayrollComponentDetail({
         <dl className="max-w-2xl">
           <DetailRow label="Name" value={component.name} />
           <DetailRow label="Type" value={<Badge variant="secondary">{component.type === "earning" ? "Earning" : "Deduction"}</Badge>} />
+          <DetailRow
+            label="Formula"
+            value={
+              current?.formula_basis
+                ? `${formatRp(current.formula_rate ?? 0)} × ${FORMULA_BASIS_LABEL[current.formula_basis]}`
+                : "Fixed amount"
+            }
+          />
           <DetailRow label="Effective date" value={current ? formatDate(current.effective_date) : "—"} />
         </dl>
       ) : (

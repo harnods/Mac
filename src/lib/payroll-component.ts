@@ -1,9 +1,21 @@
-import type { PayrollComponentVersion, RateUnit } from "@/lib/supabase/types";
+import type { FormulaBasis, PayrollComponentVersion, RateUnit } from "@/lib/supabase/types";
 
 export const RATE_UNIT_LABEL: Record<RateUnit, string> = {
   day: "per day",
   week: "per week",
   month: "per month",
+};
+
+/** Human label for each attendance-derived formula basis (single source for drawer + detail). */
+export const FORMULA_BASIS_LABEL: Record<FormulaBasis, string> = {
+  late_days: "Late days",
+  missing_clock_in_days: "Missing clock-in days",
+  missing_clock_out_days: "Missing clock-out days",
+  incomplete_days: "Incomplete days (missing in/out)",
+  absent_days: "Absent days",
+  present_days: "Present days",
+  working_days: "Working days",
+  overtime_hours: "Overtime hours",
 };
 
 /** A history row: a version with its effective range and whether it's active today. */

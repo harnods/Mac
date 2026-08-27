@@ -23,7 +23,8 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { createAllowance, updateAllowance } from "@/app/actions/employees";
-import type { PayrollComponentType } from "@/lib/supabase/types";
+import { FORMULA_BASIS_LABEL } from "@/lib/payroll-component";
+import type { FormulaBasis, PayrollComponentType } from "@/lib/supabase/types";
 
 export type ComponentPrefill = {
   id: string;
@@ -34,16 +35,9 @@ export type ComponentPrefill = {
   formula_rate?: number | null;
 };
 
-const FORMULA_OPTIONS: { value: string; label: string }[] = [
-  { value: "late_days", label: "Late days" },
-  { value: "missing_clock_in_days", label: "Missing clock-in days" },
-  { value: "missing_clock_out_days", label: "Missing clock-out days" },
-  { value: "incomplete_days", label: "Incomplete days (missing in/out)" },
-  { value: "absent_days", label: "Absent days" },
-  { value: "present_days", label: "Present days" },
-  { value: "working_days", label: "Working days" },
-  { value: "overtime_hours", label: "Overtime hours" },
-];
+const FORMULA_OPTIONS: { value: string; label: string }[] = (
+  Object.keys(FORMULA_BASIS_LABEL) as FormulaBasis[]
+).map((value) => ({ value, label: FORMULA_BASIS_LABEL[value] }));
 
 const NO_FORMULA = "__none__";
 

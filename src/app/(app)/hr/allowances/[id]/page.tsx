@@ -39,6 +39,8 @@ export default async function PayrollComponentDetailPage({
               name: component.name,
               type: component.type,
               effective_date: current?.effective_date ?? today,
+              formula_basis: current?.formula_basis ?? null,
+              formula_rate: current?.formula_rate ?? null,
             }}
           />
         )}
