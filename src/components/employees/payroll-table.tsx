@@ -120,8 +120,6 @@ function PayrollDetail({ row, components, anchorYear, anchorMonth, isAdmin }: {
   const [adding, setAdding] = useState<"earning" | "deduction" | null>(null);
   const [componentId, setComponentId] = useState("");
   const [amount, setAmount] = useState("");
-  const [unit, setUnit] = useState<RateUnit>("month");
-  const [perAttendance, setPerAttendance] = useState(false);
 
   const ps = row.payslip;
   const selected = components.find((c) => c.id === componentId);
@@ -164,8 +162,10 @@ function PayrollDetail({ row, components, anchorYear, anchorMonth, isAdmin }: {
         label: selected.name, type: kind,
         amount: selected.isFormula ? 0 : Number(amount),
         allowanceId: selected.id,
-        rateUnit: selected.isFormula ? "month" : unit,
-        perAttendance: !selected.isFormula && unit === "day" ? perAttendance : false,
+        // Components added from a payroll run are always a one-time, flat amount.
+        // Recurring per day/week/month lives on the crew profile instead.
+        rateUnit: "month",
+        perAttendance: false,
       });
       if (!res.ok) { toast.error(res.error); return; }
       resetForm();
@@ -180,7 +180,7 @@ function PayrollDetail({ row, components, anchorYear, anchorMonth, isAdmin }: {
     });
   }
   function resetForm() {
-    setAdding(null); setComponentId(""); setAmount(""); setUnit("month"); setPerAttendance(false);
+    setAdding(null); setComponentId(""); setAmount("");
   }
 
   function Section({ kind, title }: { kind: "earning" | "deduction"; title: string }) {
@@ -231,7 +231,7 @@ function PayrollDetail({ row, components, anchorYear, anchorMonth, isAdmin }: {
         {isAdmin && (
           adding === kind ? (
             <div className="space-y-2 rounded-lg border p-3">
-              <Select value={componentId} onValueChange={(v) => { setComponentId(v); setUnit("month"); setPerAttendance(false); setAmount(""); }}>
+              <Select value={componentId} onValueChange={(v) => { setComponentId(v); setAmount(""); }}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Select component" /></SelectTrigger>
                 <SelectContent>
                   {options.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No {kind} components.</div>}
@@ -246,27 +246,9 @@ function PayrollDetail({ row, components, anchorYear, anchorMonth, isAdmin }: {
               {selected && (selected.isFormula ? (
                 <p className="text-xs text-muted-foreground">Auto calculated — computed by formula at payroll run.</p>
               ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>
-                      <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 pl-9" autoFocus />
-                    </div>
-                    <Select value={unit} onValueChange={(v) => setUnit(v as RateUnit)}>
-                      <SelectTrigger className="h-9 w-32 shrink-0"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="day">per day</SelectItem>
-                        <SelectItem value="week">per week</SelectItem>
-                        <SelectItem value="month">per month</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {unit === "day" && (
-                    <label className="flex cursor-pointer select-none items-center gap-2 text-sm">
-                      <input type="checkbox" className="accent-primary" checked={perAttendance} onChange={(e) => setPerAttendance(e.target.checked)} />
-                      Per attendance
-                    </label>
-                  )}
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">Rp</span>
+                  <Input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 pl-9" autoFocus />
                 </div>
               ))}
 
