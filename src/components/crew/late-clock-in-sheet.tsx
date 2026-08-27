@@ -25,29 +25,18 @@ export function LateClockInSheet({
         {info && (
           <SheetBody className="space-y-4 text-sm">
             <p>
-              Kamu clock in pukul <b className="tabular-nums">{info.clockIn}</b>, padahal shift
-              {shiftName ? <> <b>{shiftName}</b></> : null} mulai pukul <b className="tabular-nums">{info.shiftStart}</b>.
-              Idealnya clock in <b>10 menit sebelum</b> shift dimulai — paling lambat pukul{" "}
-              <b className="tabular-nums">{info.expectedBy}</b>.
+              Kamu clock in pukul {info.clockIn}, padahal shift{shiftName ? ` ${shiftName}` : ""} mulai pukul{" "}
+              {info.shiftStart}. Idealnya clock in 10 menit sebelum shift dimulai — paling lambat pukul {info.expectedBy}.
             </p>
 
-            <div className="space-y-1.5 rounded-lg border p-3">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-muted-foreground">Telat bulan ini</span>
-                <b className="tabular-nums">{info.lateCount}×</b>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-muted-foreground">Potongan sampai hari ini</span>
-                <b className="tabular-nums text-red-600 dark:text-red-400">−{formatRp(info.deduction)}</b>
-              </div>
-              {info.rate > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  {info.lateCount} × {formatRp(info.rate)} per keterlambatan
-                </p>
-              )}
-            </div>
+            <p>Bulan ini kamu sudah telat {info.lateCount} kali.</p>
 
-            <p className="text-muted-foreground">Yuk, usahakan datang lebih awal ya 🙌</p>
+            <p>
+              Total potongan keterlambatan sampai hari ini: {formatRp(info.deduction)}
+              {info.rate > 0 ? ` (${info.lateCount} × ${formatRp(info.rate)})` : ""}.
+            </p>
+
+            <p>Yuk, usahakan datang lebih awal ya 🙌</p>
           </SheetBody>
         )}
         <SheetFooter>
