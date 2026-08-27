@@ -36,11 +36,11 @@ type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
 type Leaf = { label: string; href: string; perm?: PermissionKey };
 type Heading = { heading: string };
 type Child = Leaf | "divider" | Heading;
-type MenuNode =
+export type MenuNode =
   | { label: string; icon: NavIcon; href: string; perm?: PermissionKey; children?: undefined }
   | { label: string; icon: NavIcon; href?: undefined; children: Child[] };
 
-const MENU: MenuNode[] = [
+export const MENU: MenuNode[] = [
   { label: "Products", icon: ProductsIcon, href: "/inventory/products", perm: P.PRODUCTS_READ },
   { label: "Recipes", icon: RecipesIcon, href: "/recipes" },
   {
@@ -92,7 +92,7 @@ const MENU: MenuNode[] = [
   },
 ];
 
-const HR_MENU: MenuNode[] = [
+export const HR_MENU: MenuNode[] = [
   { label: "Crew", icon: CrewIcon, href: "/hr/crew" },
   { label: "Attendance", icon: AttendanceIcon, href: "/hr/attendance" },
   { label: "Schedule", icon: CalendarDays, href: "/hr/schedule" },
@@ -129,7 +129,7 @@ const HR_MENU: MenuNode[] = [
   },
 ];
 
-const ORDERS_MENU: MenuNode[] = [
+export const ORDERS_MENU: MenuNode[] = [
   { label: "POS", icon: OrdersIcon, href: "/orders" },
   { label: "Online orders", icon: OrdersIcon, href: "/orders/online" },
   {
