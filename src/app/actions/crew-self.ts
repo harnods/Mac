@@ -6,9 +6,21 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
 import { clientIp, isIpAllowed } from "@/lib/ip";
+import { payrollPeriod, currentPeriodAnchor } from "@/lib/payroll";
 import type { AttendanceWithRelations } from "@/lib/supabase/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+
+/** Late clock-in summary shown to the crew right after they clock in late. */
+export type LateInfo = {
+  clockIn: string; // "HH:MM"
+  shiftStart: string; // "HH:MM"
+  expectedBy: string; // "HH:MM" — 10 minutes before shift start
+  lateCount: number; // distinct late days this payroll period (incl. today)
+  rate: number; // per-late deduction rate from the crew's "late_days" formula
+  deduction: number; // lateCount × rate, so far this period
+};
+export type ClockInResult = { ok: true; late: LateInfo | null } | { ok: false; error: string };
 
 function serviceClient() {
   return createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -209,7 +221,86 @@ export async function getMyContext(): Promise<MyContext | null> {
   };
 }
 
-export async function clockIn(geo?: PunchGeo): Promise<ActionResult> {
+/** Subtract minutes from an "HH:MM[:SS]" time, wrapping within a day → "HH:MM". */
+function subtractMinutes(t: string, mins: number): string {
+  const total = ((toMin(t) - mins) % 1440 + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+/** Build the late summary after a clock-in, or null if the crew wasn't late. */
+async function buildLateInfo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  empId: string,
+  today: string,
+  clockInT: string,
+  shiftStart: string,
+): Promise<LateInfo | null> {
+  const { data: aset } = await supabase
+    .from("attendance_settings")
+    .select("late_grace_minutes, late_tolerance_direction")
+    .limit(1)
+    .maybeSingle();
+  const lateGrace = aset?.late_grace_minutes ?? 0;
+  const lateOffset = aset?.late_tolerance_direction === "before" ? -lateGrace : lateGrace;
+
+  // Not late → no sheet. Same rule payroll uses to count a late day.
+  if (!(toMin(clockInT) > toMin(shiftStart) + lateOffset)) return null;
+
+  // Current payroll period bounds.
+  const { data: pset } = await supabase
+    .from("payroll_settings_versions")
+    .select("cutoff_start_day, cutoff_end_day, effective_date")
+    .lte("effective_date", today)
+    .order("effective_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const cs = pset?.cutoff_start_day ?? 21;
+  const ce = pset?.cutoff_end_day ?? 20;
+  const [ty, tm, td] = today.split("-").map(Number);
+  const anchor = currentPeriodAnchor(new Date(ty, tm - 1, td), cs, ce);
+  const period = payrollPeriod(anchor.year, anchor.month, cs, ce);
+
+  // Distinct late days this period (today's row is already inserted).
+  const { data: att } = await supabase
+    .from("attendance")
+    .select("work_date, clock_in, shifts(start_time)")
+    .eq("employee_id", empId)
+    .gte("work_date", period.start)
+    .lte("work_date", period.end);
+  const lateDates = new Set<string>();
+  for (const a of (att ?? []) as unknown as { work_date: string; clock_in: string | null; shifts: { start_time: string | null } | null }[]) {
+    const st = a.shifts?.start_time;
+    if (st && a.clock_in && toMin(a.clock_in) > toMin(st) + lateOffset) lateDates.add(a.work_date);
+  }
+  const lateCount = lateDates.size;
+
+  // Per-late rate from the crew's assigned "late_days" formula component.
+  const { data: emp } = await supabase.from("employees").select("allowances").eq("id", empId).maybeSingle();
+  const allowanceIds = (((emp?.allowances ?? []) as { allowance_id?: string }[]).map((a) => a.allowance_id).filter(Boolean)) as string[];
+  let rate = 0;
+  if (allowanceIds.length) {
+    const { data: vers } = await supabase
+      .from("payroll_component_versions")
+      .select("formula_rate, effective_date")
+      .in("component_id", allowanceIds)
+      .eq("formula_basis", "late_days")
+      .lte("effective_date", today)
+      .order("effective_date", { ascending: false });
+    const v = ((vers ?? []) as { formula_rate: number | null }[]).find((x) => x.formula_rate != null);
+    rate = v ? Number(v.formula_rate) : 0;
+  }
+
+  return {
+    clockIn: clockInT.slice(0, 5),
+    shiftStart: shiftStart.slice(0, 5),
+    expectedBy: subtractMinutes(shiftStart, 10),
+    lateCount,
+    rate,
+    deduction: lateCount * rate,
+  };
+}
+
+export async function clockIn(geo?: PunchGeo): Promise<ClockInResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   const empId = await myEmployeeId(profile.id);
@@ -250,11 +341,12 @@ export async function clockIn(geo?: PunchGeo): Promise<ActionResult> {
     .maybeSingle();
   if (open) return { ok: false, error: "You're already clocked in." };
 
+  const clockInT = jakartaTime();
   const { error } = await serviceClient().from("attendance").insert({
     employee_id: empId,
     work_date: today,
     shift_id: shiftId,
-    clock_in: jakartaTime(),
+    clock_in: clockInT,
     clock_in_ip: guard.ip,
     clock_in_lat: guard.lat,
     clock_in_lng: guard.lng,
@@ -264,7 +356,15 @@ export async function clockIn(geo?: PunchGeo): Promise<ActionResult> {
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/me");
-  return { ok: true };
+
+  // If they clocked in late, surface a summary (best-effort — never block the punch).
+  let late: LateInfo | null = null;
+  try {
+    late = await buildLateInfo(supabase, empId, today, clockInT, shiftRel.start_time);
+  } catch {
+    late = null;
+  }
+  return { ok: true, late };
 }
 
 async function openRecord(empId: string) {

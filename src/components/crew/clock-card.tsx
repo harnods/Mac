@@ -14,7 +14,8 @@ import {
   clockIn, clockOut, breakStart, breakEnd,
   clockInOvertime, clockOutOvertime, overtimeBreakStart, overtimeBreakEnd,
 } from "@/app/actions/crew-self";
-import type { MyContext, PunchGeo } from "@/app/actions/crew-self";
+import type { MyContext, PunchGeo, LateInfo } from "@/app/actions/crew-self";
+import { LateClockInSheet } from "@/components/crew/late-clock-in-sheet";
 
 function hhmm(t: string | null | undefined) {
   return t ? t.slice(0, 5) : "";
@@ -54,6 +55,8 @@ export function ClockCard({ context }: { context: MyContext }) {
   const [otReasonIn, setOtReasonIn] = useState("");
   const [otReasonOut, setOtReasonOut] = useState("");
   const [confirmClockOut, setConfirmClockOut] = useState(false);
+  const [lateInfo, setLateInfo] = useState<LateInfo | null>(null);
+  const [lateOpen, setLateOpen] = useState(false);
 
   const canShift = isWorkingDay;
   const canOvertime = eligible;
@@ -65,6 +68,17 @@ export function ClockCard({ context }: { context: MyContext }) {
       if (!res.ok) { toast.error(res.error ?? "Something went wrong"); return; }
       toast.success(ok);
       setOtReasonIn(""); setOtReasonOut("");
+      router.refresh();
+    });
+  }
+
+  // Clock in for the assigned shift; if the crew is late, pop the summary sheet.
+  function doClockIn() {
+    start(async () => {
+      const res = await clockIn(await getGeo());
+      if (!res.ok) { toast.error(res.error ?? "Something went wrong"); return; }
+      toast.success("Clocked in");
+      if (res.late) { setLateInfo(res.late); setLateOpen(true); }
       router.refresh();
     });
   }
@@ -213,7 +227,7 @@ export function ClockCard({ context }: { context: MyContext }) {
                   {assigned!.start_time && assigned!.end_time ? ` (${hhmm(assigned!.start_time)}–${hhmm(assigned!.end_time)})` : ""}
                 </span>
               </div>
-              <Button className="h-14 w-full text-base" disabled={pending || blocked} onClick={() => run(async () => clockIn(await getGeo()), "Clocked in")}>
+              <Button className="h-14 w-full text-base" disabled={pending || blocked} onClick={doClockIn}>
                 Clock in
               </Button>
             </>
@@ -261,6 +275,8 @@ export function ClockCard({ context }: { context: MyContext }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LateClockInSheet info={lateInfo} shiftName={assigned?.name} open={lateOpen} onOpenChange={setLateOpen} />
     </div>
   );
 }
