@@ -1,48 +1,38 @@
-# Database — local staging vs. production
+# Database — single production Supabase
 
-Two fully separate databases:
+There is **one** database: the cloud Supabase project. Local development and
+the Vercel deployment both point at it. There is no local Postgres anymore.
 
-| Environment | Database | Used by |
+| Environment | Database | Config |
 |---|---|---|
-| **Local staging** | Local Supabase (`supabase start`, Docker) | Your machine via `.env.local` |
-| **Production** | Cloud Supabase project | Vercel deployment (env vars set in Vercel) |
+| **Local dev** | Cloud Supabase (production) | `.env.local` (prod URL + keys) |
+| **Production** | Same cloud Supabase | Vercel env vars |
 
-Local and production never share data. Local is **not linked** to the cloud
-project (`supabase link` was never run), so `supabase db push` / `db pull`
-cannot touch production.
+> ⚠️ Local dev writes to **real production data**. There is no separate staging
+> DB — test destructive changes carefully.
 
-> ⚠️ **Do not** run `supabase link` against the production project or
-> `supabase db push`. Production schema is managed manually via the Supabase
-> dashboard SQL editor. Pushing from the CLI would conflict with its
-> migration history.
+The project is **not linked** to the CLI (`supabase link` was never run), so
+`supabase db push` / `db pull` are not used. Production schema is managed
+manually via the Supabase dashboard **SQL Editor**.
 
 ## Local dev workflow
 
 ```bash
-supabase start          # boot local Postgres + Auth (Docker)
-node scripts/seed-users.mjs   # create admin/staff (random passwords printed)
-npm run dev             # app → http://localhost:3006
-
-supabase stop           # shut down (data persists across stop/start)
-supabase status         # show local URL + keys
-supabase db reset       # rebuild schema from migrations/, then re-seed users
+npm run dev             # app → http://localhost:3006 (uses prod Supabase)
 ```
 
-Studio (local data browser): http://127.0.0.1:54323
+`.env.local` holds the production `NEXT_PUBLIC_SUPABASE_URL`, anon key, and
+service-role key (see `.env.local.prod-backup`). Payment provider is kept on
+`mock` locally so DOKU isn't charged during dev.
 
 ## Migrations
 
-`supabase/migrations/` is the single source of truth. `supabase db reset`
-applies every migration in order on a clean database, so local is fully
-reproducible. After a reset, re-run `node scripts/seed-users.mjs` (reset
-wipes data, including auth users).
+`supabase/migrations/` is the source-of-truth history for schema changes.
+Since there is no local DB to reset against, a new migration is applied by:
 
-Note: `config.toml` disables the `storage` and `analytics` containers —
-they fail to start under Colima and the app uses neither.
+1. Add a new timestamped migration in `migrations/` (e.g. `20260827100000_*.sql`).
+2. Apply it by pasting the same SQL into the production project's **SQL Editor**
+   in the Supabase dashboard.
 
-## Applying a new schema change to production
-
-1. Add a new numbered migration in `migrations/` (e.g. `0030_*.sql`).
-2. Test locally with `supabase db reset`.
-3. Apply to production by pasting the same SQL into the production project's
-   **SQL Editor** in the Supabase dashboard.
+The migration files are the written record; the SQL Editor is how they reach
+the (only) database.
