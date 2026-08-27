@@ -37,7 +37,7 @@ import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { PayrollComponentDrawer, type ComponentPrefill } from "@/components/employees/payroll-component-drawer";
 import { deleteAllowance } from "@/app/actions/employees";
 import { activeVersion, FORMULA_BASIS_LABEL } from "@/lib/payroll-component";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatRp } from "@/lib/format";
 import type { Allowance, PayrollComponentVersion } from "@/lib/supabase/types";
 
 export type ComponentRow = { component: Allowance; versions: PayrollComponentVersion[] };
@@ -88,7 +88,7 @@ export function AllowancesManager({ items, isAdmin, today }: { items: ComponentR
             <TableRow>
               <TableHead className="w-[240px]">Name</TableHead>
               <TableHead className="w-[130px]">Type</TableHead>
-              <TableHead className="w-[160px]">Formula</TableHead>
+              <TableHead className="w-[220px]">Formula</TableHead>
               <TableHead className="w-[200px]">Effective date</TableHead>
               <TableHead className="p-0" />
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
@@ -119,7 +119,7 @@ export function AllowancesManager({ items, isAdmin, today }: { items: ComponentR
                   </TableCell>
                   <TableCell className="text-sm">
                     {v?.formula_basis ? (
-                      <Badge variant="secondary">{FORMULA_BASIS_LABEL[v.formula_basis]}</Badge>
+                      <span className="tabular-nums">{formatRp(v.formula_rate ?? 0)} × {FORMULA_BASIS_LABEL[v.formula_basis]}</span>
                     ) : (
                       <span className="text-muted-foreground">Fixed amount</span>
                     )}
