@@ -36,7 +36,7 @@ import {
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { PayrollComponentDrawer, type ComponentPrefill } from "@/components/employees/payroll-component-drawer";
 import { deleteAllowance } from "@/app/actions/employees";
-import { activeVersion } from "@/lib/payroll-component";
+import { activeVersion, FORMULA_BASIS_LABEL } from "@/lib/payroll-component";
 import { formatDate } from "@/lib/format";
 import type { Allowance, PayrollComponentVersion } from "@/lib/supabase/types";
 
@@ -88,6 +88,7 @@ export function AllowancesManager({ items, isAdmin, today }: { items: ComponentR
             <TableRow>
               <TableHead className="w-[240px]">Name</TableHead>
               <TableHead className="w-[130px]">Type</TableHead>
+              <TableHead className="w-[160px]">Formula</TableHead>
               <TableHead className="w-[200px]">Effective date</TableHead>
               <TableHead className="p-0" />
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
@@ -96,7 +97,7 @@ export function AllowancesManager({ items, isAdmin, today }: { items: ComponentR
           <TableBody>
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">
                   No payroll components found.
                 </TableCell>
               </TableRow>
@@ -115,6 +116,13 @@ export function AllowancesManager({ items, isAdmin, today }: { items: ComponentR
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">{row.component.type === "earning" ? "Earning" : "Deduction"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {v?.formula_basis ? (
+                      <Badge variant="secondary">{FORMULA_BASIS_LABEL[v.formula_basis]}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Fixed amount</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {v ? formatDate(v.effective_date) : <span className="text-muted-foreground">—</span>}
