@@ -14,6 +14,7 @@ import {
   CalendarX,
   CalendarDays,
   ChartColumn,
+  UserSearch,
 } from "lucide-react";
 import {
   OrdersIcon,
@@ -99,6 +100,7 @@ export const HR_MENU: MenuNode[] = [
   { label: "Overtime", icon: OvertimeIcon, href: "/hr/overtime" },
   { label: "Time off", icon: CalendarX, href: "/hr/time-off" },
   { label: "Payroll", icon: PayrollIcon, href: "/hr/payroll" },
+  { label: "Recruitment", icon: UserSearch, href: "/hr/recruitment" },
   {
     label: "Reports",
     icon: ChartColumn,

@@ -10,6 +10,8 @@ export async function updateSession(request: NextRequest) {
   // Public take-away storefront (order.machimoto.cafe) → /takeaway/*.
   // (Dine-in lives at /order/* on the myorder host and is left untouched.)
   const isOrderHost = host.startsWith("order.");
+  // Public recruitment apply page (hire.machimoto.cafe/<code>) → /apply/*.
+  const isHireHost = host.startsWith("hire.");
   // Apex + www show a public placeholder landing page.
   const isApexHost = host === "machimoto.cafe" || host === "www.machimoto.cafe";
 
@@ -40,6 +42,21 @@ export async function updateSession(request: NextRequest) {
       : pathname === "/"
         ? "/takeaway"
         : `/takeaway${pathname}`;
+    if (target !== pathname) {
+      const rw = url.clone();
+      rw.pathname = target;
+      return NextResponse.rewrite(rw);
+    }
+    return NextResponse.next({ request });
+  }
+
+  // --- Hire subdomain: map the root onto /apply/*, fully public (no auth) ---
+  if (isHireHost && !isInfra) {
+    const target = pathname.startsWith("/apply")
+      ? pathname
+      : pathname === "/"
+        ? "/apply"
+        : `/apply${pathname}`;
     if (target !== pathname) {
       const rw = url.clone();
       rw.pathname = target;
@@ -81,6 +98,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/order/") ||
     pathname === "/takeaway" ||
     pathname.startsWith("/takeaway/") ||
+    pathname === "/apply" ||
+    pathname.startsWith("/apply/") ||
     isInfra;
 
   // Crew paths reached on a non-crew host still use the crew login.

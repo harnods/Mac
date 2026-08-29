@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
     // back to a visited page is instant instead of re-fetching. Mutations
     // call revalidatePath, so data still refreshes when it actually changes.
     staleTimes: { dynamic: 30, static: 180 },
+    // Candidate résumés (PDF) are uploaded through a server action; raise the
+    // default 1MB body cap to fit the 5MB resumes bucket limit.
+    serverActions: { bodySizeLimit: "6mb" },
   },
 };
 
