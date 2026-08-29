@@ -1,7 +1,9 @@
 "use server";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
+import {
+  mintTicket, ticketOk, PHOTO_BUCKET, PHOTO_EXTS, RESUME_BUCKET, type PhotoExt,
+} from "@/lib/apply/upload-ticket";
 
 export type ApplyResult = { ok: true } | { ok: false; error: string };
 
@@ -104,32 +106,10 @@ async function positionExists(db: ReturnType<typeof service>, positionId: string
   return Boolean(data);
 }
 
-const PHOTO_EXTS = ["jpg", "png", "webp"] as const; // what the photo bucket accepts
-export type PhotoExt = (typeof PHOTO_EXTS)[number];
-
 /** Slots the browser uploads straight into, skipping the server entirely. */
 export type UploadSlots =
   | { ok: true; ticket: string; resume: { path: string; token: string }; photo: { path: string; token: string } }
   | { ok: false; error: string };
-
-const TICKET_TTL_MS = 60 * 60 * 1000; // inside the 2h validity of the signed upload URLs
-
-function sign(resumePath: string, photoPath: string, exp: number) {
-  return createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!)
-    .update(`${resumePath}|${photoPath}|${exp}`)
-    .digest("base64url");
-}
-
-/** The ticket proves both paths were minted by us, so a submission can't point
- *  at an arbitrary object in the buckets. */
-function ticketOk(resumePath: string, photoPath: string, ticket: string) {
-  const [expRaw, sig] = ticket.split(".");
-  const exp = Number(expRaw);
-  if (!sig || !Number.isFinite(exp) || exp < Date.now()) return false;
-  const expected = Buffer.from(sign(resumePath, photoPath, exp));
-  const got = Buffer.from(sig);
-  return expected.length === got.length && timingSafeEqual(expected, got);
-}
 
 /** Validate the application, then mint signed upload URLs for the résumé +
  *  photo. The candidate's browser PUTs the files to Supabase directly: a
@@ -149,17 +129,16 @@ export async function createUploadSlots(form: FormData, photoExt: PhotoExt): Pro
   const resumePath = `${base}.pdf`;
   const photoPath = `${base}.${photoExt}`;
   const [resume, photo] = await Promise.all([
-    db.storage.from("resumes").createSignedUploadUrl(resumePath),
-    db.storage.from("candidate-photos").createSignedUploadUrl(photoPath),
+    db.storage.from(RESUME_BUCKET).createSignedUploadUrl(resumePath),
+    db.storage.from(PHOTO_BUCKET).createSignedUploadUrl(photoPath),
   ]);
   if (resume.error || !resume.data || photo.error || !photo.data) {
     return { ok: false, error: "Gagal menyiapkan unggahan. Coba lagi." };
   }
 
-  const exp = Date.now() + TICKET_TTL_MS;
   return {
     ok: true,
-    ticket: `${exp}.${sign(resumePath, photoPath, exp)}`,
+    ticket: mintTicket(resumePath, photoPath),
     resume: { path: resumePath, token: resume.data.token },
     photo: { path: photoPath, token: photo.data.token },
   };
@@ -171,8 +150,8 @@ export async function discardUploadSlots(resumePath: string, photoPath: string, 
   if (!ticketOk(resumePath, photoPath, ticket)) return;
   const db = service();
   await Promise.all([
-    db.storage.from("resumes").remove([resumePath]),
-    db.storage.from("candidate-photos").remove([photoPath]),
+    db.storage.from(RESUME_BUCKET).remove([resumePath]),
+    db.storage.from(PHOTO_BUCKET).remove([photoPath]),
   ]);
 }
 
@@ -199,12 +178,12 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   if (!(await positionExists(db, app.positionId))) return { ok: false, error: "Posisi tidak ditemukan." };
 
   const [resumeUploaded, photoUploaded] = await Promise.all([
-    db.storage.from("resumes").exists(resumePath),
-    db.storage.from("candidate-photos").exists(photoPath),
+    db.storage.from(RESUME_BUCKET).exists(resumePath),
+    db.storage.from(PHOTO_BUCKET).exists(photoPath),
   ]);
   if (!resumeUploaded.data) return { ok: false, error: "Resume belum selesai terunggah. Coba kirim lagi." };
   if (!photoUploaded.data) return { ok: false, error: "Foto belum selesai terunggah. Coba kirim lagi." };
-  const photoUrl = db.storage.from("candidate-photos").getPublicUrl(photoPath).data.publicUrl;
+  const photoUrl = db.storage.from(PHOTO_BUCKET).getPublicUrl(photoPath).data.publicUrl;
 
   const { data: inserted, error: insErr } = await db.from("candidates").insert({
     job_position_id: app.positionId,
@@ -229,8 +208,8 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
     photo_url: photoUrl,
   }).select("id").single();
   if (insErr || !inserted) {
-    await db.storage.from("resumes").remove([resumePath]);
-    await db.storage.from("candidate-photos").remove([photoPath]);
+    await db.storage.from(RESUME_BUCKET).remove([resumePath]);
+    await db.storage.from(PHOTO_BUCKET).remove([photoPath]);
     return { ok: false, error: "Gagal mengirim lamaran. Coba lagi." };
   }
   await db.from("candidate_events").insert({ candidate_id: inserted.id, type: "applied", to_stage: "applied" });

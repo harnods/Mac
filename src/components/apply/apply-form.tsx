@@ -10,10 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { compressImage } from "@/lib/compress-image";
 import { createClient } from "@/lib/supabase/client";
-import { createUploadSlots, discardUploadSlots, submitApplication, type OpenPosition, type PhotoExt } from "@/app/actions/apply";
+import { createUploadSlots, discardUploadSlots, submitApplication, type OpenPosition } from "@/app/actions/apply";
+// Type-only: erased at compile time, so the server-only module never ships.
+import type { PhotoExt } from "@/lib/apply/upload-ticket";
 
-/** Per-attachment cap. Also enforced by the buckets, since the browser uploads
- *  straight to Storage and a client check alone is bypassable. */
+/** Per-attachment cap. Kept in step with MAX_ATTACHMENT_BYTES in
+ *  lib/apply/upload-ticket (server-only, so it can't be imported here) and with
+ *  the buckets' own file_size_limit, which is what actually enforces it. */
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_FILE_LABEL = "2MB";
 
@@ -129,18 +132,19 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         if (!slots.ok) { toast.error(slots.error); return; }
         const discard = () => void discardUploadSlots(slots.resume.path, slots.photo.path, slots.ticket);
 
-        const supabase = createClient();
-        const upResume = await supabase.storage
-          .from("resumes")
-          .uploadToSignedUrl(slots.resume.path, slots.resume.token, resume, { contentType: "application/pdf" });
-        if (upResume.error) { discard(); toast.error("Gagal mengunggah resume. Periksa koneksi lalu coba lagi."); return; }
+        const upload = (kind: "resume" | "photo", file: Blob, contentType: string) =>
+          uploadAttachment(kind, file, contentType, slots);
 
-        const upPhoto = await supabase.storage
-          .from("candidate-photos")
-          .uploadToSignedUrl(slots.photo.path, slots.photo.token, photoFile, {
-            contentType: photoExt === "jpg" ? "image/jpeg" : `image/${photoExt}`,
-          });
-        if (upPhoto.error) { discard(); toast.error("Gagal mengunggah foto. Periksa koneksi lalu coba lagi."); return; }
+        if (!(await upload("resume", resume, "application/pdf"))) {
+          discard();
+          toast.error("Gagal mengunggah resume. Coba lagi, atau pilih ulang filenya dari penyimpanan HP.");
+          return;
+        }
+        if (!(await upload("photo", photoFile, photoExt === "jpg" ? "image/jpeg" : `image/${photoExt}`))) {
+          discard();
+          toast.error("Gagal mengunggah foto. Coba lagi, atau pilih ulang fotonya dari galeri HP.");
+          return;
+        }
 
         setStage("saving");
         fd.set("resume_path", slots.resume.path);
@@ -337,6 +341,39 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
       </Button>
     </form>
   );
+}
+
+type Slots = Extract<Awaited<ReturnType<typeof createUploadSlots>>, { ok: true }>;
+
+/** Put one attachment in its slot. The signed URL goes browser → Supabase
+ *  directly, which keeps the file out of any request of ours; when that host
+ *  can't be reached — some mobile networks never let the PUT through — the same
+ *  file goes through our own origin instead, which the page demonstrably loads
+ *  from. Each attachment is capped at 2MB, so one file per request is small. */
+async function uploadAttachment(kind: "resume" | "photo", file: Blob, contentType: string, slots: Slots) {
+  const slot = kind === "resume" ? slots.resume : slots.photo;
+  const bucket = kind === "resume" ? "resumes" : "candidate-photos";
+  try {
+    const { error } = await createClient()
+      .storage.from(bucket)
+      .uploadToSignedUrl(slot.path, slot.token, file, { contentType });
+    if (!error) return true;
+  } catch {
+    // fall through to the same-origin route
+  }
+
+  try {
+    const fd = new FormData();
+    fd.set("kind", kind);
+    fd.set("resume_path", slots.resume.path);
+    fd.set("photo_path", slots.photo.path);
+    fd.set("upload_ticket", slots.ticket);
+    fd.set("file", file, kind === "resume" ? "resume.pdf" : "photo");
+    const res = await fetch("/api/apply/upload", { method: "POST", body: fd });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 /** Text date input (free typing) + a calendar icon that opens the native picker. */
