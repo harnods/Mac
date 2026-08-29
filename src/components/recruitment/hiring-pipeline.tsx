@@ -3,12 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileText, MessageCircle, MoveRight } from "lucide-react";
+import { FileText, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -144,20 +141,6 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
                         <button type="button" disabled={resumeLoading} onClick={() => viewResume(c)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50">
                           <FileText className="size-4" /> {resumeLoading ? "…" : "Resume"}
                         </button>
-                      )}
-                      {isAdmin && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-sm" disabled={pending}>
-                              <MoveRight className="size-4" /> Move
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            {HIRING_STAGES.filter((s) => s !== c.stage).map((s) => (
-                              <DropdownMenuItem key={s} onSelect={() => requestMove(c, s)}>{STAGE_LABEL[s]}</DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
                       )}
                     </div>
                   </div>
