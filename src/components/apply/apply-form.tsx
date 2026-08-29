@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { compressImage } from "@/lib/compress-image";
 import { submitApplication, type OpenPosition } from "@/app/actions/apply";
+
+const JOIN_OPTIONS = ["Minggu ini", "2 minggu ke depan", "1 bulan ke depan", "2 bulan ke depan"];
 
 function Required() {
   return <span className="text-destructive">*</span>;
@@ -38,7 +41,6 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
   const [birthDate, setBirthDate] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [domicile, setDomicile] = useState("");
-  const [mapsLink, setMapsLink] = useState("");
   const [height, setHeight] = useState("");
   const [fresh, setFresh] = useState(false);
   const [exps, setExps] = useState<Exp[]>([{ ...emptyExp }]);
@@ -80,7 +82,6 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
       fd.set("birth_place", birthPlace.trim());
       fd.set("birth_date", birthDate);
       fd.set("domicile", domicile.trim());
-      fd.set("maps_link", mapsLink.trim());
       fd.set("height_cm", height.trim());
       fd.set("fresh_graduate", fresh ? "1" : "0");
       fd.set("work_experiences", JSON.stringify(fresh ? [] : exps));
@@ -148,17 +149,10 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
       <section className="space-y-4">
         <SectionTitle>Data Diri</SectionTitle>
         <Field label={<>Nama lengkap <Required /></>}><Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Tempat lahir"><Input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} /></Field>
-          <Field label="Tanggal lahir"><Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} /></Field>
-        </div>
+        <Field label="Tempat lahir"><Input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} /></Field>
+        <Field label="Tanggal lahir"><Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} /></Field>
         <Field label={<>No. WhatsApp <Required /></>}><Input inputMode="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} /></Field>
         <Field label="Domisili saat ini"><Input value={domicile} onChange={(e) => setDomicile(e.target.value)} /></Field>
-        <div className="space-y-1.5">
-          <Label>Link / lokasi Google Maps</Label>
-          <Input inputMode="url" value={mapsLink} onChange={(e) => setMapsLink(e.target.value)} />
-          <p className="text-xs text-muted-foreground">Share lokasi Google Maps tempat tinggal saat ini, agar kami bisa melihat estimasi jarak & waktu perjalanan ke Machimoto.</p>
-        </div>
         <Field label={<>Tinggi badan (cm) <Required /></>}><Input type="number" min="0" step="1" inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} /></Field>
       </section>
 
@@ -205,8 +199,8 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>Status saat ini</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <Label className="leading-5">Status saat ini</Label>
+          <div className="space-y-2">
             <Radio checked={empStatus === "working"} onChange={() => setEmpStatus("working")} label="Sedang bekerja" />
             <Radio checked={empStatus === "not_working"} onChange={() => setEmpStatus("not_working")} label="Tidak sedang bekerja" />
           </div>
@@ -214,13 +208,20 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         {empStatus === "working" && (
           <Field label="Jika masih bekerja, apakah ada masa notice?"><Input value={notice} onChange={(e) => setNotice(e.target.value)} /></Field>
         )}
-        <Field label="Jika diterima, kapan paling cepat bisa join?"><Input type="date" value={earliest} onChange={(e) => setEarliest(e.target.value)} /></Field>
+        <Field label="Jika diterima, kapan paling cepat bisa join?">
+          <Select value={earliest} onValueChange={setEarliest}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Pilih waktu" /></SelectTrigger>
+            <SelectContent>
+              {JOIN_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
       </section>
 
       {/* Tentang kamu */}
       <section className="space-y-2">
         <SectionTitle>Tentang Kamu</SectionTitle>
-        <Label>Apa yang bisa kamu kontribusikan untuk Machimoto sesuai posisi yang dilamar?</Label>
+        <Label className="leading-5">Apa yang bisa kamu kontribusikan untuk Machimoto sesuai posisi yang dilamar?</Label>
         <Textarea rows={4} value={contribution} onChange={(e) => setContribution(e.target.value)} />
       </section>
 
@@ -237,19 +238,19 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
           <li>Tidak diperbolehkan merokok selama jam operasional, termasuk saat istirahat.</li>
         </ul>
         <div className="space-y-1.5">
-          <Label>Apakah bersedia dengan sistem &amp; ketentuan kerja di atas? <Required /></Label>
-          <div className="grid grid-cols-2 gap-2">
+          <Label className="leading-5">Apakah bersedia dengan sistem &amp; ketentuan kerja di atas? <Required /></Label>
+          <div className="space-y-2">
             <Radio checked={agreeTerms === "yes"} onChange={() => setAgreeTerms("yes")} label="Ya" />
             <Radio checked={agreeTerms === "no"} onChange={() => setAgreeTerms("no")} label="Tidak" />
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label>Apakah bersedia mengikuti on-site interview di Machimoto BSD?</Label>
-          <div className="grid grid-cols-2 gap-2">
+          <Label className="leading-5">Apakah bersedia mengikuti on-site interview di Machimoto BSD?</Label>
+          <div className="space-y-2">
             <Radio checked={agreeInterview === "yes"} onChange={() => setAgreeInterview("yes")} label="Ya" />
             <Radio checked={agreeInterview === "no"} onChange={() => setAgreeInterview("no")} label="Tidak" />
           </div>
-          <p className="text-xs text-muted-foreground">Hari / tanggal interview akan diinformasikan saat lulus tahap screening CV.</p>
+          <p className="text-xs leading-4 text-muted-foreground">Hari / tanggal interview akan diinformasikan saat lulus tahap screening CV.</p>
         </div>
       </section>
 
@@ -284,7 +285,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
 function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
+      <Label className="leading-5">{label}</Label>
       {children}
     </div>
   );

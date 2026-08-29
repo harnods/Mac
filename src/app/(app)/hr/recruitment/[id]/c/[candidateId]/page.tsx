@@ -74,7 +74,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
           <Row label="Ekspektasi salary" value={c.expected_salary != null ? `${formatRp(c.expected_salary)} / bulan` : "—"} />
           <Row label="Status saat ini" value={c.employment_status === "working" ? "Sedang bekerja" : c.employment_status === "not_working" ? "Tidak sedang bekerja" : "—"} />
           {c.employment_status === "working" && c.notice_period && <Row label="Masa notice" value={c.notice_period} />}
-          <Row label="Paling cepat join" value={c.earliest_join ? formatDate(c.earliest_join) : "—"} />
+          <Row label="Paling cepat join" value={c.earliest_join || "—"} />
           <Row label="Bersedia sistem kerja" value={c.agree_terms == null ? "—" : c.agree_terms ? "Ya" : "Tidak"} />
           <Row label="Bersedia on-site interview" value={c.agree_interview == null ? "—" : c.agree_interview ? "Ya" : "Tidak"} />
           <Row label="Applied" value={formatDateTime(c.created_at)} />
