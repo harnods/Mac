@@ -125,15 +125,17 @@ export function OpeningsManager({
                     : <Badge variant="secondary">Closed</Badge>}
                 </TableCell>
                 <TableCell>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); copyLink(o.code); }}
-                    className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-muted"
-                    title="Copy link"
-                  >
-                    <span className="tabular-nums text-muted-foreground">hire.machimoto.cafe/{o.code}</span>
-                    {copied === o.code ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
-                  </button>
+                  <span className="inline-flex items-center gap-1.5 text-sm">
+                    <span className="tabular-nums">hire.machimoto.cafe/{o.code}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); copyLink(o.code); }}
+                      className="rounded p-0.5 hover:bg-muted"
+                      title="Copy link"
+                    >
+                      {copied === o.code ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+                    </button>
+                  </span>
                 </TableCell>
                 {isAdmin && (
                   <TableCell className={STICKY_ACTION_CELL}>
