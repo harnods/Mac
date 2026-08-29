@@ -2,7 +2,6 @@
 
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { formatRp } from "@/lib/format";
 import type { LateInfo } from "@/app/actions/crew-self";
 
 export function LateClockInSheet({
@@ -31,12 +30,7 @@ export function LateClockInSheet({
 
             <p>Bulan ini kamu sudah telat {info.lateCount} kali.</p>
 
-            <p>
-              Total potongan keterlambatan sampai hari ini: {formatRp(info.deduction)}
-              {info.rate > 0 ? ` (${info.lateCount} × ${formatRp(info.rate)})` : ""}.
-            </p>
-
-            <p>Yuk, usahakan datang lebih awal ya 🙌</p>
+            <p>Setiap menit berharga — datang lebih awal, mulai hari dengan tenang. Kamu pasti bisa lebih baik besok! 💪</p>
           </SheetBody>
         )}
         <SheetFooter>
