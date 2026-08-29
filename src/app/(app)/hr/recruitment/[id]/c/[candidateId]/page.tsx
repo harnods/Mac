@@ -94,7 +94,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         {/* Right: résumé preview — fills to the bottom, no thumbnail panel */}
         <div className="lg:sticky lg:top-4">
           {resumeUrl ? (
-            <div className="h-[calc(100vh-7rem)] overflow-hidden rounded-lg border bg-muted/30 p-6">
+            <div className="h-[calc(100vh-7rem)] overflow-hidden rounded-lg border border-neutral-900 bg-neutral-900 p-6">
               <iframe src={`${resumeUrl}#toolbar=0&navpanes=0&view=FitH`} className="h-full w-full rounded bg-white" title="Résumé" />
             </div>
           ) : (
