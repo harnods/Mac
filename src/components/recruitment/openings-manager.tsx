@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
 import { OpeningDrawer, type OpeningPrefill } from "@/components/recruitment/opening-drawer";
-import { setOpeningStatus, deleteOpening, type OpeningRow, type RecruitmentFormData } from "@/app/actions/recruitment";
+import { setOpeningStatus, deleteOpening, getOpeningDetail, type OpeningRow, type RecruitmentFormData } from "@/app/actions/recruitment";
 
 export function OpeningsManager({
   openings,
@@ -39,6 +39,23 @@ export function OpeningsManager({
   const [copied, setCopied] = useState<string | null>(null);
 
   function openNew() { setEditing(undefined); setDrawerOpen(true); }
+
+  function openEdit(o: OpeningRow) {
+    start(async () => {
+      const d = await getOpeningDetail(o.id);
+      if (!d) { toast.error("Could not load opening"); return; }
+      const op = d.opening;
+      setEditing({
+        id: op.id, title: op.title,
+        job_position_id: op.job_position_id, department_id: op.department_id,
+        job_level_id: op.job_level_id, employment_status_id: op.employment_status_id,
+        min_experience_years: op.min_experience_years, headcount: op.headcount,
+        require_physical: op.require_physical, min_height_cm: op.min_height_cm, min_weight_kg: op.min_weight_kg,
+        description: op.description,
+      });
+      setDrawerOpen(true);
+    });
+  }
 
   function applyUrl(code: string) { return `${hireBase.replace(/\/$/, "")}/${code}`; }
 
@@ -147,7 +164,8 @@ export function OpeningsManager({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-auto min-w-fit">
-                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => router.push(`/hr/recruitment/${o.id}`)}>Edit / view details</DropdownMenuItem>
+                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => router.push(`/hr/recruitment/${o.id}`)}>View details</DropdownMenuItem>
+                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => openEdit(o)}>Edit</DropdownMenuItem>
                         <DropdownMenuItem className="whitespace-nowrap" onSelect={() => toggleStatus(o)}>
                           {o.status === "open" ? "Close opening" : "Reopen"}
                         </DropdownMenuItem>
