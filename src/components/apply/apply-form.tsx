@@ -12,9 +12,10 @@ import { compressImage } from "@/lib/compress-image";
 import { createClient } from "@/lib/supabase/client";
 import { createUploadSlots, discardUploadSlots, submitApplication, type OpenPosition, type PhotoExt } from "@/app/actions/apply";
 
-/** Guard the client-side decode: a huge original can take the tab down with it
- *  before we ever get to compress. The upload itself is the 512px JPEG. */
-const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
+/** Per-attachment cap. Also enforced by the buckets, since the browser uploads
+ *  straight to Storage and a client check alone is bypassable. */
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_FILE_LABEL = "2MB";
 
 /** What the candidate-photos bucket accepts as-is when compression can't run. */
 const PHOTO_EXT_BY_TYPE: Record<string, PhotoExt | undefined> = {
@@ -80,10 +81,10 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
     if (agreeTerms !== "yes") { toast.error("Kamu harus bersedia dengan sistem & ketentuan kerja."); return; }
     if (!resume) { toast.error("Lampirkan resume (PDF)."); return; }
     if (resume.type !== "application/pdf") { toast.error("Resume harus PDF."); return; }
-    if (resume.size > 5 * 1024 * 1024) { toast.error("Resume maksimal 5MB."); return; }
+    if (resume.size > MAX_FILE_BYTES) { toast.error(`Resume maksimal ${MAX_FILE_LABEL}.`); return; }
     if (!photo) { toast.error("Lampirkan foto."); return; }
     if (!photo.type.startsWith("image/")) { toast.error("Foto harus gambar."); return; }
-    if (photo.size > MAX_PHOTO_BYTES) { toast.error("Foto terlalu besar. Maksimal 15MB."); return; }
+    if (photo.size > MAX_FILE_BYTES) { toast.error(`Foto maksimal ${MAX_FILE_LABEL}.`); return; }
 
     start(async () => {
       try {
@@ -314,7 +315,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
       <section className="space-y-4">
         <SectionTitle>Lampiran</SectionTitle>
         <div className="space-y-1.5">
-          <Label>Foto <Required /></Label>
+          <Label>Foto (maks {MAX_FILE_LABEL}) <Required /></Label>
           <button type="button" onClick={() => photoRef.current?.click()} className="flex w-full items-center gap-2 rounded-lg border border-dashed px-3 py-3 text-left text-sm hover:bg-muted">
             <ImagePlus className="size-4 shrink-0 text-muted-foreground" />
             <span className={photoName ? "" : "text-muted-foreground"}>{photoName ?? "Unggah foto"}</span>
@@ -322,7 +323,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
           <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={(e) => setPhotoName(e.target.files?.[0]?.name ?? null)} />
         </div>
         <div className="space-y-1.5">
-          <Label>Resume / CV (PDF) <Required /></Label>
+          <Label>Resume / CV (PDF, maks {MAX_FILE_LABEL}) <Required /></Label>
           <button type="button" onClick={() => resumeRef.current?.click()} className="flex w-full items-center gap-2 rounded-lg border border-dashed px-3 py-3 text-left text-sm hover:bg-muted">
             <Upload className="size-4 shrink-0 text-muted-foreground" />
             <span className={resumeName ? "" : "text-muted-foreground"}>{resumeName ?? "Unggah resume PDF"}</span>
