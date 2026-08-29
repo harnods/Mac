@@ -1,8 +1,24 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { getOpeningByCode } from "@/app/actions/apply";
 import { ApplyForm } from "@/components/apply/apply-form";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ code: string }> }): Promise<Metadata> {
+  const { code } = await params;
+  const opening = await getOpeningByCode(code);
+  const title = opening ? `Machimoto — Apply position: ${opening.title}` : "Machimoto — Lowongan Kerja";
+  const description = opening?.description?.trim()
+    ? opening.description.trim().slice(0, 200)
+    : "Lamar posisi di Machimoto. Isi form dan kirim CV kamu.";
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website", siteName: "Machimoto" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 export default async function ApplyPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

@@ -169,7 +169,7 @@ export function OpeningsManager({
                         <DropdownMenuItem className="whitespace-nowrap" onSelect={() => toggleStatus(o)}>
                           {o.status === "open" ? "Close opening" : "Reopen"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => setDeleteTarget(o)}>Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="whitespace-nowrap" onSelect={(e) => { e.preventDefault(); setTimeout(() => setDeleteTarget(o), 0); }}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
