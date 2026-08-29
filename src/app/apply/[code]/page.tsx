@@ -26,28 +26,10 @@ export default async function ApplyPage({ params }: { params: Promise<{ code: st
         </div>
       ) : (
         <>
-          <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight">{opening.title}</h1>
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              {opening.department && <span>{opening.department}</span>}
-              {opening.level && <span>· {opening.level}</span>}
-              {opening.employment_type && <span>· {opening.employment_type}</span>}
-            </div>
-            {opening.min_experience_years > 0 && (
-              <p className="text-sm text-muted-foreground">Min. pengalaman {opening.min_experience_years} tahun</p>
-            )}
-            {opening.require_physical && (opening.min_height_cm != null || opening.min_weight_kg != null) && (
-              <p className="text-sm text-muted-foreground">
-                Syarat fisik:
-                {opening.min_height_cm != null ? ` tinggi min. ${opening.min_height_cm} cm` : ""}
-                {opening.min_height_cm != null && opening.min_weight_kg != null ? "," : ""}
-                {opening.min_weight_kg != null ? ` berat min. ${opening.min_weight_kg} kg` : ""}
-              </p>
-            )}
-          </div>
+          <h1 className="text-xl font-semibold tracking-tight">{opening.title}</h1>
 
           {opening.description && (
-            <p className="mt-4 whitespace-pre-wrap text-sm text-muted-foreground">{opening.description}</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">{opening.description}</p>
           )}
 
           <div className="mt-6">

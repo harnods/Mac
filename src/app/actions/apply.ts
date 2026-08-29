@@ -72,13 +72,17 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   const heightRaw = String(form.get("height_cm") ?? "").trim();
   const weightRaw = String(form.get("weight_kg") ?? "").trim();
   const resume = form.get("resume");
+  const photo = form.get("photo");
 
   if (!name) return { ok: false, error: "Nama wajib diisi." };
   if (!whatsapp || !phoneOk(whatsapp)) return { ok: false, error: "Nomor WhatsApp tidak valid." };
-  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Email tidak valid." };
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Email tidak valid." };
   if (!(resume instanceof File) || resume.size === 0) return { ok: false, error: "Lampirkan resume (PDF)." };
   if (resume.type !== "application/pdf") return { ok: false, error: "Resume harus berformat PDF." };
   if (resume.size > 5 * 1024 * 1024) return { ok: false, error: "Ukuran resume maksimal 5MB." };
+  if (!(photo instanceof File) || photo.size === 0) return { ok: false, error: "Lampirkan foto." };
+  if (!photo.type.startsWith("image/")) return { ok: false, error: "Foto harus berupa gambar." };
+  if (photo.size > 5 * 1024 * 1024) return { ok: false, error: "Ukuran foto maksimal 5MB." };
 
   const db = service();
   const { data: opening } = await db.from("job_openings").select("id,status,require_physical").eq("code", code).maybeSingle();
@@ -91,26 +95,40 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   }
 
   const openingId = opening.id as string;
-  const path = `${openingId}/${crypto.randomUUID()}.pdf`;
+  const base = `${openingId}/${crypto.randomUUID()}`;
+  const path = `${base}.pdf`;
   const { error: upErr } = await db.storage
     .from("resumes")
     .upload(path, resume, { contentType: "application/pdf", upsert: false });
   if (upErr) return { ok: false, error: "Gagal mengunggah resume. Coba lagi." };
 
+  const photoExt = photo.type === "image/png" ? "png" : photo.type === "image/webp" ? "webp" : "jpg";
+  const photoPath = `${base}.${photoExt}`;
+  const { error: photoErr } = await db.storage
+    .from("candidate-photos")
+    .upload(photoPath, photo, { contentType: photo.type, upsert: false });
+  if (photoErr) {
+    await db.storage.from("resumes").remove([path]);
+    return { ok: false, error: "Gagal mengunggah foto. Coba lagi." };
+  }
+  const photoUrl = db.storage.from("candidate-photos").getPublicUrl(photoPath).data.publicUrl;
+
   const { error: insErr } = await db.from("candidates").insert({
     opening_id: openingId,
     name,
     whatsapp,
-    email,
+    email: email || null,
     experience_years: expRaw === "" ? null : Number(expRaw),
     expected_salary: salaryRaw === "" ? null : Number(salaryRaw.replace(/[^0-9]/g, "")),
     height_cm: heightRaw === "" ? null : Number(heightRaw),
     weight_kg: weightRaw === "" ? null : Number(weightRaw),
     cover_note: coverNote || null,
     resume_path: path,
+    photo_url: photoUrl,
   });
   if (insErr) {
-    await db.storage.from("resumes").remove([path]); // roll back the orphan file
+    await db.storage.from("resumes").remove([path]); // roll back orphan files
+    await db.storage.from("candidate-photos").remove([photoPath]);
     return { ok: false, error: "Gagal mengirim lamaran. Coba lagi." };
   }
   return { ok: true };

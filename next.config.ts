@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
     staleTimes: { dynamic: 30, static: 180 },
     // Candidate résumés (PDF) are uploaded through a server action; raise the
     // default 1MB body cap to fit the 5MB resumes bucket limit.
-    serverActions: { bodySizeLimit: "6mb" },
+    serverActions: { bodySizeLimit: "10mb" },
   },
 };
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
+import { createEmployee } from "@/app/actions/employees";
 import type { HiringStage } from "@/lib/recruitment";
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
@@ -64,6 +65,9 @@ export type Candidate = {
   weight_kg: number | null;
   cover_note: string | null;
   resume_path: string | null;
+  photo_url: string | null;
+  reject_reason: string | null;
+  hired_employee_id: string | null;
   stage: HiringStage;
   created_at: string;
 };
@@ -125,7 +129,7 @@ export async function getOpeningDetail(id: string): Promise<{ opening: OpeningDe
   const row = o as unknown as OpeningJoin;
   const { data: cands } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,weight_kg,cover_note,resume_path,stage,created_at")
+    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,weight_kg,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at")
     .eq("opening_id", id)
     .order("created_at", { ascending: false });
   return {
@@ -257,12 +261,67 @@ export async function deleteOpening(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-export async function setCandidateStage(candidateId: string, stage: HiringStage): Promise<ActionResult> {
+export async function setCandidateStage(candidateId: string, stage: HiringStage, reason?: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  // Moving to Hired provisions a crew record (idempotent).
+  if (stage === "hired") return hireCandidate(candidateId);
+
+  const patch: Record<string, unknown> = { stage, updated_at: new Date().toISOString() };
+  if (stage === "rejected") patch.reject_reason = reason?.trim() || null;
   const supabase = await createClient();
-  const { error } = await supabase.from("candidates").update({ stage, updated_at: new Date().toISOString() }).eq("id", candidateId);
+  const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Mark a candidate Hired and auto-create a crew record (from the candidate +
+ *  its opening's position/department/level/type). Idempotent per candidate. */
+export async function hireCandidate(candidateId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: cand } = await supabase
+    .from("candidates")
+    .select("id,name,whatsapp,email,photo_url,hired_employee_id,opening_id")
+    .eq("id", candidateId)
+    .maybeSingle();
+  if (!cand) return { ok: false, error: "Candidate not found" };
+
+  // Already linked to a crew — just make sure the stage reflects it.
+  if (cand.hired_employee_id) {
+    await supabase.from("candidates").update({ stage: "hired", updated_at: new Date().toISOString() }).eq("id", candidateId);
+    return { ok: true };
+  }
+
+  const { data: opening } = await supabase
+    .from("job_openings")
+    .select("department_id,job_position_id,job_level_id,employment_status_id")
+    .eq("id", cand.opening_id)
+    .maybeSingle();
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const res = await createEmployee({
+    name: cand.name,
+    phone: cand.whatsapp ?? "",
+    email: cand.email ?? "",
+    photo_url: cand.photo_url ?? null,
+    join_date: today,
+    department_id: opening?.department_id ?? null,
+    job_position_id: opening?.job_position_id ?? null,
+    job_level_id: opening?.job_level_id ?? null,
+    employment_status_id: opening?.employment_status_id ?? null,
+  });
+  if (!res.ok) return { ok: false, error: `Could not add to crew: ${res.error}` };
+
+  const { error } = await supabase
+    .from("candidates")
+    .update({ stage: "hired", hired_employee_id: res.id ?? null, updated_at: new Date().toISOString() })
+    .eq("id", candidateId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
