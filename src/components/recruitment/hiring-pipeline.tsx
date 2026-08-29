@@ -154,11 +154,13 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
 
       {/* Résumé PDF viewer */}
       <Dialog open={!!resumeUrl} onOpenChange={(o) => !o && setResumeUrl(null)}>
-        <DialogContent className="h-[85vh] w-[95vw] max-w-4xl p-0 gap-0">
-          <DialogHeader className="px-4 py-3">
+        <DialogContent className="flex h-[90vh] w-[95vw] max-w-4xl flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="shrink-0 border-b px-4 py-3">
             <DialogTitle>Résumé</DialogTitle>
           </DialogHeader>
-          {resumeUrl && <iframe src={resumeUrl} className="h-full w-full rounded-b-lg" title="Résumé" />}
+          {resumeUrl && (
+            <iframe src={`${resumeUrl}#toolbar=1&view=FitH`} className="min-h-0 w-full flex-1" title="Résumé" />
+          )}
         </DialogContent>
       </Dialog>
 
