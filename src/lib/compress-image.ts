@@ -4,18 +4,26 @@ export async function compressImage(
   file: File,
   maxDim = 512,
   quality = 0.82,
+  square = false,
 ): Promise<Blob> {
   // Read the intrinsic size first, then decode straight to the target size:
-  // passing resizeWidth/resizeHeight lets the decoder downscale instead of
-  // materialising a full-resolution bitmap. A 12MP phone photo is ~48MB of RGBA
-  // that way, which is enough to get the tab killed on a mid-range Android
-  // ("This page couldn't load") before the form is ever submitted.
+  // passing resizeWidth/resizeHeight (plus a crop rect for `square`) lets the
+  // decoder downscale instead of materialising a full-resolution bitmap. A
+  // 12MP phone photo is ~48MB of RGBA that way, which is enough to get the tab
+  // killed on a mid-range Android ("This page couldn't load") before the form
+  // is ever submitted.
   const { width: srcWidth, height: srcHeight } = await readImageSize(file);
-  const scale = Math.min(1, maxDim / Math.max(srcWidth, srcHeight));
-  const width = Math.max(1, Math.round(srcWidth * scale));
-  const height = Math.max(1, Math.round(srcHeight * scale));
+  const side = Math.min(srcWidth, srcHeight);
+  const cropX = square ? Math.round((srcWidth - side) / 2) : 0;
+  const cropY = square ? Math.round((srcHeight - side) / 2) : 0;
+  const cropWidth = square ? side : srcWidth;
+  const cropHeight = square ? side : srcHeight;
 
-  const bitmap = await createImageBitmap(file, {
+  const scale = Math.min(1, maxDim / Math.max(cropWidth, cropHeight));
+  const width = Math.max(1, Math.round(cropWidth * scale));
+  const height = Math.max(1, Math.round(cropHeight * scale));
+
+  const bitmap = await createImageBitmap(file, cropX, cropY, cropWidth, cropHeight, {
     resizeWidth: width,
     resizeHeight: height,
     resizeQuality: "high",

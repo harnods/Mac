@@ -94,7 +94,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         let photoFile: Blob = photo;
         let photoExt: PhotoExt = "jpg";
         try {
-          photoFile = await compressImage(photo);
+          photoFile = await compressImage(photo, 512, 0.82, true); // true: center-crop to square
         } catch {
           // Compression failed (unsupported codec, e.g. HEIC from an iPhone).
           // Only the formats the bucket accepts can go up untouched.
