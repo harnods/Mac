@@ -4,9 +4,7 @@ import { can, P } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { getOpeningDetail, getRecruitmentFormData, getHireComponents } from "@/app/actions/recruitment";
-import { hireBaseUrl } from "@/lib/recruitment";
 import { EditOpeningButton } from "@/components/recruitment/edit-opening-button";
-import { CopyApplyLink } from "@/components/recruitment/copy-apply-link";
 import { HiringPipeline } from "@/components/recruitment/hiring-pipeline";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +17,6 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
   const [data, formData, hireComponents] = await Promise.all([getOpeningDetail(id), getRecruitmentFormData(), getHireComponents()]);
   if (!data) notFound();
   const { opening, candidates } = data;
-  const applyUrl = `${hireBaseUrl().replace(/\/$/, "")}/${opening.code}`;
 
   return (
     <div className="space-y-6">
@@ -55,12 +52,8 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
         <Field label="Min. experience" value={opening.min_experience_years > 0 ? `${opening.min_experience_years} years` : "—"} />
         <Field label="Headcount" value={String(opening.headcount)} />
         {opening.require_physical && (
-          <>
-            <Field label="Min. height" value={opening.min_height_cm != null ? `${opening.min_height_cm} cm` : "—"} />
-            <Field label="Min. weight" value={opening.min_weight_kg != null ? `${opening.min_weight_kg} kg` : "—"} />
-          </>
+          <Field label="Min. height" value={opening.min_height_cm != null ? `${opening.min_height_cm} cm` : "—"} />
         )}
-        <Field label="Apply link" value={<CopyApplyLink url={applyUrl} />} />
       </dl>
 
       {opening.description && (

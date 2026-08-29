@@ -70,6 +70,18 @@ export type Candidate = {
   hired_employee_id: string | null;
   stage: HiringStage;
   created_at: string;
+  // Full application fields (present on the candidate detail query)
+  birth_place?: string | null;
+  birth_date?: string | null;
+  domicile?: string | null;
+  maps_link?: string | null;
+  fresh_graduate?: boolean;
+  work_experiences?: { period: string; place: string; position: string; jobdesk: string }[];
+  employment_status?: string | null;
+  notice_period?: string | null;
+  earliest_join?: string | null;
+  agree_terms?: boolean | null;
+  agree_interview?: boolean | null;
 };
 
 export type RecruitmentFormData = {
@@ -159,7 +171,7 @@ export async function getCandidate(candidateId: string): Promise<{ candidate: Ca
   const supabase = await createClient();
   const { data } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,weight_kg,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at,opening_id,job_openings(title,job_positions(name))")
+    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at,birth_place,birth_date,domicile,maps_link,fresh_graduate,work_experiences,employment_status,notice_period,earliest_join,agree_terms,agree_interview,opening_id,job_openings(title,job_positions(name))")
     .eq("id", candidateId)
     .maybeSingle();
   if (!data) return null;

@@ -143,15 +143,8 @@ export function HiringPipeline({ candidates, isAdmin, openingId, hireComponents 
                     </div>
 
                     <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
-                      {c.experience_years != null && <div>{c.experience_years} yr experience</div>}
                       {c.expected_salary != null && <div>Expected {formatRp(c.expected_salary)}</div>}
-                      {(c.height_cm != null || c.weight_kg != null) && (
-                        <div>
-                          {c.height_cm != null ? `${c.height_cm} cm` : ""}
-                          {c.height_cm != null && c.weight_kg != null ? " · " : ""}
-                          {c.weight_kg != null ? `${c.weight_kg} kg` : ""}
-                        </div>
-                      )}
+                      {c.height_cm != null && <div>{c.height_cm} cm</div>}
                     </div>
 
                     {c.cover_note && <p className="mt-2 line-clamp-3 text-sm">{c.cover_note}</p>}

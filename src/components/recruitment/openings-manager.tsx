@@ -57,13 +57,11 @@ export function OpeningsManager({
     });
   }
 
-  function applyUrl(code: string) { return `${hireBase.replace(/\/$/, "")}/${code}`; }
-
-  function copyLink(code: string) {
-    navigator.clipboard.writeText(applyUrl(code)).then(() => {
-      setCopied(code);
+  function copyGlobal() {
+    navigator.clipboard.writeText(hireBase).then(() => {
+      setCopied("__global__");
       toast.success("Link copied");
-      setTimeout(() => setCopied((c) => (c === code ? null : c)), 1500);
+      setTimeout(() => setCopied((c) => (c === "__global__" ? null : c)), 1500);
     });
   }
 
@@ -97,6 +95,16 @@ export function OpeningsManager({
         )}
       </div>
 
+      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+        <span>Apply link (all positions):</span>
+        <span className="inline-flex items-center gap-1.5 text-foreground">
+          <span className="tabular-nums">{hireBase.replace(/^https?:\/\//, "")}</span>
+          <button type="button" onClick={() => copyGlobal()} className="rounded p-0.5 hover:bg-muted" title="Copy link">
+            {copied === "__global__" ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+          </button>
+        </span>
+      </div>
+
       <div className="border table-outer rounded-lg overflow-x-auto mt-4">
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
@@ -106,14 +114,13 @@ export function OpeningsManager({
               <TableHead className="w-[140px]">Type</TableHead>
               <TableHead className="w-[110px]">Candidates</TableHead>
               <TableHead className="w-[110px]">Status</TableHead>
-              <TableHead className="w-[220px]">Apply link</TableHead>
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {openings.length === 0 && (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-sm text-muted-foreground py-8">
                   No openings yet. Click “New opening” to start.
                 </TableCell>
               </TableRow>
@@ -140,19 +147,6 @@ export function OpeningsManager({
                   {o.status === "open"
                     ? <Badge variant="success">Open</Badge>
                     : <Badge variant="secondary">Closed</Badge>}
-                </TableCell>
-                <TableCell>
-                  <span className="inline-flex items-center gap-1.5 text-sm">
-                    <span className="tabular-nums">hire.machimoto.cafe/{o.code}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); copyLink(o.code); }}
-                      className="rounded p-0.5 hover:bg-muted"
-                      title="Copy link"
-                    >
-                      {copied === o.code ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
-                    </button>
-                  </span>
                 </TableCell>
                 {isAdmin && (
                   <TableCell className={STICKY_ACTION_CELL}>

@@ -7,7 +7,7 @@ import { getCandidate, getResumeSignedUrl, getCandidateComments, getCandidateEve
 import { CandidateActions } from "@/components/recruitment/candidate-actions";
 import { CandidateComments } from "@/components/recruitment/candidate-comments";
 import { HIRING_STAGE_LABEL } from "@/lib/recruitment";
-import { formatRp, formatDateTime } from "@/lib/format";
+import { formatRp, formatDate, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -64,27 +64,53 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         {/* Left: what the candidate filled in + comments */}
         <div className="space-y-6">
-        <dl className="space-y-1">
+        <dl>
+          <Row label="Position" value={data.openingTitle} />
           <Row label="WhatsApp" value={<a href={waLink(c.whatsapp)} target="_blank" rel="noopener" className="text-primary hover:underline">{c.whatsapp}</a>} />
-          <Row label="Email" value={c.email || "—"} />
-          <Row label="Experience" value={c.experience_years != null ? `${c.experience_years} years` : "—"} />
-          <Row label="Expected salary" value={c.expected_salary != null ? formatRp(c.expected_salary) : "—"} />
-          {c.height_cm != null && <Row label="Height" value={`${c.height_cm} cm`} />}
-          {c.weight_kg != null && <Row label="Weight" value={`${c.weight_kg} kg`} />}
+          <Row label="Tempat, tanggal lahir" value={[c.birth_place, c.birth_date ? formatDate(c.birth_date) : null].filter(Boolean).join(", ") || "—"} />
+          <Row label="Domisili" value={c.domicile || "—"} />
+          {c.maps_link && <Row label="Google Maps" value={<a href={c.maps_link} target="_blank" rel="noopener" className="break-all text-primary hover:underline">Buka lokasi</a>} />}
+          <Row label="Tinggi badan" value={c.height_cm != null ? `${c.height_cm} cm` : "—"} />
+          <Row label="Ekspektasi salary" value={c.expected_salary != null ? `${formatRp(c.expected_salary)} / bulan` : "—"} />
+          <Row label="Status saat ini" value={c.employment_status === "working" ? "Sedang bekerja" : c.employment_status === "not_working" ? "Tidak sedang bekerja" : "—"} />
+          {c.employment_status === "working" && c.notice_period && <Row label="Masa notice" value={c.notice_period} />}
+          <Row label="Paling cepat join" value={c.earliest_join ? formatDate(c.earliest_join) : "—"} />
+          <Row label="Bersedia sistem kerja" value={c.agree_terms == null ? "—" : c.agree_terms ? "Ya" : "Tidak"} />
+          <Row label="Bersedia on-site interview" value={c.agree_interview == null ? "—" : c.agree_interview ? "Ya" : "Tidak"} />
           <Row label="Applied" value={formatDateTime(c.created_at)} />
-          {c.cover_note && (
-            <div className="pt-2">
-              <dt className="text-sm text-muted-foreground">Why they fit</dt>
-              <dd className="mt-1 whitespace-pre-wrap text-sm">{c.cover_note}</dd>
-            </div>
-          )}
-          {c.stage === "rejected" && c.reject_reason && (
-            <div className="pt-2">
-              <dt className="text-sm text-muted-foreground">Rejection reason</dt>
-              <dd className="mt-1 whitespace-pre-wrap text-sm">{c.reject_reason}</dd>
-            </div>
-          )}
         </dl>
+
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold">Pengalaman kerja</h2>
+          {c.fresh_graduate ? (
+            <p className="text-sm text-muted-foreground">Fresh graduate / belum pernah bekerja.</p>
+          ) : (c.work_experiences && c.work_experiences.length > 0) ? (
+            <ol className="space-y-3">
+              {c.work_experiences.map((ex, i) => (
+                <li key={i} className="rounded-lg border p-3 text-sm">
+                  <div className="font-medium">{ex.place || `Pengalaman ${i + 1}`}</div>
+                  <div className="text-xs text-muted-foreground">{[ex.position, ex.period].filter(Boolean).join(" · ")}</div>
+                  {ex.jobdesk && <p className="mt-1 whitespace-pre-wrap text-sm">{ex.jobdesk}</p>}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-muted-foreground">—</p>
+          )}
+        </div>
+
+        {c.cover_note && (
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold">Kontribusi</h2>
+            <p className="whitespace-pre-wrap text-sm">{c.cover_note}</p>
+          </div>
+        )}
+        {c.stage === "rejected" && c.reject_reason && (
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold">Rejection reason</h2>
+            <p className="whitespace-pre-wrap text-sm">{c.reject_reason}</p>
+          </div>
+        )}
 
         <ActivityLog events={events} />
 

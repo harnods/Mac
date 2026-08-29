@@ -10,73 +10,53 @@ function service() {
   });
 }
 
-export type PublicOpening = {
-  code: string;
-  title: string; // resolved: custom title or position name
-  position: string | null;
-  department: string | null;
-  level: string | null;
-  employment_type: string | null;
-  min_experience_years: number;
-  require_physical: boolean;
-  min_height_cm: number | null;
-  min_weight_kg: number | null;
-  description: string | null;
-  status: "open" | "closed";
-};
+export type OpenPosition = { id: string; title: string };
 
-/** Resolve a job opening for the public apply page by its short code. */
-export async function getOpeningByCode(code: string): Promise<PublicOpening | null> {
+/** Positions currently open for application (single global apply form). */
+export async function getOpenPositions(): Promise<OpenPosition[]> {
   const db = service();
   const { data } = await db
     .from("job_openings")
-    .select("code,title,status,description,min_experience_years,require_physical,min_height_cm,min_weight_kg,job_positions(name),departments(name),job_levels(name),employment_statuses(name)")
-    .eq("code", code.toLowerCase())
-    .maybeSingle();
-  if (!data) return null;
-  const o = data as unknown as {
-    code: string; title: string | null; status: "open" | "closed"; description: string | null; min_experience_years: number;
-    require_physical: boolean; min_height_cm: number | null; min_weight_kg: number | null;
-    job_positions: { name: string } | null; departments: { name: string } | null;
-    job_levels: { name: string } | null; employment_statuses: { name: string } | null;
-  };
-  const position = o.job_positions?.name ?? null;
-  return {
-    code: o.code,
-    title: o.title?.trim() || position || "Lowongan",
-    position,
-    department: o.departments?.name ?? null,
-    level: o.job_levels?.name ?? null,
-    employment_type: o.employment_statuses?.name ?? null,
-    min_experience_years: Number(o.min_experience_years),
-    require_physical: !!o.require_physical,
-    min_height_cm: o.min_height_cm == null ? null : Number(o.min_height_cm),
-    min_weight_kg: o.min_weight_kg == null ? null : Number(o.min_weight_kg),
-    description: o.description,
-    status: o.status,
-  };
+    .select("id,title,job_positions(name)")
+    .eq("status", "open")
+    .order("created_at", { ascending: true });
+  return ((data ?? []) as unknown as { id: string; title: string | null; job_positions: { name: string } | null }[])
+    .map((o) => ({ id: o.id, title: o.title?.trim() || o.job_positions?.name || "Posisi" }));
 }
 
 const phoneOk = (p: string) => /^[0-9+][0-9\s-]{6,}$/.test(p.trim());
 
-/** Public candidate submission: validate, store the résumé (private bucket via
- *  service role), then insert the candidate. Bypasses RLS by design. */
+export type WorkExperience = { period: string; place: string; position: string; jobdesk: string };
+
+/** Public candidate submission: validate, store résumé + photo (service role),
+ *  then insert the candidate. Bypasses RLS by design. */
 export async function submitApplication(form: FormData): Promise<ApplyResult> {
-  const code = String(form.get("code") ?? "").toLowerCase();
+  const openingId = String(form.get("opening_id") ?? "").trim();
   const name = String(form.get("name") ?? "").trim();
   const whatsapp = String(form.get("whatsapp") ?? "").trim();
-  const email = String(form.get("email") ?? "").trim();
-  const expRaw = String(form.get("experience_years") ?? "").trim();
-  const salaryRaw = String(form.get("expected_salary") ?? "").trim();
-  const coverNote = String(form.get("cover_note") ?? "").trim();
+  const birthPlace = String(form.get("birth_place") ?? "").trim();
+  const birthDate = String(form.get("birth_date") ?? "").trim();
+  const domicile = String(form.get("domicile") ?? "").trim();
+  const mapsLink = String(form.get("maps_link") ?? "").trim();
   const heightRaw = String(form.get("height_cm") ?? "").trim();
-  const weightRaw = String(form.get("weight_kg") ?? "").trim();
+  const freshGraduate = String(form.get("fresh_graduate") ?? "") === "1";
+  const salaryRaw = String(form.get("expected_salary") ?? "").trim();
+  const employmentStatus = String(form.get("employment_status") ?? "").trim(); // working | not_working
+  const noticePeriod = String(form.get("notice_period") ?? "").trim();
+  const earliestJoin = String(form.get("earliest_join") ?? "").trim();
+  const contribution = String(form.get("contribution") ?? "").trim();
+  const agreeTerms = String(form.get("agree_terms") ?? "") === "1";
+  const agreeInterview = String(form.get("agree_interview") ?? "") === "1";
+  let experiences: WorkExperience[] = [];
+  try { experiences = JSON.parse(String(form.get("work_experiences") ?? "[]")); } catch { experiences = []; }
   const resume = form.get("resume");
   const photo = form.get("photo");
 
+  if (!openingId) return { ok: false, error: "Pilih posisi yang dilamar." };
   if (!name) return { ok: false, error: "Nama wajib diisi." };
   if (!whatsapp || !phoneOk(whatsapp)) return { ok: false, error: "Nomor WhatsApp tidak valid." };
-  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Email tidak valid." };
+  if (!heightRaw || !(Number(heightRaw) > 0)) return { ok: false, error: "Tinggi badan wajib diisi." };
+  if (!agreeTerms) return { ok: false, error: "Kamu harus menyetujui sistem & ketentuan kerja." };
   if (!(resume instanceof File) || resume.size === 0) return { ok: false, error: "Lampirkan resume (PDF)." };
   if (resume.type !== "application/pdf") return { ok: false, error: "Resume harus berformat PDF." };
   if (resume.size > 5 * 1024 * 1024) return { ok: false, error: "Ukuran resume maksimal 5MB." };
@@ -85,28 +65,22 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   if (photo.size > 5 * 1024 * 1024) return { ok: false, error: "Ukuran foto maksimal 5MB." };
 
   const db = service();
-  const { data: opening } = await db.from("job_openings").select("id,status,require_physical").eq("code", code).maybeSingle();
-  if (!opening) return { ok: false, error: "Lowongan tidak ditemukan." };
-  if ((opening.status as string) !== "open") return { ok: false, error: "Lowongan ini sudah ditutup." };
+  const { data: opening } = await db.from("job_openings").select("id,status").eq("id", openingId).maybeSingle();
+  if (!opening) return { ok: false, error: "Posisi tidak ditemukan." };
+  if ((opening.status as string) !== "open") return { ok: false, error: "Posisi ini sudah ditutup." };
 
-  if (opening.require_physical) {
-    if (!heightRaw || !(Number(heightRaw) > 0)) return { ok: false, error: "Tinggi badan wajib diisi." };
-    if (!weightRaw || !(Number(weightRaw) > 0)) return { ok: false, error: "Berat badan wajib diisi." };
-  }
+  const cleanExp = (freshGraduate ? [] : experiences)
+    .filter((e) => e && (e.period || e.place || e.position || e.jobdesk))
+    .map((e) => ({ period: String(e.period ?? "").trim(), place: String(e.place ?? "").trim(), position: String(e.position ?? "").trim(), jobdesk: String(e.jobdesk ?? "").trim() }));
 
-  const openingId = opening.id as string;
   const base = `${openingId}/${crypto.randomUUID()}`;
   const path = `${base}.pdf`;
-  const { error: upErr } = await db.storage
-    .from("resumes")
-    .upload(path, resume, { contentType: "application/pdf", upsert: false });
+  const { error: upErr } = await db.storage.from("resumes").upload(path, resume, { contentType: "application/pdf", upsert: false });
   if (upErr) return { ok: false, error: "Gagal mengunggah resume. Coba lagi." };
 
   const photoExt = photo.type === "image/png" ? "png" : photo.type === "image/webp" ? "webp" : "jpg";
   const photoPath = `${base}.${photoExt}`;
-  const { error: photoErr } = await db.storage
-    .from("candidate-photos")
-    .upload(photoPath, photo, { contentType: photo.type, upsert: false });
+  const { error: photoErr } = await db.storage.from("candidate-photos").upload(photoPath, photo, { contentType: photo.type, upsert: false });
   if (photoErr) {
     await db.storage.from("resumes").remove([path]);
     return { ok: false, error: "Gagal mengunggah foto. Coba lagi." };
@@ -117,17 +91,26 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
     opening_id: openingId,
     name,
     whatsapp,
-    email: email || null,
-    experience_years: expRaw === "" ? null : Number(expRaw),
+    birth_place: birthPlace || null,
+    birth_date: birthDate || null,
+    domicile: domicile || null,
+    maps_link: mapsLink || null,
+    height_cm: Number(heightRaw),
+    fresh_graduate: freshGraduate,
+    work_experiences: cleanExp,
+    experience_years: cleanExp.length || null,
     expected_salary: salaryRaw === "" ? null : Number(salaryRaw.replace(/[^0-9]/g, "")),
-    height_cm: heightRaw === "" ? null : Number(heightRaw),
-    weight_kg: weightRaw === "" ? null : Number(weightRaw),
-    cover_note: coverNote || null,
+    employment_status: employmentStatus || null,
+    notice_period: noticePeriod || null,
+    earliest_join: earliestJoin || null,
+    cover_note: contribution || null,
+    agree_terms: agreeTerms,
+    agree_interview: agreeInterview,
     resume_path: path,
     photo_url: photoUrl,
   }).select("id").single();
   if (insErr || !inserted) {
-    await db.storage.from("resumes").remove([path]); // roll back orphan files
+    await db.storage.from("resumes").remove([path]);
     await db.storage.from("candidate-photos").remove([photoPath]);
     return { ok: false, error: "Gagal mengirim lamaran. Coba lagi." };
   }

@@ -57,7 +57,6 @@ export function OpeningDrawer({
   const [headcount, setHeadcount] = useState("1");
   const [requirePhysical, setRequirePhysical] = useState(false);
   const [minHeight, setMinHeight] = useState("");
-  const [minWeight, setMinWeight] = useState("");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
@@ -72,7 +71,6 @@ export function OpeningDrawer({
     setHeadcount(prefill ? String(prefill.headcount) : "1");
     setRequirePhysical(prefill?.require_physical ?? false);
     setMinHeight(prefill?.min_height_cm != null ? String(prefill.min_height_cm) : "");
-    setMinWeight(prefill?.min_weight_kg != null ? String(prefill.min_weight_kg) : "");
     setDescription(prefill?.description ?? "");
   }, [open, prefill, formData.positions]);
 
@@ -96,7 +94,7 @@ export function OpeningDrawer({
       headcount: Number(headcount) || 1,
       require_physical: requirePhysical,
       min_height_cm: requirePhysical && minHeight ? Number(minHeight) : null,
-      min_weight_kg: requirePhysical && minWeight ? Number(minWeight) : null,
+      min_weight_kg: null,
       description: description.trim() || null,
     };
     start(async () => {
@@ -184,21 +182,15 @@ export function OpeningDrawer({
             <div className="space-y-3 rounded-lg border p-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <Label htmlFor="require-physical">Physical requirements</Label>
-                  <p className="text-xs text-muted-foreground">Ask candidates for height &amp; weight.</p>
+                  <Label htmlFor="require-physical">Min. height requirement</Label>
+                  <p className="text-xs text-muted-foreground">Set a minimum height for this position.</p>
                 </div>
                 <Switch id="require-physical" checked={requirePhysical} onCheckedChange={setRequirePhysical} />
               </div>
               {requirePhysical && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="min-height">Min. height (cm)</Label>
-                    <Input id="min-height" type="number" min="0" step="1" value={minHeight} onChange={(e) => setMinHeight(e.target.value)} placeholder="e.g. 160" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="min-weight">Min. weight (kg)</Label>
-                    <Input id="min-weight" type="number" min="0" step="1" value={minWeight} onChange={(e) => setMinWeight(e.target.value)} placeholder="e.g. 50" />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="min-height">Min. height (cm)</Label>
+                  <Input id="min-height" type="number" min="0" step="1" value={minHeight} onChange={(e) => setMinHeight(e.target.value)} placeholder="e.g. 160" />
                 </div>
               )}
             </div>
