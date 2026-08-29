@@ -193,14 +193,12 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         {openings.length === 0 ? (
           <p className="text-sm text-muted-foreground">Belum ada posisi yang dibuka saat ini.</p>
         ) : (
-          <div className="space-y-2">
-            {openings.map((o) => (
-              <label key={o.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm ${openingId === o.id ? "border-primary bg-primary/5" : ""}`}>
-                <input type="radio" name="opening" className="accent-primary" checked={openingId === o.id} onChange={() => setOpeningId(o.id)} />
-                <span className="font-medium">{o.title}</span>
-              </label>
-            ))}
-          </div>
+          <Select value={openingId} onValueChange={setOpeningId}>
+            <SelectTrigger className="w-full"><SelectValue placeholder="Pilih posisi" /></SelectTrigger>
+            <SelectContent>
+              {openings.map((o) => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
         )}
       </section>
 
