@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatRp } from "@/lib/format";
 import {
-  HIRING_STAGES, HIRING_STAGE_LABEL as STAGE_LABEL, formatExperience, totalExperience, type HiringStage,
+  HIRING_STAGES, HIRING_STAGE_LABEL as STAGE_LABEL, earliestJoinLabel, formatExperience, totalExperience, type HiringStage,
 } from "@/lib/recruitment";
 import { setCandidateStage, hireCandidate, type Candidate, type HireComponent } from "@/app/actions/recruitment";
 
@@ -158,7 +158,7 @@ export function HiringPipeline({ candidates, isAdmin, openingId, hireComponents 
                     <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
                       {c.expected_salary != null && <div>Expected {formatRp(c.expected_salary)}</div>}
                       <div>{experienceLabel(c)}</div>
-                      {c.earliest_join && <div>Can join: {c.earliest_join}</div>}
+                      {c.earliest_join && <div>Can join: {earliestJoinLabel(c.earliest_join)}</div>}
                     </div>
 
                     {c.stage === "rejected" && c.reject_reason && (

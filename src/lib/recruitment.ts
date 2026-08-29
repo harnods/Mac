@@ -85,3 +85,20 @@ export function formatExperience(months: number) {
   if (y) return `${y} yr`;
   return `${m} mo`;
 }
+
+// ─── Earliest join (candidate-facing form is Indonesian; the admin board reads English) ───
+
+const JOIN_LABEL_EN: Record<string, string> = {
+  "Minggu ini": "This week",
+  "2 minggu ke depan": "Next 2 weeks",
+  "1 bulan ke depan": "Next month",
+  "2 bulan ke depan": "Next 2 months",
+};
+
+/** The apply form's join-timing options are Indonesian (that's who fills it
+ *  in); translate for display on the English-language admin board. Anything
+ *  outside the known options — an older record, say — passes through as-is. */
+export function earliestJoinLabel(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return JOIN_LABEL_EN[raw] ?? raw;
+}
