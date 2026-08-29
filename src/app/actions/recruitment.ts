@@ -43,10 +43,12 @@ export type Candidate = {
   agree_interview?: boolean | null;
 };
 
+// The board card shows photo, name, expected salary, total experience and when
+// they can join — nothing else, so height and the cover note stay off it.
 const CANDIDATE_CARD_SELECT =
-  "id,name,whatsapp,email,experience_years,expected_salary,height_cm,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at";
+  "id,name,whatsapp,email,experience_years,expected_salary,fresh_graduate,work_experiences,earliest_join,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at";
 const CANDIDATE_FULL_SELECT =
-  CANDIDATE_CARD_SELECT + ",birth_place,birth_date,domicile,maps_link,fresh_graduate,work_experiences,employment_status,notice_period,earliest_join,agree_terms,agree_interview";
+  CANDIDATE_CARD_SELECT + ",birth_place,birth_date,domicile,maps_link,height_cm,cover_note,employment_status,notice_period,agree_terms,agree_interview";
 
 function num(v: unknown): number | null { return v == null ? null : Number(v); }
 /** Best-effort convert a candidate birth date ("DD/MM/YYYY" or "YYYY-MM-DD") to ISO for the crew record. */

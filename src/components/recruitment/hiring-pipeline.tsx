@@ -15,7 +15,9 @@ import {
   Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { formatRp } from "@/lib/format";
-import { HIRING_STAGES, HIRING_STAGE_LABEL as STAGE_LABEL, type HiringStage } from "@/lib/recruitment";
+import {
+  HIRING_STAGES, HIRING_STAGE_LABEL as STAGE_LABEL, formatExperience, totalExperience, type HiringStage,
+} from "@/lib/recruitment";
 import { setCandidateStage, hireCandidate, type Candidate, type HireComponent } from "@/app/actions/recruitment";
 
 function waLink(phone: string) {
@@ -24,6 +26,17 @@ function waLink(phone: string) {
 }
 
 type CompRow = { checked: boolean; amount: string; rate_unit: "day" | "week" | "month" };
+
+/** Total experience, added up from the periods the candidate typed. Those are
+ *  freehand, so say "~" — and when none of them parse, fall back to counting
+ *  the jobs rather than inventing a number. */
+function experienceLabel(c: Candidate) {
+  if (c.fresh_graduate) return "Fresh graduate";
+  const { months, parsed, entries } = totalExperience(c.work_experiences);
+  if (parsed > 0) return `~${formatExperience(months)} experience`;
+  if (entries > 0) return `${entries} past ${entries === 1 ? "job" : "jobs"}`;
+  return "No experience listed";
+}
 
 export function HiringPipeline({ candidates, isAdmin, openingId, hireComponents }: { candidates: Candidate[]; isAdmin: boolean; openingId: string; hireComponents: HireComponent[] }) {
   const router = useRouter();
@@ -144,10 +157,10 @@ export function HiringPipeline({ candidates, isAdmin, openingId, hireComponents 
 
                     <div className="mt-2 space-y-0.5 text-sm text-muted-foreground">
                       {c.expected_salary != null && <div>Expected {formatRp(c.expected_salary)}</div>}
-                      {c.height_cm != null && <div>{c.height_cm} cm</div>}
+                      <div>{experienceLabel(c)}</div>
+                      {c.earliest_join && <div>Can join: {c.earliest_join}</div>}
                     </div>
 
-                    {c.cover_note && <p className="mt-2 line-clamp-3 text-sm">{c.cover_note}</p>}
                     {c.stage === "rejected" && c.reject_reason && (
                       <p className="mt-2 text-sm text-muted-foreground"><span className="font-medium">Reason:</span> {c.reject_reason}</p>
                     )}
