@@ -23,7 +23,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
 
   const canWrite = can(profile, P.EMPLOYEES_WRITE);
   const data = await getCandidate(candidateId);
-  if (!data || data.openingId !== id) notFound();
+  if (!data || data.positionId !== id) notFound();
   const c = data.candidate;
 
   const [resume, comments, events] = await Promise.all([
@@ -48,7 +48,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
           )}
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>
-            <p className="text-sm text-muted-foreground">{data.openingTitle}</p>
+            <p className="text-sm text-muted-foreground">{data.positionName}</p>
           </div>
         </div>
         <Badge variant={c.stage === "hired" ? "success" : "secondary"} className="ml-1">
@@ -65,7 +65,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         {/* Left: what the candidate filled in + comments */}
         <div className="space-y-6">
         <dl>
-          <Row label="Position" value={data.openingTitle} />
+          <Row label="Position" value={data.positionName} />
           <Row label="WhatsApp" value={<a href={waLink(c.whatsapp)} target="_blank" rel="noopener" className="text-primary hover:underline">{c.whatsapp}</a>} />
           <Row label="Tempat, tanggal lahir" value={[c.birth_place, c.birth_date].filter(Boolean).join(", ") || "—"} />
           <Row label="Domisili" value={c.domicile || "—"} />

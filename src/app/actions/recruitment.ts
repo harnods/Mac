@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
@@ -16,44 +15,6 @@ function service() {
   });
 }
 
-export type OpeningRow = {
-  id: string;
-  code: string;
-  title: string | null;
-  status: "open" | "closed";
-  min_experience_years: number;
-  headcount: number;
-  position: string | null;
-  department: string | null;
-  level: string | null;
-  employment_type: string | null;
-  candidate_count: number;
-  hired_count: number;
-  created_at: string;
-};
-
-export type OpeningDetail = {
-  id: string;
-  code: string;
-  title: string | null;
-  status: "open" | "closed";
-  description: string | null;
-  min_experience_years: number;
-  headcount: number;
-  require_physical: boolean;
-  min_height_cm: number | null;
-  min_weight_kg: number | null;
-  job_position_id: string | null;
-  department_id: string | null;
-  job_level_id: string | null;
-  employment_status_id: string | null;
-  position: string | null;
-  department: string | null;
-  level: string | null;
-  employment_type: string | null;
-  created_at: string;
-};
-
 export type Candidate = {
   id: string;
   name: string;
@@ -62,7 +23,6 @@ export type Candidate = {
   experience_years: number | null;
   expected_salary: number | null;
   height_cm: number | null;
-  weight_kg: number | null;
   cover_note: string | null;
   resume_path: string | null;
   photo_url: string | null;
@@ -70,7 +30,6 @@ export type Candidate = {
   hired_employee_id: string | null;
   stage: HiringStage;
   created_at: string;
-  // Full application fields (present on the candidate detail query)
   birth_place?: string | null;
   birth_date?: string | null;
   domicile?: string | null;
@@ -84,335 +43,72 @@ export type Candidate = {
   agree_interview?: boolean | null;
 };
 
-export type RecruitmentFormData = {
-  positions: { id: string; name: string; department_id: string | null }[];
-  departments: { id: string; name: string }[];
-  levels: { id: string; name: string }[];
-  employmentTypes: { id: string; name: string }[];
-};
+const CANDIDATE_CARD_SELECT =
+  "id,name,whatsapp,email,experience_years,expected_salary,height_cm,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at";
+const CANDIDATE_FULL_SELECT =
+  CANDIDATE_CARD_SELECT + ",birth_place,birth_date,domicile,maps_link,fresh_graduate,work_experiences,employment_status,notice_period,earliest_join,agree_terms,agree_interview";
 
-type OpeningJoin = {
-  id: string; code: string; title: string | null; status: "open" | "closed";
-  min_experience_years: number; headcount: number; created_at: string;
-  require_physical: boolean; min_height_cm: number | null; min_weight_kg: number | null;
-  job_position_id: string | null; department_id: string | null;
-  job_level_id: string | null; employment_status_id: string | null;
-  description: string | null;
-  job_positions: { name: string } | null;
-  departments: { name: string } | null;
-  job_levels: { name: string } | null;
-  employment_statuses: { name: string } | null;
-};
-
-const OPENING_SELECT =
-  "id,code,title,status,description,min_experience_years,headcount,require_physical,min_height_cm,min_weight_kg,created_at,job_position_id,department_id,job_level_id,employment_status_id,job_positions(name),departments(name),job_levels(name),employment_statuses(name)";
-
-// ─── Read ─────────────────────────────────────────────────────────────────────
-
-export async function getOpenings(): Promise<OpeningRow[]> {
-  const supabase = await createClient();
-  const [{ data }, { data: cands }] = await Promise.all([
-    supabase.from("job_openings").select(OPENING_SELECT).order("created_at", { ascending: false }),
-    supabase.from("candidates").select("opening_id,stage"),
-  ]);
-  const total = new Map<string, number>();
-  const hired = new Map<string, number>();
-  for (const c of (cands ?? []) as { opening_id: string; stage: string }[]) {
-    total.set(c.opening_id, (total.get(c.opening_id) ?? 0) + 1);
-    if (c.stage === "hired") hired.set(c.opening_id, (hired.get(c.opening_id) ?? 0) + 1);
-  }
-  return ((data ?? []) as unknown as OpeningJoin[]).map((o) => ({
-    id: o.id, code: o.code, title: o.title, status: o.status,
-    min_experience_years: Number(o.min_experience_years), headcount: o.headcount,
-    position: o.job_positions?.name ?? null,
-    department: o.departments?.name ?? null,
-    level: o.job_levels?.name ?? null,
-    employment_type: o.employment_statuses?.name ?? null,
-    candidate_count: total.get(o.id) ?? 0,
-    hired_count: hired.get(o.id) ?? 0,
-    created_at: o.created_at,
-  }));
+function num(v: unknown): number | null { return v == null ? null : Number(v); }
+function normCandidate(c: Candidate): Candidate {
+  return { ...c, experience_years: num(c.experience_years), expected_salary: num(c.expected_salary), height_cm: num(c.height_cm) };
 }
 
-export async function getOpeningDetail(id: string): Promise<{ opening: OpeningDetail; candidates: Candidate[] } | null> {
+// ─── Positions (the recruitment index) ────────────────────────────────────────
+
+export type PositionRow = { id: string; name: string; candidate_count: number };
+
+/** All job positions (except CEO), each always open for recruitment. */
+export async function getPositions(): Promise<PositionRow[]> {
   const supabase = await createClient();
-  const { data: o } = await supabase.from("job_openings").select(OPENING_SELECT).eq("id", id).maybeSingle();
-  if (!o) return null;
-  const row = o as unknown as OpeningJoin;
+  const [{ data: positions }, { data: cands }] = await Promise.all([
+    supabase.from("job_positions").select("id,name").not("name", "ilike", "CEO").order("name"),
+    supabase.from("candidates").select("job_position_id"),
+  ]);
+  const count = new Map<string, number>();
+  for (const c of (cands ?? []) as { job_position_id: string | null }[]) {
+    if (c.job_position_id) count.set(c.job_position_id, (count.get(c.job_position_id) ?? 0) + 1);
+  }
+  return ((positions ?? []) as { id: string; name: string }[]).map((p) => ({ id: p.id, name: p.name, candidate_count: count.get(p.id) ?? 0 }));
+}
+
+export type PositionDetail = { id: string; name: string; department: string | null };
+
+export async function getPositionDetail(positionId: string): Promise<{ position: PositionDetail; candidates: Candidate[] } | null> {
+  const supabase = await createClient();
+  const { data: p } = await supabase
+    .from("job_positions")
+    .select("id,name,departments(name)")
+    .eq("id", positionId)
+    .maybeSingle();
+  if (!p) return null;
+  const pos = p as unknown as { id: string; name: string; departments: { name: string } | null };
   const { data: cands } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,weight_kg,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at")
-    .eq("opening_id", id)
+    .select(CANDIDATE_CARD_SELECT)
+    .eq("job_position_id", positionId)
     .order("created_at", { ascending: false });
   return {
-    opening: {
-      id: row.id, code: row.code, title: row.title, status: row.status, description: row.description,
-      min_experience_years: Number(row.min_experience_years), headcount: row.headcount,
-      job_position_id: row.job_position_id, department_id: row.department_id,
-      require_physical: !!row.require_physical,
-      min_height_cm: row.min_height_cm == null ? null : Number(row.min_height_cm),
-      min_weight_kg: row.min_weight_kg == null ? null : Number(row.min_weight_kg),
-      job_level_id: row.job_level_id, employment_status_id: row.employment_status_id,
-      position: row.job_positions?.name ?? null, department: row.departments?.name ?? null,
-      level: row.job_levels?.name ?? null, employment_type: row.employment_statuses?.name ?? null,
-      created_at: row.created_at,
-    },
-    candidates: ((cands ?? []) as unknown as Candidate[]).map((c) => ({
-      ...c,
-      experience_years: c.experience_years == null ? null : Number(c.experience_years),
-      expected_salary: c.expected_salary == null ? null : Number(c.expected_salary),
-      height_cm: c.height_cm == null ? null : Number(c.height_cm),
-      weight_kg: c.weight_kg == null ? null : Number(c.weight_kg),
-    })),
+    position: { id: pos.id, name: pos.name, department: pos.departments?.name ?? null },
+    candidates: ((cands ?? []) as unknown as Candidate[]).map(normCandidate),
   };
 }
 
-export async function getCandidate(candidateId: string): Promise<{ candidate: Candidate; openingId: string; openingTitle: string } | null> {
+// ─── Candidate ────────────────────────────────────────────────────────────────
+
+export async function getCandidate(candidateId: string): Promise<{ candidate: Candidate; positionId: string; positionName: string } | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at,birth_place,birth_date,domicile,maps_link,fresh_graduate,work_experiences,employment_status,notice_period,earliest_join,agree_terms,agree_interview,opening_id,job_openings(title,job_positions(name))")
+    .select(CANDIDATE_FULL_SELECT + ",job_position_id,job_positions(name)")
     .eq("id", candidateId)
     .maybeSingle();
   if (!data) return null;
-  const row = data as unknown as (Candidate & { opening_id: string; job_openings: { title: string | null; job_positions: { name: string } | null } | null });
+  const row = data as unknown as (Candidate & { job_position_id: string | null; job_positions: { name: string } | null });
   return {
-    candidate: {
-      ...row,
-      experience_years: row.experience_years == null ? null : Number(row.experience_years),
-      expected_salary: row.expected_salary == null ? null : Number(row.expected_salary),
-      height_cm: row.height_cm == null ? null : Number(row.height_cm),
-      weight_kg: row.weight_kg == null ? null : Number(row.weight_kg),
-    },
-    openingId: row.opening_id,
-    openingTitle: row.job_openings?.title?.trim() || row.job_openings?.job_positions?.name || "Opening",
+    candidate: normCandidate(row),
+    positionId: row.job_position_id ?? "",
+    positionName: row.job_positions?.name ?? "Posisi",
   };
-}
-
-export async function getRecruitmentFormData(): Promise<RecruitmentFormData> {
-  const supabase = await createClient();
-  const [{ data: positions }, { data: departments }, { data: levels }, { data: types }] = await Promise.all([
-    supabase.from("job_positions").select("id,name,department_id").order("name"),
-    supabase.from("departments").select("id,name").order("name"),
-    supabase.from("job_levels").select("id,name").order("sort_order").order("name"),
-    supabase.from("employment_statuses").select("id,name").order("name"),
-  ]);
-  return {
-    positions: (positions ?? []) as RecruitmentFormData["positions"],
-    departments: (departments ?? []) as RecruitmentFormData["departments"],
-    levels: (levels ?? []) as RecruitmentFormData["levels"],
-    employmentTypes: (types ?? []) as RecruitmentFormData["employmentTypes"],
-  };
-}
-
-// ─── Write ────────────────────────────────────────────────────────────────────
-
-export type OpeningInput = {
-  title?: string | null;
-  job_position_id: string | null;
-  department_id: string | null;
-  job_level_id: string | null;
-  employment_status_id: string | null;
-  min_experience_years: number;
-  headcount: number;
-  require_physical: boolean;
-  min_height_cm: number | null;
-  min_weight_kg: number | null;
-  description?: string | null;
-};
-
-function cleanOpening(input: OpeningInput) {
-  const physical = !!input.require_physical;
-  return {
-    title: input.title?.trim() || null,
-    job_position_id: input.job_position_id,
-    department_id: input.department_id,
-    job_level_id: input.job_level_id,
-    employment_status_id: input.employment_status_id,
-    min_experience_years: Math.max(0, Number(input.min_experience_years) || 0),
-    headcount: Math.max(1, Math.floor(Number(input.headcount) || 1)),
-    require_physical: physical,
-    min_height_cm: physical && input.min_height_cm ? Number(input.min_height_cm) : null,
-    min_weight_kg: physical && input.min_weight_kg ? Number(input.min_weight_kg) : null,
-    description: input.description?.trim() || null,
-  };
-}
-
-export async function createOpening(input: OpeningInput): Promise<ActionResult<{ id: string; code: string }>> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  if (!input.job_position_id) return { ok: false, error: "Select a position." };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("job_openings")
-    .insert({ code: "", ...cleanOpening(input), created_by: profile.id })
-    .select("id, code")
-    .single();
-  if (error || !data) return { ok: false, error: error?.message ?? "Could not create the opening." };
-  revalidatePath("/hr/recruitment");
-  return { ok: true, data: { id: data.id as string, code: data.code as string } };
-}
-
-export async function updateOpening(id: string, input: OpeningInput): Promise<ActionResult> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  if (!input.job_position_id) return { ok: false, error: "Select a position." };
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("job_openings")
-    .update({ ...cleanOpening(input), updated_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/hr/recruitment");
-  revalidatePath(`/hr/recruitment/${id}`);
-  return { ok: true };
-}
-
-export async function setOpeningStatus(id: string, status: "open" | "closed"): Promise<ActionResult> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  const supabase = await createClient();
-  const { error } = await supabase.from("job_openings").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/hr/recruitment");
-  revalidatePath(`/hr/recruitment/${id}`);
-  return { ok: true };
-}
-
-export async function deleteOpening(id: string): Promise<ActionResult> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  const supabase = await createClient();
-  const { error } = await supabase.from("job_openings").delete().eq("id", id);
-  if (error) return { ok: false, error: error.message };
-  revalidatePath("/hr/recruitment");
-  return { ok: true };
-}
-
-export type HireInput = {
-  basicSalary?: number | null;
-  allowances?: { allowance_id: string; amount: number; rate_unit?: "day" | "week" | "month"; per_attendance?: boolean }[];
-};
-
-export async function setCandidateStage(candidateId: string, stage: HiringStage, reason?: string): Promise<ActionResult> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-
-  // Moving to Hired provisions a crew record (idempotent).
-  if (stage === "hired") return hireCandidate(candidateId);
-
-  const supabase = await createClient();
-  const { data: prev } = await supabase.from("candidates").select("stage").eq("id", candidateId).maybeSingle();
-  const fromStage = (prev?.stage as string | undefined) ?? null;
-
-  const patch: Record<string, unknown> = { stage, updated_at: new Date().toISOString() };
-  if (stage === "rejected") patch.reject_reason = reason?.trim() || null;
-  const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
-  if (error) return { ok: false, error: error.message };
-
-  await supabase.from("candidate_events").insert({
-    candidate_id: candidateId, actor_id: profile.id, type: "stage_changed", from_stage: fromStage, to_stage: stage,
-  });
-  return { ok: true };
-}
-
-/** Mark a candidate Hired and create a crew record (from the candidate + its
- *  opening + the recruiter-entered salary/components). Idempotent per candidate. */
-export async function hireCandidate(candidateId: string, hire?: HireInput): Promise<ActionResult> {
-  const profile = await getCurrentProfile();
-  if (!profile) return { ok: false, error: "Not authenticated" };
-  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-
-  const supabase = await createClient();
-  const { data: cand } = await supabase
-    .from("candidates")
-    .select("id,name,whatsapp,email,photo_url,hired_employee_id,opening_id,stage")
-    .eq("id", candidateId)
-    .maybeSingle();
-  if (!cand) return { ok: false, error: "Candidate not found" };
-
-  // Already linked to a crew — just make sure the stage reflects it.
-  if (cand.hired_employee_id) {
-    await supabase.from("candidates").update({ stage: "hired", updated_at: new Date().toISOString() }).eq("id", candidateId);
-    return { ok: true };
-  }
-
-  const { data: opening } = await supabase
-    .from("job_openings")
-    .select("department_id,job_position_id,job_level_id,employment_status_id")
-    .eq("id", cand.opening_id)
-    .maybeSingle();
-
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-  const res = await createEmployee({
-    name: cand.name,
-    phone: cand.whatsapp ?? "",
-    email: cand.email ?? "",
-    photo_url: cand.photo_url ?? null,
-    join_date: today,
-    department_id: opening?.department_id ?? null,
-    job_position_id: opening?.job_position_id ?? null,
-    job_level_id: opening?.job_level_id ?? null,
-    employment_status_id: opening?.employment_status_id ?? null,
-    basic_salary: hire?.basicSalary ?? null,
-    allowances: (hire?.allowances ?? []).map((a) => ({
-      allowance_id: a.allowance_id,
-      amount: a.amount ?? 0,
-      rate_unit: a.rate_unit ?? "month",
-      per_attendance: !!a.per_attendance,
-    })),
-  });
-  if (!res.ok) return { ok: false, error: `Could not add to crew: ${res.error}` };
-
-  const fromStage = (cand.stage as string | undefined) ?? null;
-  const { error } = await supabase
-    .from("candidates")
-    .update({ stage: "hired", hired_employee_id: res.id ?? null, updated_at: new Date().toISOString() })
-    .eq("id", candidateId);
-  if (error) return { ok: false, error: error.message };
-
-  await supabase.from("candidate_events").insert({
-    candidate_id: candidateId, actor_id: profile.id, type: "hired", from_stage: fromStage, to_stage: "hired",
-  });
-  return { ok: true };
-}
-
-export type HireComponent = { id: string; name: string; type: "earning" | "deduction"; isFormula: boolean };
-
-/** Payroll components available to attach when hiring (with formula flag). */
-export async function getHireComponents(): Promise<HireComponent[]> {
-  const supabase = await createClient();
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-  const [{ data: comps }, { data: vers }] = await Promise.all([
-    supabase.from("allowances").select("id,name,type").order("name"),
-    supabase.from("payroll_component_versions").select("component_id,formula_basis,effective_date").lte("effective_date", today),
-  ]);
-  const formula = new Set<string>();
-  for (const v of (vers ?? []) as { component_id: string; formula_basis: string | null }[]) {
-    if (v.formula_basis) formula.add(v.component_id);
-  }
-  return ((comps ?? []) as { id: string; name: string; type: "earning" | "deduction" }[])
-    .map((c) => ({ id: c.id, name: c.name, type: c.type, isFormula: formula.has(c.id) }));
-}
-
-export type CandidateEvent = { id: string; type: "applied" | "stage_changed" | "hired"; from_stage: string | null; to_stage: string | null; actor: string | null; created_at: string };
-
-export async function getCandidateEvents(candidateId: string): Promise<CandidateEvent[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("candidate_events")
-    .select("id,type,from_stage,to_stage,created_at,actor:profiles!actor_id(full_name,email)")
-    .eq("candidate_id", candidateId)
-    .order("created_at", { ascending: false });
-  return ((data ?? []) as unknown as { id: string; type: "applied" | "stage_changed" | "hired"; from_stage: string | null; to_stage: string | null; created_at: string; actor: { full_name: string | null; email: string } | null }[])
-    .map((e) => ({ id: e.id, type: e.type, from_stage: e.from_stage, to_stage: e.to_stage, actor: e.actor?.full_name ?? e.actor?.email ?? null, created_at: e.created_at }));
 }
 
 export type CandidateComment = { id: string; body: string; created_at: string; author: string | null };
@@ -444,7 +140,6 @@ export async function deleteCandidate(candidateId: string): Promise<ActionResult
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-
   const db = service();
   const { data: c } = await db.from("candidates").select("resume_path,photo_url").eq("id", candidateId).maybeSingle();
   if (c?.resume_path) await db.storage.from("resumes").remove([c.resume_path as string]);
@@ -458,7 +153,6 @@ export async function deleteCandidate(candidateId: string): Promise<ActionResult
   return { ok: true };
 }
 
-/** Short-lived signed URL to view a candidate's résumé from the private bucket. */
 export async function getResumeSignedUrl(candidateId: string): Promise<ActionResult<{ url: string }>> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
@@ -466,8 +160,120 @@ export async function getResumeSignedUrl(candidateId: string): Promise<ActionRes
   const db = service();
   const { data: c } = await db.from("candidates").select("resume_path").eq("id", candidateId).maybeSingle();
   const path = (c?.resume_path as string | null) ?? null;
-  if (!path) return { ok: false, error: "This candidate hasn't attached a résumé." };
+  if (!path) return { ok: false, error: "Kandidat ini belum melampirkan resume." };
   const { data, error } = await db.storage.from("resumes").createSignedUrl(path, 600);
-  if (error || !data?.signedUrl) return { ok: false, error: error?.message ?? "Could not open the résumé." };
+  if (error || !data?.signedUrl) return { ok: false, error: error?.message ?? "Gagal membuka resume." };
   return { ok: true, data: { url: data.signedUrl } };
+}
+
+// ─── Pipeline ─────────────────────────────────────────────────────────────────
+
+export type HireInput = {
+  basicSalary?: number | null;
+  allowances?: { allowance_id: string; amount: number; rate_unit?: "day" | "week" | "month"; per_attendance?: boolean }[];
+};
+
+export async function setCandidateStage(candidateId: string, stage: HiringStage, reason?: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+  if (stage === "hired") return hireCandidate(candidateId);
+
+  const supabase = await createClient();
+  const { data: prev } = await supabase.from("candidates").select("stage").eq("id", candidateId).maybeSingle();
+  const fromStage = (prev?.stage as string | undefined) ?? null;
+
+  const patch: Record<string, unknown> = { stage, updated_at: new Date().toISOString() };
+  if (stage === "rejected") patch.reject_reason = reason?.trim() || null;
+  const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.from("candidate_events").insert({ candidate_id: candidateId, actor_id: profile.id, type: "stage_changed", from_stage: fromStage, to_stage: stage });
+  return { ok: true };
+}
+
+/** Mark a candidate Hired and create a crew record from the candidate + their
+ *  job position + the recruiter-entered salary/components. Idempotent. */
+export async function hireCandidate(candidateId: string, hire?: HireInput): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: cand } = await supabase
+    .from("candidates")
+    .select("id,name,whatsapp,email,photo_url,hired_employee_id,job_position_id,stage")
+    .eq("id", candidateId)
+    .maybeSingle();
+  if (!cand) return { ok: false, error: "Candidate not found" };
+
+  if (cand.hired_employee_id) {
+    await supabase.from("candidates").update({ stage: "hired", updated_at: new Date().toISOString() }).eq("id", candidateId);
+    return { ok: true };
+  }
+
+  let departmentId: string | null = null;
+  if (cand.job_position_id) {
+    const { data: pos } = await supabase.from("job_positions").select("department_id").eq("id", cand.job_position_id).maybeSingle();
+    departmentId = (pos?.department_id as string | null) ?? null;
+  }
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const res = await createEmployee({
+    name: cand.name,
+    phone: cand.whatsapp ?? "",
+    email: cand.email ?? "",
+    photo_url: cand.photo_url ?? null,
+    join_date: today,
+    department_id: departmentId,
+    job_position_id: cand.job_position_id ?? null,
+    basic_salary: hire?.basicSalary ?? null,
+    allowances: (hire?.allowances ?? []).map((a) => ({
+      allowance_id: a.allowance_id,
+      amount: a.amount ?? 0,
+      rate_unit: a.rate_unit ?? "month",
+      per_attendance: !!a.per_attendance,
+    })),
+  });
+  if (!res.ok) return { ok: false, error: `Could not add to crew: ${res.error}` };
+
+  const fromStage = (cand.stage as string | undefined) ?? null;
+  const { error } = await supabase
+    .from("candidates")
+    .update({ stage: "hired", hired_employee_id: res.id ?? null, updated_at: new Date().toISOString() })
+    .eq("id", candidateId);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.from("candidate_events").insert({ candidate_id: candidateId, actor_id: profile.id, type: "hired", from_stage: fromStage, to_stage: "hired" });
+  return { ok: true };
+}
+
+export type HireComponent = { id: string; name: string; type: "earning" | "deduction"; isFormula: boolean };
+
+export async function getHireComponents(): Promise<HireComponent[]> {
+  const supabase = await createClient();
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const [{ data: comps }, { data: vers }] = await Promise.all([
+    supabase.from("allowances").select("id,name,type").order("name"),
+    supabase.from("payroll_component_versions").select("component_id,formula_basis,effective_date").lte("effective_date", today),
+  ]);
+  const formula = new Set<string>();
+  for (const v of (vers ?? []) as { component_id: string; formula_basis: string | null }[]) {
+    if (v.formula_basis) formula.add(v.component_id);
+  }
+  return ((comps ?? []) as { id: string; name: string; type: "earning" | "deduction" }[])
+    .map((c) => ({ id: c.id, name: c.name, type: c.type, isFormula: formula.has(c.id) }));
+}
+
+export type CandidateEvent = { id: string; type: "applied" | "stage_changed" | "hired"; from_stage: string | null; to_stage: string | null; actor: string | null; created_at: string };
+
+export async function getCandidateEvents(candidateId: string): Promise<CandidateEvent[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("candidate_events")
+    .select("id,type,from_stage,to_stage,created_at,actor:profiles!actor_id(full_name,email)")
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false });
+  return ((data ?? []) as unknown as { id: string; type: "applied" | "stage_changed" | "hired"; from_stage: string | null; to_stage: string | null; created_at: string; actor: { full_name: string | null; email: string } | null }[])
+    .map((e) => ({ id: e.id, type: e.type, from_stage: e.from_stage, to_stage: e.to_stage, actor: e.actor?.full_name ?? e.actor?.email ?? null, created_at: e.created_at }));
 }

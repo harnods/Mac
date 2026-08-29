@@ -1,81 +1,34 @@
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { Badge } from "@/components/ui/badge";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
-import { getOpeningDetail, getRecruitmentFormData, getHireComponents } from "@/app/actions/recruitment";
-import { EditOpeningButton } from "@/components/recruitment/edit-opening-button";
+import { getPositionDetail, getHireComponents } from "@/app/actions/recruitment";
 import { HiringPipeline } from "@/components/recruitment/hiring-pipeline";
 
 export const dynamic = "force-dynamic";
 
-export default async function RecruitmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RecruitmentPositionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
-  const [data, formData, hireComponents] = await Promise.all([getOpeningDetail(id), getRecruitmentFormData(), getHireComponents()]);
+  const [data, hireComponents] = await Promise.all([getPositionDetail(id), getHireComponents()]);
   if (!data) notFound();
-  const { opening, candidates } = data;
+  const { position, candidates } = data;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <DetailBackButton href="/hr/recruitment" />
-          <h1 className="text-2xl font-semibold tracking-tight">{opening.title || opening.position || "Opening"}</h1>
-          {opening.status === "open"
-            ? <Badge variant="success">Open</Badge>
-            : <Badge variant="secondary">Closed</Badge>}
+      <div className="flex items-center gap-3">
+        <DetailBackButton href="/hr/recruitment" />
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{position.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            {position.department ?? "—"} · {candidates.length} candidate{candidates.length === 1 ? "" : "s"}
+          </p>
         </div>
-        {isAdmin && (
-          <EditOpeningButton
-            formData={formData}
-            prefill={{
-              id: opening.id, title: opening.title,
-              job_position_id: opening.job_position_id, department_id: opening.department_id,
-              job_level_id: opening.job_level_id, employment_status_id: opening.employment_status_id,
-              min_experience_years: opening.min_experience_years, headcount: opening.headcount,
-              require_physical: opening.require_physical,
-              min_height_cm: opening.min_height_cm, min_weight_kg: opening.min_weight_kg,
-              description: opening.description,
-            }}
-          />
-        )}
       </div>
 
-      <dl className="max-w-2xl">
-        <Field label="Position" value={opening.position} />
-        <Field label="Department" value={opening.department} />
-        <Field label="Job level" value={opening.level} />
-        <Field label="Employment type" value={opening.employment_type} />
-        <Field label="Min. experience" value={opening.min_experience_years > 0 ? `${opening.min_experience_years} years` : "—"} />
-        <Field label="Headcount" value={String(opening.headcount)} />
-        {opening.require_physical && (
-          <Field label="Min. height" value={opening.min_height_cm != null ? `${opening.min_height_cm} cm` : "—"} />
-        )}
-      </dl>
-
-      {opening.description && (
-        <div className="max-w-2xl space-y-1">
-          <div className="text-sm text-muted-foreground">Description</div>
-          <p className="whitespace-pre-wrap text-sm">{opening.description}</p>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold">Hiring pipeline</h2>
-        <HiringPipeline candidates={candidates} isAdmin={isAdmin} openingId={opening.id} hireComponents={hireComponents} />
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-3 sm:gap-4">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-sm sm:col-span-2">{value ?? "—"}</dd>
+      <HiringPipeline candidates={candidates} isAdmin={isAdmin} openingId={position.id} hireComponents={hireComponents} />
     </div>
   );
 }

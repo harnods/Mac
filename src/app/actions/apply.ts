@@ -12,16 +12,15 @@ function service() {
 
 export type OpenPosition = { id: string; title: string };
 
-/** Positions currently open for application (single global apply form). */
+/** Every job position (except CEO) — all are open for application. */
 export async function getOpenPositions(): Promise<OpenPosition[]> {
   const db = service();
   const { data } = await db
-    .from("job_openings")
-    .select("id,title,job_positions(name)")
-    .eq("status", "open")
-    .order("created_at", { ascending: true });
-  return ((data ?? []) as unknown as { id: string; title: string | null; job_positions: { name: string } | null }[])
-    .map((o) => ({ id: o.id, title: o.title?.trim() || o.job_positions?.name || "Posisi" }));
+    .from("job_positions")
+    .select("id,name")
+    .not("name", "ilike", "CEO")
+    .order("name");
+  return ((data ?? []) as { id: string; name: string }[]).map((p) => ({ id: p.id, title: p.name }));
 }
 
 const phoneOk = (p: string) => /^[0-9+][0-9\s-]{6,}$/.test(p.trim());
@@ -31,7 +30,7 @@ export type WorkExperience = { period: string; place: string; position: string; 
 /** Public candidate submission: validate, store résumé + photo (service role),
  *  then insert the candidate. Bypasses RLS by design. */
 export async function submitApplication(form: FormData): Promise<ApplyResult> {
-  const openingId = String(form.get("opening_id") ?? "").trim();
+  const positionId = String(form.get("position_id") ?? "").trim();
   const name = String(form.get("name") ?? "").trim();
   const whatsapp = String(form.get("whatsapp") ?? "").trim();
   const birthPlace = String(form.get("birth_place") ?? "").trim();
@@ -52,7 +51,7 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   const resume = form.get("resume");
   const photo = form.get("photo");
 
-  if (!openingId) return { ok: false, error: "Pilih posisi yang dilamar." };
+  if (!positionId) return { ok: false, error: "Pilih posisi yang dilamar." };
   if (!name) return { ok: false, error: "Nama wajib diisi." };
   if (!whatsapp || !phoneOk(whatsapp)) return { ok: false, error: "Nomor WhatsApp tidak valid." };
   if (!heightRaw || !(Number(heightRaw) > 0)) return { ok: false, error: "Tinggi badan wajib diisi." };
@@ -65,15 +64,14 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   if (photo.size > 5 * 1024 * 1024) return { ok: false, error: "Ukuran foto maksimal 5MB." };
 
   const db = service();
-  const { data: opening } = await db.from("job_openings").select("id,status").eq("id", openingId).maybeSingle();
-  if (!opening) return { ok: false, error: "Posisi tidak ditemukan." };
-  if ((opening.status as string) !== "open") return { ok: false, error: "Posisi ini sudah ditutup." };
+  const { data: position } = await db.from("job_positions").select("id").eq("id", positionId).maybeSingle();
+  if (!position) return { ok: false, error: "Posisi tidak ditemukan." };
 
   const cleanExp = (freshGraduate ? [] : experiences)
     .filter((e) => e && (e.period || e.place || e.position || e.jobdesk))
     .map((e) => ({ period: String(e.period ?? "").trim(), place: String(e.place ?? "").trim(), position: String(e.position ?? "").trim(), jobdesk: String(e.jobdesk ?? "").trim() }));
 
-  const base = `${openingId}/${crypto.randomUUID()}`;
+  const base = `${positionId}/${crypto.randomUUID()}`;
   const path = `${base}.pdf`;
   const { error: upErr } = await db.storage.from("resumes").upload(path, resume, { contentType: "application/pdf", upsert: false });
   if (upErr) return { ok: false, error: "Gagal mengunggah resume. Coba lagi." };
@@ -88,7 +86,7 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   const photoUrl = db.storage.from("candidate-photos").getPublicUrl(photoPath).data.publicUrl;
 
   const { data: inserted, error: insErr } = await db.from("candidates").insert({
-    opening_id: openingId,
+    job_position_id: positionId,
     name,
     whatsapp,
     birth_place: birthPlace || null,

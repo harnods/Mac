@@ -76,7 +76,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
       try { photoFile = await compressImage(photo); } catch { photoFile = photo; }
 
       const fd = new FormData();
-      fd.set("opening_id", openingId);
+      fd.set("position_id", openingId);
       fd.set("name", name.trim());
       fd.set("whatsapp", whatsapp.trim());
       fd.set("birth_place", birthPlace.trim());
