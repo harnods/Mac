@@ -33,8 +33,8 @@ export function CandidateActions({ candidateId, openingId, name }: { candidateId
         <DropdownMenuTrigger asChild>
           <Button variant="outline">Actions <ChevronDown className="size-4" /></Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setConfirmOpen(true)}>Delete candidate</DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-auto min-w-fit">
+          <DropdownMenuItem className="whitespace-nowrap" onSelect={() => setConfirmOpen(true)}>Delete candidate</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

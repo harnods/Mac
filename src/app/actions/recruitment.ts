@@ -283,6 +283,11 @@ export async function deleteOpening(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+export type HireInput = {
+  basicSalary?: number | null;
+  allowances?: { allowance_id: string; amount: number; rate_unit?: "day" | "week" | "month"; per_attendance?: boolean }[];
+};
+
 export async function setCandidateStage(candidateId: string, stage: HiringStage, reason?: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
@@ -291,17 +296,24 @@ export async function setCandidateStage(candidateId: string, stage: HiringStage,
   // Moving to Hired provisions a crew record (idempotent).
   if (stage === "hired") return hireCandidate(candidateId);
 
+  const supabase = await createClient();
+  const { data: prev } = await supabase.from("candidates").select("stage").eq("id", candidateId).maybeSingle();
+  const fromStage = (prev?.stage as string | undefined) ?? null;
+
   const patch: Record<string, unknown> = { stage, updated_at: new Date().toISOString() };
   if (stage === "rejected") patch.reject_reason = reason?.trim() || null;
-  const supabase = await createClient();
   const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
   if (error) return { ok: false, error: error.message };
+
+  await supabase.from("candidate_events").insert({
+    candidate_id: candidateId, actor_id: profile.id, type: "stage_changed", from_stage: fromStage, to_stage: stage,
+  });
   return { ok: true };
 }
 
-/** Mark a candidate Hired and auto-create a crew record (from the candidate +
- *  its opening's position/department/level/type). Idempotent per candidate. */
-export async function hireCandidate(candidateId: string): Promise<ActionResult> {
+/** Mark a candidate Hired and create a crew record (from the candidate + its
+ *  opening + the recruiter-entered salary/components). Idempotent per candidate. */
+export async function hireCandidate(candidateId: string, hire?: HireInput): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
@@ -309,7 +321,7 @@ export async function hireCandidate(candidateId: string): Promise<ActionResult> 
   const supabase = await createClient();
   const { data: cand } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,photo_url,hired_employee_id,opening_id")
+    .select("id,name,whatsapp,email,photo_url,hired_employee_id,opening_id,stage")
     .eq("id", candidateId)
     .maybeSingle();
   if (!cand) return { ok: false, error: "Candidate not found" };
@@ -337,15 +349,58 @@ export async function hireCandidate(candidateId: string): Promise<ActionResult> 
     job_position_id: opening?.job_position_id ?? null,
     job_level_id: opening?.job_level_id ?? null,
     employment_status_id: opening?.employment_status_id ?? null,
+    basic_salary: hire?.basicSalary ?? null,
+    allowances: (hire?.allowances ?? []).map((a) => ({
+      allowance_id: a.allowance_id,
+      amount: a.amount ?? 0,
+      rate_unit: a.rate_unit ?? "month",
+      per_attendance: !!a.per_attendance,
+    })),
   });
   if (!res.ok) return { ok: false, error: `Could not add to crew: ${res.error}` };
 
+  const fromStage = (cand.stage as string | undefined) ?? null;
   const { error } = await supabase
     .from("candidates")
     .update({ stage: "hired", hired_employee_id: res.id ?? null, updated_at: new Date().toISOString() })
     .eq("id", candidateId);
   if (error) return { ok: false, error: error.message };
+
+  await supabase.from("candidate_events").insert({
+    candidate_id: candidateId, actor_id: profile.id, type: "hired", from_stage: fromStage, to_stage: "hired",
+  });
   return { ok: true };
+}
+
+export type HireComponent = { id: string; name: string; type: "earning" | "deduction"; isFormula: boolean };
+
+/** Payroll components available to attach when hiring (with formula flag). */
+export async function getHireComponents(): Promise<HireComponent[]> {
+  const supabase = await createClient();
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+  const [{ data: comps }, { data: vers }] = await Promise.all([
+    supabase.from("allowances").select("id,name,type").order("name"),
+    supabase.from("payroll_component_versions").select("component_id,formula_basis,effective_date").lte("effective_date", today),
+  ]);
+  const formula = new Set<string>();
+  for (const v of (vers ?? []) as { component_id: string; formula_basis: string | null }[]) {
+    if (v.formula_basis) formula.add(v.component_id);
+  }
+  return ((comps ?? []) as { id: string; name: string; type: "earning" | "deduction" }[])
+    .map((c) => ({ id: c.id, name: c.name, type: c.type, isFormula: formula.has(c.id) }));
+}
+
+export type CandidateEvent = { id: string; type: "applied" | "stage_changed" | "hired"; from_stage: string | null; to_stage: string | null; actor: string | null; created_at: string };
+
+export async function getCandidateEvents(candidateId: string): Promise<CandidateEvent[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("candidate_events")
+    .select("id,type,from_stage,to_stage,created_at,actor:profiles!actor_id(full_name,email)")
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false });
+  return ((data ?? []) as unknown as { id: string; type: "applied" | "stage_changed" | "hired"; from_stage: string | null; to_stage: string | null; created_at: string; actor: { full_name: string | null; email: string } | null }[])
+    .map((e) => ({ id: e.id, type: e.type, from_stage: e.from_stage, to_stage: e.to_stage, actor: e.actor?.full_name ?? e.actor?.email ?? null, created_at: e.created_at }));
 }
 
 export type CandidateComment = { id: string; body: string; created_at: string; author: string | null };

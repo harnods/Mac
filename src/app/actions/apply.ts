@@ -113,7 +113,7 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   }
   const photoUrl = db.storage.from("candidate-photos").getPublicUrl(photoPath).data.publicUrl;
 
-  const { error: insErr } = await db.from("candidates").insert({
+  const { data: inserted, error: insErr } = await db.from("candidates").insert({
     opening_id: openingId,
     name,
     whatsapp,
@@ -125,11 +125,12 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
     cover_note: coverNote || null,
     resume_path: path,
     photo_url: photoUrl,
-  });
-  if (insErr) {
+  }).select("id").single();
+  if (insErr || !inserted) {
     await db.storage.from("resumes").remove([path]); // roll back orphan files
     await db.storage.from("candidate-photos").remove([photoPath]);
     return { ok: false, error: "Gagal mengirim lamaran. Coba lagi." };
   }
+  await db.from("candidate_events").insert({ candidate_id: inserted.id, type: "applied", to_stage: "applied" });
   return { ok: true };
 }

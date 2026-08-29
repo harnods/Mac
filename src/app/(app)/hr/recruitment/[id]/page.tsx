@@ -3,7 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
-import { getOpeningDetail, getRecruitmentFormData } from "@/app/actions/recruitment";
+import { getOpeningDetail, getRecruitmentFormData, getHireComponents } from "@/app/actions/recruitment";
 import { hireBaseUrl } from "@/lib/recruitment";
 import { EditOpeningButton } from "@/components/recruitment/edit-opening-button";
 import { CopyApplyLink } from "@/components/recruitment/copy-apply-link";
@@ -16,7 +16,7 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
   const profile = await getCurrentProfile();
   const isAdmin = can(profile, P.EMPLOYEES_WRITE);
 
-  const [data, formData] = await Promise.all([getOpeningDetail(id), getRecruitmentFormData()]);
+  const [data, formData, hireComponents] = await Promise.all([getOpeningDetail(id), getRecruitmentFormData(), getHireComponents()]);
   if (!data) notFound();
   const { opening, candidates } = data;
   const applyUrl = `${hireBaseUrl().replace(/\/$/, "")}/${opening.code}`;
@@ -72,7 +72,7 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
 
       <div className="space-y-3">
         <h2 className="text-sm font-semibold">Hiring pipeline</h2>
-        <HiringPipeline candidates={candidates} isAdmin={isAdmin} openingId={opening.id} />
+        <HiringPipeline candidates={candidates} isAdmin={isAdmin} openingId={opening.id} hireComponents={hireComponents} />
       </div>
     </div>
   );

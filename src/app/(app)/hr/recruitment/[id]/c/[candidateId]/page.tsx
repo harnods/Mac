@@ -3,7 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
-import { getCandidate, getResumeSignedUrl, getCandidateComments } from "@/app/actions/recruitment";
+import { getCandidate, getResumeSignedUrl, getCandidateComments, getCandidateEvents, type CandidateEvent } from "@/app/actions/recruitment";
 import { CandidateActions } from "@/components/recruitment/candidate-actions";
 import { CandidateComments } from "@/components/recruitment/candidate-comments";
 import { HIRING_STAGE_LABEL } from "@/lib/recruitment";
@@ -26,9 +26,10 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
   if (!data || data.openingId !== id) notFound();
   const c = data.candidate;
 
-  const [resume, comments] = await Promise.all([
+  const [resume, comments, events] = await Promise.all([
     c.resume_path ? getResumeSignedUrl(candidateId) : Promise.resolve(null),
     getCandidateComments(candidateId),
+    getCandidateEvents(candidateId),
   ]);
   const resumeUrl = resume && resume.ok ? resume.data!.url : null;
 
@@ -83,10 +84,9 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
               <dd className="mt-1 whitespace-pre-wrap text-sm">{c.reject_reason}</dd>
             </div>
           )}
-          {c.hired_employee_id && (
-            <div className="pt-2 text-sm text-emerald-600">Added to crew.</div>
-          )}
         </dl>
+
+        <ActivityLog events={events} />
 
         <CandidateComments candidateId={c.id} comments={comments} />
         </div>
@@ -94,8 +94,8 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         {/* Right: résumé preview — fills to the bottom, no thumbnail panel */}
         <div className="lg:sticky lg:top-4">
           {resumeUrl ? (
-            <div className="h-[calc(100vh-7rem)] overflow-hidden rounded-lg border">
-              <iframe src={`${resumeUrl}#toolbar=0&navpanes=0&view=FitH`} className="h-full w-full" title="Résumé" />
+            <div className="h-[calc(100vh-7rem)] overflow-hidden rounded-lg border bg-muted/30 p-6">
+              <iframe src={`${resumeUrl}#toolbar=0&navpanes=0&view=FitH`} className="h-full w-full rounded bg-white" title="Résumé" />
             </div>
           ) : (
             <div className="flex h-[calc(100vh-7rem)] items-center justify-center rounded-lg border text-sm text-muted-foreground">
@@ -104,6 +104,33 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function eventText(e: CandidateEvent): string {
+  if (e.type === "applied") return "Applied";
+  const to = e.to_stage ? HIRING_STAGE_LABEL[e.to_stage as keyof typeof HIRING_STAGE_LABEL] ?? e.to_stage : "?";
+  if (e.type === "hired") return `Hired${e.actor ? ` by ${e.actor}` : ""}`;
+  return `Moved to ${to}${e.actor ? ` by ${e.actor}` : ""}`;
+}
+
+function ActivityLog({ events }: { events: CandidateEvent[] }) {
+  return (
+    <div className="space-y-3">
+      <h2 className="text-sm font-semibold">Activity log</h2>
+      {events.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No activity yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {events.map((e) => (
+            <li key={e.id} className="flex items-baseline justify-between gap-4 text-sm">
+              <span>{eventText(e)}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(e.created_at)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

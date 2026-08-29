@@ -144,12 +144,12 @@ export function OpeningsManager({
                           <span className="sr-only">Menu</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => router.push(`/hr/recruitment/${o.id}`)}>Edit / view details</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => toggleStatus(o)}>
+                      <DropdownMenuContent align="end" className="w-auto min-w-fit">
+                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => router.push(`/hr/recruitment/${o.id}`)}>Edit / view details</DropdownMenuItem>
+                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => toggleStatus(o)}>
                           {o.status === "open" ? "Close opening" : "Reopen"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setDeleteTarget(o)}>Delete</DropdownMenuItem>
+                        <DropdownMenuItem className="whitespace-nowrap" onSelect={() => setDeleteTarget(o)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
