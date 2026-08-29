@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,6 +163,12 @@ export function HiringPipeline({ candidates, isAdmin, openingId, hireComponents 
 
                     {c.stage === "rejected" && c.reject_reason && (
                       <p className="mt-2 text-sm text-muted-foreground"><span className="font-medium">Reason:</span> {c.reject_reason}</p>
+                    )}
+                    {c.latest_comment && (
+                      <p className="mt-2 flex items-start gap-1 text-sm text-muted-foreground">
+                        <StickyNote className="mt-0.5 size-3.5 shrink-0" />
+                        <span className="line-clamp-2">{c.latest_comment}</span>
+                      </p>
                     )}
 
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">

@@ -41,6 +41,7 @@ export type Candidate = {
   earliest_join?: string | null;
   agree_terms?: boolean | null;
   agree_interview?: boolean | null;
+  latest_comment?: string | null;
 };
 
 // The board card shows photo, name, expected salary, total experience and when
@@ -98,9 +99,24 @@ export async function getPositionDetail(positionId: string): Promise<{ position:
     .select(CANDIDATE_CARD_SELECT)
     .eq("job_position_id", positionId)
     .order("created_at", { ascending: false });
+  const rows = (cands ?? []) as unknown as Candidate[];
+
+  const latestComments = new Map<string, string>();
+  if (rows.length > 0) {
+    const { data: comments } = await supabase
+      .from("candidate_comments")
+      .select("candidate_id,body,created_at")
+      .in("candidate_id", rows.map((c) => c.id))
+      .order("created_at", { ascending: false });
+    // Ordered newest-first, so the first hit per candidate is the latest.
+    for (const cm of (comments ?? []) as { candidate_id: string; body: string }[]) {
+      if (!latestComments.has(cm.candidate_id)) latestComments.set(cm.candidate_id, cm.body);
+    }
+  }
+
   return {
     position: { id: pos.id, name: pos.name, department: pos.departments?.name ?? null },
-    candidates: ((cands ?? []) as unknown as Candidate[]).map(normCandidate),
+    candidates: rows.map((c) => ({ ...normCandidate(c), latest_comment: latestComments.get(c.id) ?? null })),
   };
 }
 
