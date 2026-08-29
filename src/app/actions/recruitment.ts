@@ -182,7 +182,7 @@ export async function createOpening(input: OpeningInput): Promise<ActionResult<{
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  if (!input.job_position_id) return { ok: false, error: "Pilih posisi yang dicari." };
+  if (!input.job_position_id) return { ok: false, error: "Select a position." };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -190,7 +190,7 @@ export async function createOpening(input: OpeningInput): Promise<ActionResult<{
     .insert({ code: "", ...cleanOpening(input), created_by: profile.id })
     .select("id, code")
     .single();
-  if (error || !data) return { ok: false, error: error?.message ?? "Gagal membuat lowongan." };
+  if (error || !data) return { ok: false, error: error?.message ?? "Could not create the opening." };
   revalidatePath("/hr/recruitment");
   return { ok: true, data: { id: data.id as string, code: data.code as string } };
 }
@@ -199,7 +199,7 @@ export async function updateOpening(id: string, input: OpeningInput): Promise<Ac
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
-  if (!input.job_position_id) return { ok: false, error: "Pilih posisi yang dicari." };
+  if (!input.job_position_id) return { ok: false, error: "Select a position." };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -253,8 +253,8 @@ export async function getResumeSignedUrl(candidateId: string): Promise<ActionRes
   const db = service();
   const { data: c } = await db.from("candidates").select("resume_path").eq("id", candidateId).maybeSingle();
   const path = (c?.resume_path as string | null) ?? null;
-  if (!path) return { ok: false, error: "Kandidat ini belum melampirkan resume." };
+  if (!path) return { ok: false, error: "This candidate hasn't attached a résumé." };
   const { data, error } = await db.storage.from("resumes").createSignedUrl(path, 600);
-  if (error || !data?.signedUrl) return { ok: false, error: error?.message ?? "Gagal membuka resume." };
+  if (error || !data?.signedUrl) return { ok: false, error: error?.message ?? "Could not open the résumé." };
   return { ok: true, data: { url: data.signedUrl } };
 }

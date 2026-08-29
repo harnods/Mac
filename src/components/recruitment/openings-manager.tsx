@@ -45,7 +45,7 @@ export function OpeningsManager({
   function copyLink(code: string) {
     navigator.clipboard.writeText(applyUrl(code)).then(() => {
       setCopied(code);
-      toast.success("Link disalin");
+      toast.success("Link copied");
       setTimeout(() => setCopied((c) => (c === code ? null : c)), 1500);
     });
   }
@@ -63,7 +63,7 @@ export function OpeningsManager({
     start(async () => {
       const res = await deleteOpening(deleteTarget.id);
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success("Lowongan dihapus");
+      toast.success("Opening deleted");
       setDeleteTarget(null);
       router.refresh();
     });
@@ -75,7 +75,7 @@ export function OpeningsManager({
         <h1 className="text-2xl font-semibold tracking-tight">Recruitment</h1>
         {isAdmin && (
           <Button onClick={openNew}>
-            <Plus className="size-4" /> Buka lowongan
+            <Plus className="size-4" /> New opening
           </Button>
         )}
       </div>
@@ -84,10 +84,10 @@ export function OpeningsManager({
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[260px]">Lowongan</TableHead>
+              <TableHead className="w-[260px]">Opening</TableHead>
               <TableHead className="w-[140px]">Level</TableHead>
-              <TableHead className="w-[140px]">Tipe</TableHead>
-              <TableHead className="w-[110px]">Kandidat</TableHead>
+              <TableHead className="w-[140px]">Type</TableHead>
+              <TableHead className="w-[110px]">Candidates</TableHead>
               <TableHead className="w-[110px]">Status</TableHead>
               <TableHead className="w-[220px]">Apply link</TableHead>
               {isAdmin && <TableHead className={`w-12 ${STICKY_ACTION_HEAD}`} />}
@@ -97,7 +97,7 @@ export function OpeningsManager({
             {openings.length === 0 && (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-sm text-muted-foreground py-8">
-                  Belum ada lowongan. Klik “Buka lowongan” untuk mulai.
+                  No openings yet. Click “New opening” to start.
                 </TableCell>
               </TableRow>
             )}
@@ -105,12 +105,12 @@ export function OpeningsManager({
               <ClickableTableRow key={o.id} href={`/hr/recruitment/${o.id}`}>
                 <TableCell className="font-medium">
                   <Link href={`/hr/recruitment/${o.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
-                    {o.title || o.position || "Lowongan"}
+                    {o.title || o.position || "Opening"}
                   </Link>
                   <div className="text-xs text-muted-foreground">
                     {o.department ?? "—"}
-                    {o.min_experience_years > 0 ? ` · min ${o.min_experience_years} th` : ""}
-                    {o.headcount > 1 ? ` · ${o.headcount} posisi` : ""}
+                    {o.min_experience_years > 0 ? ` · min ${o.min_experience_years} yr` : ""}
+                    {o.headcount > 1 ? ` · ${o.headcount} positions` : ""}
                   </div>
                 </TableCell>
                 <TableCell className="text-sm">{o.level ?? <span className="text-muted-foreground">—</span>}</TableCell>
@@ -129,7 +129,7 @@ export function OpeningsManager({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); copyLink(o.code); }}
                     className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs hover:bg-muted"
-                    title="Salin link"
+                    title="Copy link"
                   >
                     <span className="tabular-nums text-muted-foreground">hire.machimoto.cafe/{o.code}</span>
                     {copied === o.code ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
@@ -145,11 +145,11 @@ export function OpeningsManager({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => router.push(`/hr/recruitment/${o.id}`)}>Edit / lihat detail</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => router.push(`/hr/recruitment/${o.id}`)}>Edit / view details</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => toggleStatus(o)}>
-                          {o.status === "open" ? "Tutup lowongan" : "Buka lagi"}
+                          {o.status === "open" ? "Close opening" : "Reopen"}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setDeleteTarget(o)}>Hapus</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setDeleteTarget(o)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -165,12 +165,12 @@ export function OpeningsManager({
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Hapus “{deleteTarget?.title || deleteTarget?.position}”?</DialogTitle>
-            <DialogDescription>Lowongan dan semua kandidatnya akan dihapus. Tindakan ini tidak bisa dibatalkan.</DialogDescription>
+            <DialogTitle>Delete “{deleteTarget?.title || deleteTarget?.position}”?</DialogTitle>
+            <DialogDescription>The opening and all its candidates will be deleted. This action cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
-            <Button disabled={pending} onClick={handleDelete}>{pending ? "Menghapus..." : "Hapus"}</Button>
+            <Button disabled={pending} onClick={handleDelete}>{pending ? "Deleting..." : "Delete"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

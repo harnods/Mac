@@ -75,7 +75,7 @@ export function OpeningDrawer({
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!positionId) { toast.error("Pilih posisi yang dicari."); return; }
+    if (!positionId) { toast.error("Select a position."); return; }
     const payload: OpeningInput = {
       title: title.trim() || null,
       job_position_id: positionId,
@@ -89,7 +89,7 @@ export function OpeningDrawer({
     start(async () => {
       const res = isEdit ? await updateOpening(prefill!.id, payload) : await createOpening(payload);
       if (!res.ok) { toast.error(res.error); return; }
-      toast.success(isEdit ? "Lowongan diperbarui" : "Lowongan dibuat");
+      toast.success(isEdit ? "Opening updated" : "Opening created");
       onOpenChange(false);
       router.refresh();
     });
@@ -99,18 +99,18 @@ export function OpeningDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>{isEdit ? "Edit lowongan" : "Buka lowongan baru"}</SheetTitle>
+          <SheetTitle>{isEdit ? "Edit opening" : "New opening"}</SheetTitle>
           <SheetClose />
         </SheetHeader>
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
           <SheetBody className="space-y-5">
             <div className="space-y-2">
-              <Label>Posisi yang dicari <Required /></Label>
+              <Label>Position <Required /></Label>
               <MasterDataCombobox
                 options={positions}
                 value={positionId}
                 onChange={pickPosition}
-                placeholder="Pilih posisi"
+                placeholder="Select position"
                 entityLabel="Job position"
                 onCreate={async (name) => {
                   const res = await createJobPosition({ name, department_id: departmentId });
@@ -118,16 +118,16 @@ export function OpeningDrawer({
                   return res;
                 }}
               />
-              <p className="text-xs text-muted-foreground">Departemen otomatis mengikuti posisi.</p>
+              <p className="text-xs text-muted-foreground">Department follows the selected position.</p>
             </div>
 
             <div className="space-y-2">
-              <Label>Departemen</Label>
+              <Label>Department</Label>
               <MasterDataCombobox
                 options={formData.departments}
                 value={departmentId}
                 onChange={setDepartmentId}
-                placeholder="Pilih departemen"
+                placeholder="Select department"
                 entityLabel="Department"
                 onCreate={(name) => createDepartment({ name })}
               />
@@ -139,7 +139,7 @@ export function OpeningDrawer({
                 options={formData.levels}
                 value={levelId}
                 onChange={setLevelId}
-                placeholder="Pilih level"
+                placeholder="Select level"
                 entityLabel="Job level"
                 onCreate={(name) => createJobLevel({ name })}
               />
@@ -151,7 +151,7 @@ export function OpeningDrawer({
                 options={formData.employmentTypes}
                 value={employmentTypeId}
                 onChange={setEmploymentTypeId}
-                placeholder="Pilih tipe"
+                placeholder="Select type"
                 entityLabel="Employment type"
                 onCreate={(name) => createEmploymentStatus({ name })}
               />
@@ -159,28 +159,28 @@ export function OpeningDrawer({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="min-exp">Min. pengalaman (tahun)</Label>
+                <Label htmlFor="min-exp">Min. experience (years)</Label>
                 <Input id="min-exp" type="number" min="0" step="1" value={minExp} onChange={(e) => setMinExp(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="headcount">Jumlah posisi</Label>
+                <Label htmlFor="headcount">Headcount</Label>
                 <Input id="headcount" type="number" min="1" step="1" value={headcount} onChange={(e) => setHeadcount(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="opening-title">Judul lowongan (opsional)</Label>
-              <Input id="opening-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Kosongkan untuk pakai nama posisi" />
+              <Label htmlFor="opening-title">Title (optional)</Label>
+              <Input id="opening-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Leave blank to use the position name" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="opening-desc">Deskripsi / kualifikasi (opsional)</Label>
-              <Textarea id="opening-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Tugas, kualifikasi, benefit…" />
+              <Label htmlFor="opening-desc">Description / qualifications (optional)</Label>
+              <Textarea id="opening-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Responsibilities, qualifications, benefits…" />
             </div>
           </SheetBody>
           <SheetFooter className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={pending}>{pending ? "Menyimpan..." : isEdit ? "Save changes" : "Save"}</Button>
+            <Button type="submit" disabled={pending}>{pending ? "Saving..." : isEdit ? "Save changes" : "Save"}</Button>
           </SheetFooter>
         </form>
       </SheetContent>

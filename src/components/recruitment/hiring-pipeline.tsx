@@ -44,7 +44,7 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
   if (candidates.length === 0) {
     return (
       <div className="rounded-lg border p-10 text-center text-sm text-muted-foreground">
-        Belum ada pelamar. Bagikan apply link ke kandidat.
+        No candidates yet. Share the apply link.
       </div>
     );
   }
@@ -64,8 +64,8 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
                 <div key={c.id} className="rounded-lg border bg-card p-3 text-sm">
                   <div className="font-medium">{c.name}</div>
                   <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
-                    {c.experience_years != null && <div>{c.experience_years} th pengalaman</div>}
-                    {c.expected_salary != null && <div>Ekspektasi {formatRp(c.expected_salary)}</div>}
+                    {c.experience_years != null && <div>{c.experience_years} yr experience</div>}
+                    {c.expected_salary != null && <div>Expected {formatRp(c.expected_salary)}</div>}
                   </div>
                   {c.cover_note && <p className="mt-2 line-clamp-3 text-xs">{c.cover_note}</p>}
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -91,7 +91,7 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs" disabled={pending}>
-                            <MoveRight className="size-3.5" /> Pindah
+                            <MoveRight className="size-3.5" /> Move
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">

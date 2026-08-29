@@ -26,7 +26,7 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <DetailBackButton href="/hr/recruitment" />
-          <h1 className="text-2xl font-semibold tracking-tight">{opening.title || opening.position || "Lowongan"}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{opening.title || opening.position || "Opening"}</h1>
           {opening.status === "open"
             ? <Badge variant="success">Open</Badge>
             : <Badge variant="secondary">Closed</Badge>}
@@ -46,28 +46,28 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
       </div>
 
       <dl className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-        <Field label="Posisi" value={opening.position} />
-        <Field label="Departemen" value={opening.department} />
+        <Field label="Position" value={opening.position} />
+        <Field label="Department" value={opening.department} />
         <Field label="Job level" value={opening.level} />
         <Field label="Employment type" value={opening.employment_type} />
-        <Field label="Min. pengalaman" value={opening.min_experience_years > 0 ? `${opening.min_experience_years} tahun` : "—"} />
-        <Field label="Jumlah posisi" value={String(opening.headcount)} />
+        <Field label="Min. experience" value={opening.min_experience_years > 0 ? `${opening.min_experience_years} years` : "—"} />
+        <Field label="Headcount" value={String(opening.headcount)} />
       </dl>
 
       {opening.description && (
         <div className="max-w-2xl space-y-1">
-          <div className="text-sm text-muted-foreground">Deskripsi</div>
+          <div className="text-sm text-muted-foreground">Description</div>
           <p className="whitespace-pre-wrap text-sm">{opening.description}</p>
         </div>
       )}
 
       <div className="space-y-1.5">
-        <div className="text-sm text-muted-foreground">Apply link untuk kandidat</div>
+        <div className="text-sm text-muted-foreground">Candidate apply link</div>
         <CopyApplyLink url={applyUrl} />
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold">Pipeline hiring</h2>
+        <h2 className="text-sm font-semibold">Hiring pipeline</h2>
         <HiringPipeline candidates={candidates} isAdmin={isAdmin} />
       </div>
     </div>
