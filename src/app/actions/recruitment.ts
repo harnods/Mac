@@ -49,6 +49,15 @@ const CANDIDATE_FULL_SELECT =
   CANDIDATE_CARD_SELECT + ",birth_place,birth_date,domicile,maps_link,fresh_graduate,work_experiences,employment_status,notice_period,earliest_join,agree_terms,agree_interview";
 
 function num(v: unknown): number | null { return v == null ? null : Number(v); }
+/** Best-effort convert a candidate birth date ("DD/MM/YYYY" or "YYYY-MM-DD") to ISO for the crew record. */
+function toIsoDate(v: string | null): string {
+  if (!v) return "";
+  const t = v.trim();
+  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  return "";
+}
 function normCandidate(c: Candidate): Candidate {
   return { ...c, experience_years: num(c.experience_years), expected_salary: num(c.expected_salary), height_cm: num(c.height_cm) };
 }
@@ -202,7 +211,7 @@ export async function hireCandidate(candidateId: string, hire?: HireInput): Prom
   const supabase = await createClient();
   const { data: cand } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,photo_url,hired_employee_id,job_position_id,stage")
+    .select("id,name,whatsapp,email,photo_url,birth_date,domicile,hired_employee_id,job_position_id,stage")
     .eq("id", candidateId)
     .maybeSingle();
   if (!cand) return { ok: false, error: "Candidate not found" };
@@ -224,6 +233,8 @@ export async function hireCandidate(candidateId: string, hire?: HireInput): Prom
     phone: cand.whatsapp ?? "",
     email: cand.email ?? "",
     photo_url: cand.photo_url ?? null,
+    birthdate: toIsoDate(cand.birth_date as string | null),
+    address: (cand.domicile as string | null) ?? "",
     join_date: today,
     department_id: departmentId,
     job_position_id: cand.job_position_id ?? null,
