@@ -3,16 +3,19 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { deleteCandidate } from "@/app/actions/recruitment";
 
-export function DeleteCandidateButton({ candidateId, openingId, name }: { candidateId: string; openingId: string; name: string }) {
+export function CandidateActions({ candidateId, openingId, name }: { candidateId: string; openingId: string; name: string }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, start] = useTransition();
 
   function handleDelete() {
@@ -26,10 +29,16 @@ export function DeleteCandidateButton({ candidateId, openingId, name }: { candid
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        <Trash2 className="size-4" /> Delete
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">Actions <ChevronDown className="size-4" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setConfirmOpen(true)}>Delete candidate</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete {name}?</DialogTitle>

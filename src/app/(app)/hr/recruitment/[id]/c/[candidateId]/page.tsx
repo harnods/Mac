@@ -4,7 +4,7 @@ import { can, P } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { getCandidate, getResumeSignedUrl, getCandidateComments } from "@/app/actions/recruitment";
-import { DeleteCandidateButton } from "@/components/recruitment/delete-candidate-button";
+import { CandidateActions } from "@/components/recruitment/candidate-actions";
 import { CandidateComments } from "@/components/recruitment/candidate-comments";
 import { HIRING_STAGE_LABEL } from "@/lib/recruitment";
 import { formatRp, formatDateTime } from "@/lib/format";
@@ -55,7 +55,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         </Badge>
         {canWrite && (
           <div className="ml-auto">
-            <DeleteCandidateButton candidateId={c.id} openingId={id} name={c.name} />
+            <CandidateActions candidateId={c.id} openingId={id} name={c.name} />
           </div>
         )}
       </div>
@@ -91,14 +91,14 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         <CandidateComments candidateId={c.id} comments={comments} />
         </div>
 
-        {/* Right: résumé preview */}
+        {/* Right: résumé preview — fills to the bottom, no thumbnail panel */}
         <div className="lg:sticky lg:top-4">
           {resumeUrl ? (
-            <div className="h-[75vh] overflow-hidden rounded-lg border">
-              <iframe src={`${resumeUrl}#view=FitH`} className="h-full w-full" title="Résumé" />
+            <div className="h-[calc(100vh-7rem)] overflow-hidden rounded-lg border">
+              <iframe src={`${resumeUrl}#toolbar=0&navpanes=0&view=FitH`} className="h-full w-full" title="Résumé" />
             </div>
           ) : (
-            <div className="flex h-[40vh] items-center justify-center rounded-lg border text-sm text-muted-foreground">
+            <div className="flex h-[calc(100vh-7rem)] items-center justify-center rounded-lg border text-sm text-muted-foreground">
               No résumé attached.
             </div>
           )}
@@ -110,9 +110,9 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b py-2">
+    <div className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-3 sm:gap-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-right text-sm font-medium">{value}</dd>
+      <dd className="text-sm sm:col-span-2">{value || "—"}</dd>
     </div>
   );
 }
