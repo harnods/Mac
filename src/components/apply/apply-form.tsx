@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Upload, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Upload, ImagePlus, Plus, Trash2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,7 +150,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         <SectionTitle>Data Diri</SectionTitle>
         <Field label={<>Nama lengkap <Required /></>}><Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></Field>
         <Field label="Tempat lahir"><Input value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} /></Field>
-        <Field label="Tanggal lahir"><Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} /></Field>
+        <Field label="Tanggal lahir (DD/MM/YYYY)"><DateField value={birthDate} onChange={setBirthDate} /></Field>
         <Field label={<>No. WhatsApp <Required /></>}><Input inputMode="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} /></Field>
         <Field label="Domisili saat ini"><Input value={domicile} onChange={(e) => setDomicile(e.target.value)} /></Field>
         <Field label={<>Tinggi badan (cm) <Required /></>}><Input type="number" min="0" step="1" inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} /></Field>
@@ -279,6 +279,27 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         {pending ? "Mengirim..." : "Kirim lamaran"}
       </Button>
     </form>
+  );
+}
+
+/** Text date input (free typing) + a calendar icon that opens the native picker. */
+function DateField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative">
+      <Input value={value} inputMode="numeric" className="pr-10" onChange={(e) => onChange(e.target.value)} />
+      <span className="absolute right-2 top-1/2 -translate-y-1/2">
+        <CalendarDays className="pointer-events-none size-4 text-muted-foreground" />
+        <input
+          type="date"
+          aria-label="Pilih tanggal lahir"
+          className="absolute inset-0 cursor-pointer opacity-0"
+          onChange={(e) => {
+            const iso = e.target.value;
+            if (iso) { const [y, m, d] = iso.split("-"); onChange(`${d}/${m}/${y}`); }
+          }}
+        />
+      </span>
+    </div>
   );
 }
 

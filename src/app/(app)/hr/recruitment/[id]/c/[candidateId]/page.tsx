@@ -7,7 +7,7 @@ import { getCandidate, getResumeSignedUrl, getCandidateComments, getCandidateEve
 import { CandidateActions } from "@/components/recruitment/candidate-actions";
 import { CandidateComments } from "@/components/recruitment/candidate-comments";
 import { HIRING_STAGE_LABEL } from "@/lib/recruitment";
-import { formatRp, formatDate, formatDateTime } from "@/lib/format";
+import { formatRp, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +67,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         <dl>
           <Row label="Position" value={data.openingTitle} />
           <Row label="WhatsApp" value={<a href={waLink(c.whatsapp)} target="_blank" rel="noopener" className="text-primary hover:underline">{c.whatsapp}</a>} />
-          <Row label="Tempat, tanggal lahir" value={[c.birth_place, c.birth_date ? formatDate(c.birth_date) : null].filter(Boolean).join(", ") || "—"} />
+          <Row label="Tempat, tanggal lahir" value={[c.birth_place, c.birth_date].filter(Boolean).join(", ") || "—"} />
           <Row label="Domisili" value={c.domicile || "—"} />
           {c.maps_link && <Row label="Google Maps" value={<a href={c.maps_link} target="_blank" rel="noopener" className="break-all text-primary hover:underline">Buka lokasi</a>} />}
           <Row label="Tinggi badan" value={c.height_cm != null ? `${c.height_cm} cm` : "—"} />
