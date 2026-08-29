@@ -122,14 +122,19 @@ function ActivityLog({ events }: { events: CandidateEvent[] }) {
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground">No activity yet.</p>
       ) : (
-        <ul className="space-y-2">
+        <ol className="relative ml-1 border-l border-border">
           {events.map((e) => (
-            <li key={e.id} className="flex items-baseline justify-between gap-4 text-sm">
-              <span>{eventText(e)}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(e.created_at)}</span>
+            <li key={e.id} className="relative pb-5 pl-6 last:pb-0">
+              <span
+                className={`absolute -left-[6.5px] top-1 size-3 rounded-full border-2 border-background ${
+                  e.type === "hired" ? "bg-emerald-500" : e.type === "applied" ? "bg-primary" : "bg-muted-foreground"
+                }`}
+              />
+              <div className="text-sm">{eventText(e)}</div>
+              <div className="text-xs text-muted-foreground">{formatDateTime(e.created_at)}</div>
             </li>
           ))}
-        </ul>
+        </ol>
       )}
     </div>
   );
