@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { periodMonths, totalExperience, formatExperience } from "../src/lib/recruitment";
+import { periodMonths, totalExperience, formatExperience, ageFromBirthDate } from "../src/lib/recruitment";
 
 // Fixed "today" so the ongoing/open-ended cases stay deterministic.
 const NOW = new Date(2026, 7, 29); // 29 Aug 2026
@@ -71,5 +71,28 @@ describe("formatExperience", () => {
     expect(formatExperience(132)).toBe("11 yr");
     expect(formatExperience(29)).toBe("2 yr 5 mo");
     expect(formatExperience(9)).toBe("9 mo");
+  });
+});
+
+describe("ageFromBirthDate", () => {
+  it("reads DD/MM/YYYY (the apply form's format)", () => {
+    expect(ageFromBirthDate("12/08/1999", NOW)).toBe(27); // birthday already passed this year
+    expect(ageFromBirthDate("30/12/1999", NOW)).toBe(26); // birthday not yet this year
+  });
+
+  it("reads YYYY-MM-DD (older records)", () => {
+    expect(ageFromBirthDate("1999-08-12", NOW)).toBe(27);
+  });
+
+  it("returns null for missing, unparseable, or future dates", () => {
+    expect(ageFromBirthDate(null, NOW)).toBeNull();
+    expect(ageFromBirthDate("", NOW)).toBeNull();
+    expect(ageFromBirthDate("not a date", NOW)).toBeNull();
+    expect(ageFromBirthDate("31/02/1999", NOW)).toBeNull(); // Feb 31 doesn't exist
+    expect(ageFromBirthDate("01/01/2027", NOW)).toBeNull(); // in the future
+  });
+
+  it("lands exactly on a birthday", () => {
+    expect(ageFromBirthDate("29/08/2000", NOW)).toBe(26); // NOW is 29 Aug 2026
   });
 });

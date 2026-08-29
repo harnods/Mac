@@ -6,7 +6,7 @@ import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { getCandidate, getResumeSignedUrl, getCandidateComments, getCandidateEvents, type CandidateEvent } from "@/app/actions/recruitment";
 import { CandidateActions } from "@/components/recruitment/candidate-actions";
 import { CandidateComments } from "@/components/recruitment/candidate-comments";
-import { HIRING_STAGE_LABEL } from "@/lib/recruitment";
+import { HIRING_STAGE_LABEL, ageFromBirthDate } from "@/lib/recruitment";
 import { formatRp, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +14,11 @@ export const dynamic = "force-dynamic";
 function waLink(phone: string) {
   const digits = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
   return `https://wa.me/${digits}`;
+}
+
+function birthRow(place: string | null | undefined, date: string | null | undefined) {
+  const age = ageFromBirthDate(date);
+  return [place, date, age != null ? `${age} thn` : null].filter(Boolean).join(", ") || "—";
 }
 
 export default async function CandidateDetailPage({ params }: { params: Promise<{ id: string; candidateId: string }> }) {
@@ -67,7 +72,7 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         <dl>
           <Row label="Position" value={data.positionName} />
           <Row label="WhatsApp" value={<a href={waLink(c.whatsapp)} target="_blank" rel="noopener" className="text-primary hover:underline">{c.whatsapp}</a>} />
-          <Row label="Tempat, tanggal lahir" value={[c.birth_place, c.birth_date].filter(Boolean).join(", ") || "—"} />
+          <Row label="Tempat, tanggal lahir" value={birthRow(c.birth_place, c.birth_date)} />
           <Row label="Domisili" value={c.domicile || "—"} />
           {c.maps_link && <Row label="Google Maps" value={<a href={c.maps_link} target="_blank" rel="noopener" className="break-all text-primary hover:underline">Buka lokasi</a>} />}
           <Row label="Tinggi badan" value={c.height_cm != null ? `${c.height_cm} cm` : "—"} />

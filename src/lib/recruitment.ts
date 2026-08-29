@@ -102,3 +102,29 @@ export function earliestJoinLabel(raw: string | null | undefined): string | null
   if (!raw) return null;
   return JOIN_LABEL_EN[raw] ?? raw;
 }
+
+// ─── Age from birth date ──────────────────────────────────────────────────────
+
+/** Candidates' birth_date is stored as they typed it: "DD/MM/YYYY" (the apply
+ *  form's format) or, for older records, "YYYY-MM-DD". Returns years, or null
+ *  if it doesn't parse or is in the future. */
+export function ageFromBirthDate(raw: string | null | undefined, now = new Date()): number | null {
+  if (!raw) return null;
+  const t = raw.trim();
+  const dmy = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const ymd = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const [day, month, year] = dmy
+    ? [Number(dmy[1]), Number(dmy[2]) - 1, Number(dmy[3])]
+    : ymd
+      ? [Number(ymd[3]), Number(ymd[2]) - 1, Number(ymd[1])]
+      : [NaN, NaN, NaN];
+  if (Number.isNaN(day)) return null;
+  const birth = new Date(year, month, day);
+  if (birth.getFullYear() !== year || birth.getMonth() !== month || birth.getDate() !== day) return null;
+  if (birth > now) return null;
+
+  let age = now.getFullYear() - year;
+  const hadBirthdayThisYear = now.getMonth() > month || (now.getMonth() === month && now.getDate() >= day);
+  if (!hadBirthdayThisYear) age -= 1;
+  return age;
+}
