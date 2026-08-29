@@ -47,7 +47,7 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
         )}
       </div>
 
-      <dl className="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+      <dl className="grid max-w-3xl grid-cols-1 gap-x-16 gap-y-1 sm:grid-cols-2">
         <Field label="Position" value={opening.position} />
         <Field label="Department" value={opening.department} />
         <Field label="Job level" value={opening.level} />
@@ -60,6 +60,7 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
             <Field label="Min. weight" value={opening.min_weight_kg != null ? `${opening.min_weight_kg} kg` : "—"} />
           </>
         )}
+        <Field label="Apply link" value={<CopyApplyLink url={applyUrl} />} />
       </dl>
 
       {opening.description && (
@@ -69,20 +70,15 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <div className="text-sm text-muted-foreground">Candidate apply link</div>
-        <CopyApplyLink url={applyUrl} />
-      </div>
-
       <div className="space-y-3">
         <h2 className="text-sm font-semibold">Hiring pipeline</h2>
-        <HiringPipeline candidates={candidates} isAdmin={isAdmin} />
+        <HiringPipeline candidates={candidates} isAdmin={isAdmin} openingId={opening.id} />
       </div>
     </div>
   );
 }
 
-function Field({ label, value }: { label: string; value: string | null }) {
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b py-2 sm:border-0 sm:py-1">
       <dt className="text-sm text-muted-foreground">{label}</dt>

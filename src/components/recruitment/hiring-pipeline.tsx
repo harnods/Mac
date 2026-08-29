@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileText, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -11,20 +11,19 @@ import {
 } from "@/components/ui/dialog";
 import { formatRp } from "@/lib/format";
 import { HIRING_STAGES, HIRING_STAGE_LABEL as STAGE_LABEL, type HiringStage } from "@/lib/recruitment";
-import { setCandidateStage, getResumeSignedUrl, type Candidate } from "@/app/actions/recruitment";
+import { setCandidateStage, type Candidate } from "@/app/actions/recruitment";
 
 function waLink(phone: string) {
   const digits = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
   return `https://wa.me/${digits}`;
 }
 
-export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[]; isAdmin: boolean }) {
+export function HiringPipeline({ candidates, isAdmin, openingId }: { candidates: Candidate[]; isAdmin: boolean; openingId: string }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [dragId, setDragId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [overStage, setOverStage] = useState<HiringStage | null>(null);
-  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
-  const [resumeLoading, setResumeLoading] = useState(false);
   const [rejectFor, setRejectFor] = useState<Candidate | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
@@ -50,16 +49,6 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
     const reason = rejectReason;
     setRejectFor(null);
     move(c, "rejected", reason);
-  }
-
-  function viewResume(c: Candidate) {
-    setResumeLoading(true);
-    getResumeSignedUrl(c.id)
-      .then((res) => {
-        if (!res.ok) { toast.error(res.error); return; }
-        setResumeUrl(res.data!.url);
-      })
-      .finally(() => setResumeLoading(false));
   }
 
   if (candidates.length === 0) {
@@ -97,9 +86,10 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
                   <div
                     key={c.id}
                     draggable={isAdmin}
-                    onDragStart={() => setDragId(c.id)}
-                    onDragEnd={() => { setDragId(null); setOverStage(null); }}
-                    className={`rounded-lg border bg-card p-3 ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${dragId === c.id ? "opacity-50" : ""}`}
+                    onDragStart={() => { setDragId(c.id); setDragging(true); }}
+                    onDragEnd={() => { setDragId(null); setOverStage(null); setTimeout(() => setDragging(false), 0); }}
+                    onClick={() => { if (!dragging) router.push(`/hr/recruitment/${openingId}/c/${c.id}`); }}
+                    className={`cursor-pointer rounded-lg border bg-card p-3 hover:border-foreground/30 ${dragId === c.id ? "opacity-50" : ""}`}
                   >
                     <div className="flex items-center gap-2">
                       {c.photo_url ? (
@@ -134,14 +124,9 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
                     )}
 
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <a href={waLink(c.whatsapp)} target="_blank" rel="noopener" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted">
+                      <a href={waLink(c.whatsapp)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted">
                         <MessageCircle className="size-4" /> WA
                       </a>
-                      {c.resume_path && (
-                        <button type="button" disabled={resumeLoading} onClick={() => viewResume(c)} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm hover:bg-muted disabled:opacity-50">
-                          <FileText className="size-4" /> {resumeLoading ? "…" : "Resume"}
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -151,18 +136,6 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
           );
         })}
       </div>
-
-      {/* Résumé PDF viewer */}
-      <Dialog open={!!resumeUrl} onOpenChange={(o) => !o && setResumeUrl(null)}>
-        <DialogContent className="flex h-[90vh] w-[95vw] max-w-4xl flex-col p-0 gap-0 overflow-hidden">
-          <DialogHeader className="shrink-0 border-b px-4 py-3">
-            <DialogTitle>Résumé</DialogTitle>
-          </DialogHeader>
-          {resumeUrl && (
-            <iframe src={`${resumeUrl}#toolbar=1&view=FitH`} className="min-h-0 w-full flex-1" title="Résumé" />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Reject reason (optional) */}
       <Dialog open={!!rejectFor} onOpenChange={(o) => !o && setRejectFor(null)}>

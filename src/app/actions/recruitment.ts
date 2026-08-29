@@ -155,6 +155,28 @@ export async function getOpeningDetail(id: string): Promise<{ opening: OpeningDe
   };
 }
 
+export async function getCandidate(candidateId: string): Promise<{ candidate: Candidate; openingId: string; openingTitle: string } | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("candidates")
+    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,weight_kg,cover_note,resume_path,photo_url,reject_reason,hired_employee_id,stage,created_at,opening_id,job_openings(title,job_positions(name))")
+    .eq("id", candidateId)
+    .maybeSingle();
+  if (!data) return null;
+  const row = data as unknown as (Candidate & { opening_id: string; job_openings: { title: string | null; job_positions: { name: string } | null } | null });
+  return {
+    candidate: {
+      ...row,
+      experience_years: row.experience_years == null ? null : Number(row.experience_years),
+      expected_salary: row.expected_salary == null ? null : Number(row.expected_salary),
+      height_cm: row.height_cm == null ? null : Number(row.height_cm),
+      weight_kg: row.weight_kg == null ? null : Number(row.weight_kg),
+    },
+    openingId: row.opening_id,
+    openingTitle: row.job_openings?.title?.trim() || row.job_openings?.job_positions?.name || "Opening",
+  };
+}
+
 export async function getRecruitmentFormData(): Promise<RecruitmentFormData> {
   const supabase = await createClient();
   const [{ data: positions }, { data: departments }, { data: levels }, { data: types }] = await Promise.all([
@@ -322,6 +344,49 @@ export async function hireCandidate(candidateId: string): Promise<ActionResult> 
     .from("candidates")
     .update({ stage: "hired", hired_employee_id: res.id ?? null, updated_at: new Date().toISOString() })
     .eq("id", candidateId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export type CandidateComment = { id: string; body: string; created_at: string; author: string | null };
+
+export async function getCandidateComments(candidateId: string): Promise<CandidateComment[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("candidate_comments")
+    .select("id,body,created_at,author:profiles!author_id(full_name,email)")
+    .eq("candidate_id", candidateId)
+    .order("created_at", { ascending: false });
+  return ((data ?? []) as unknown as { id: string; body: string; created_at: string; author: { full_name: string | null; email: string } | null }[])
+    .map((r) => ({ id: r.id, body: r.body, created_at: r.created_at, author: r.author?.full_name ?? r.author?.email ?? null }));
+}
+
+export async function addCandidateComment(candidateId: string, body: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+  const text = body.trim();
+  if (!text) return { ok: false, error: "Comment is empty" };
+  const supabase = await createClient();
+  const { error } = await supabase.from("candidate_comments").insert({ candidate_id: candidateId, author_id: profile.id, body: text });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function deleteCandidate(candidateId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const db = service();
+  const { data: c } = await db.from("candidates").select("resume_path,photo_url").eq("id", candidateId).maybeSingle();
+  if (c?.resume_path) await db.storage.from("resumes").remove([c.resume_path as string]);
+  if (c?.photo_url) {
+    const marker = "/candidate-photos/";
+    const i = (c.photo_url as string).indexOf(marker);
+    if (i >= 0) await db.storage.from("candidate-photos").remove([(c.photo_url as string).slice(i + marker.length)]);
+  }
+  const { error } = await db.from("candidates").delete().eq("id", candidateId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
