@@ -16,10 +16,10 @@ const nextConfig: NextConfig = {
     // back to a visited page is instant instead of re-fetching. Mutations
     // call revalidatePath, so data still refreshes when it actually changes.
     staleTimes: { dynamic: 30, static: 180 },
-    // Candidate résumés (PDF) are uploaded through a server action; raise the
-    // default 1MB body cap to fit the 5MB resumes bucket limit.
-    serverActions: { bodySizeLimit: "10mb" },
   },
+  // Server Actions keep Next's default 1MB body cap: none of them carry a file
+  // payload — résumés, candidate photos and crew/product photos all upload
+  // straight from the browser to Supabase Storage.
 };
 
 export default nextConfig;

@@ -9,7 +9,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { compressImage } from "@/lib/compress-image";
-import { submitApplication, type OpenPosition } from "@/app/actions/apply";
+import { createClient } from "@/lib/supabase/client";
+import { createUploadSlots, discardUploadSlots, submitApplication, type OpenPosition, type PhotoExt } from "@/app/actions/apply";
+
+/** Guard the client-side decode: a huge original can take the tab down with it
+ *  before we ever get to compress. The upload itself is the 512px JPEG. */
+const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
+
+/** What the candidate-photos bucket accepts as-is when compression can't run. */
+const PHOTO_EXT_BY_TYPE: Record<string, PhotoExt | undefined> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 const JOIN_OPTIONS = ["Minggu ini", "2 minggu ke depan", "1 bulan ke depan", "2 bulan ke depan"];
 
@@ -29,6 +41,7 @@ const emptyExp: Exp = { period: "", place: "", position: "", jobdesk: "" };
 
 export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
   const [pending, start] = useTransition();
+  const [stage, setStage] = useState<"idle" | "uploading" | "saving">("idle");
   const [done, setDone] = useState(false);
   const [resumeName, setResumeName] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState<string | null>(null);
@@ -70,35 +83,78 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
     if (resume.size > 5 * 1024 * 1024) { toast.error("Resume maksimal 5MB."); return; }
     if (!photo) { toast.error("Lampirkan foto."); return; }
     if (!photo.type.startsWith("image/")) { toast.error("Foto harus gambar."); return; }
+    if (photo.size > MAX_PHOTO_BYTES) { toast.error("Foto terlalu besar. Maksimal 15MB."); return; }
 
     start(async () => {
-      let photoFile: Blob = photo;
-      try { photoFile = await compressImage(photo); } catch { photoFile = photo; }
+      try {
+        let photoFile: Blob = photo;
+        let photoExt: PhotoExt = "jpg";
+        try {
+          photoFile = await compressImage(photo);
+        } catch {
+          // Compression failed (unsupported codec, e.g. HEIC from an iPhone).
+          // Only the formats the bucket accepts can go up untouched.
+          const ext = PHOTO_EXT_BY_TYPE[photo.type];
+          if (!ext) { toast.error("Format foto tidak didukung. Gunakan JPG atau PNG."); return; }
+          photoExt = ext;
+          photoFile = photo;
+        }
 
-      const fd = new FormData();
-      fd.set("position_id", openingId);
-      fd.set("name", name.trim());
-      fd.set("whatsapp", whatsapp.trim());
-      fd.set("birth_place", birthPlace.trim());
-      fd.set("birth_date", birthDate);
-      fd.set("domicile", domicile.trim());
-      fd.set("height_cm", height.trim());
-      fd.set("fresh_graduate", fresh ? "1" : "0");
-      fd.set("work_experiences", JSON.stringify(fresh ? [] : exps));
-      fd.set("expected_salary", salary.replace(/[^0-9]/g, ""));
-      fd.set("employment_status", empStatus);
-      fd.set("notice_period", notice.trim());
-      fd.set("earliest_join", earliest);
-      fd.set("contribution", contribution.trim());
-      fd.set("agree_terms", agreeTerms === "yes" ? "1" : "0");
-      fd.set("agree_interview", agreeInterview === "yes" ? "1" : "0");
-      fd.set("resume", resume);
-      fd.set("photo", photoFile, "photo.jpg");
+        // Files go browser → Supabase Storage directly; the Server Action below
+        // carries only the form fields plus the two storage paths, so a multi-MB
+        // résumé never has to fit inside a Server Action request body.
+        setStage("uploading");
+        const slots = await createUploadSlots(openingId, photoExt);
+        if (!slots.ok) { toast.error(slots.error); return; }
 
-      const res = await submitApplication(fd);
-      if (!res.ok) { toast.error(res.error); return; }
-      setDone(true);
-      window.scrollTo({ top: 0 });
+        const discard = () => void discardUploadSlots(slots.resume.path, slots.photo.path, slots.ticket);
+
+        const supabase = createClient();
+        const upResume = await supabase.storage
+          .from("resumes")
+          .uploadToSignedUrl(slots.resume.path, slots.resume.token, resume, { contentType: "application/pdf" });
+        if (upResume.error) { discard(); toast.error("Gagal mengunggah resume. Periksa koneksi lalu coba lagi."); return; }
+
+        const upPhoto = await supabase.storage
+          .from("candidate-photos")
+          .uploadToSignedUrl(slots.photo.path, slots.photo.token, photoFile, {
+            contentType: photoExt === "jpg" ? "image/jpeg" : `image/${photoExt}`,
+          });
+        if (upPhoto.error) { discard(); toast.error("Gagal mengunggah foto. Periksa koneksi lalu coba lagi."); return; }
+
+        setStage("saving");
+        const fd = new FormData();
+        fd.set("position_id", openingId);
+        fd.set("name", name.trim());
+        fd.set("whatsapp", whatsapp.trim());
+        fd.set("birth_place", birthPlace.trim());
+        fd.set("birth_date", birthDate);
+        fd.set("domicile", domicile.trim());
+        fd.set("height_cm", height.trim());
+        fd.set("fresh_graduate", fresh ? "1" : "0");
+        fd.set("work_experiences", JSON.stringify(fresh ? [] : exps));
+        fd.set("expected_salary", salary.replace(/[^0-9]/g, ""));
+        fd.set("employment_status", empStatus);
+        fd.set("notice_period", notice.trim());
+        fd.set("earliest_join", earliest);
+        fd.set("contribution", contribution.trim());
+        fd.set("agree_terms", agreeTerms === "yes" ? "1" : "0");
+        fd.set("agree_interview", agreeInterview === "yes" ? "1" : "0");
+        fd.set("resume_path", slots.resume.path);
+        fd.set("photo_path", slots.photo.path);
+        fd.set("upload_ticket", slots.ticket);
+
+        const res = await submitApplication(fd);
+        if (!res.ok) { discard(); toast.error(res.error); return; }
+        setDone(true);
+        window.scrollTo({ top: 0 });
+      } catch {
+        // Dropped connection, a rejected upload, anything unexpected: keep the
+        // filled-in form on screen instead of letting the transition blow up.
+        toast.error("Pengiriman gagal. Periksa koneksi lalu coba lagi — isian kamu masih tersimpan.");
+      } finally {
+        setStage("idle");
+      }
     });
   }
 
@@ -276,7 +332,7 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
       </section>
 
       <Button type="submit" className="h-12 w-full text-base" disabled={pending}>
-        {pending ? "Mengirim..." : "Kirim lamaran"}
+        {!pending ? "Kirim lamaran" : stage === "uploading" ? "Mengunggah lampiran..." : "Mengirim..."}
       </Button>
     </form>
   );
