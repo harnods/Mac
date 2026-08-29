@@ -36,6 +36,14 @@ export default async function ApplyPage({ params }: { params: Promise<{ code: st
             {opening.min_experience_years > 0 && (
               <p className="text-sm text-muted-foreground">Min. pengalaman {opening.min_experience_years} tahun</p>
             )}
+            {opening.require_physical && (opening.min_height_cm != null || opening.min_weight_kg != null) && (
+              <p className="text-sm text-muted-foreground">
+                Syarat fisik:
+                {opening.min_height_cm != null ? ` tinggi min. ${opening.min_height_cm} cm` : ""}
+                {opening.min_height_cm != null && opening.min_weight_kg != null ? "," : ""}
+                {opening.min_weight_kg != null ? ` berat min. ${opening.min_weight_kg} kg` : ""}
+              </p>
+            )}
           </div>
 
           {opening.description && (
@@ -43,7 +51,7 @@ export default async function ApplyPage({ params }: { params: Promise<{ code: st
           )}
 
           <div className="mt-6">
-            <ApplyForm code={opening.code} />
+            <ApplyForm code={opening.code} requirePhysical={opening.require_physical} />
           </div>
         </>
       )}

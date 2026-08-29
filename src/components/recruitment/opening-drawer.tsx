@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetBody, SheetClose, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MasterDataCombobox } from "@/components/employees/master-data-combobox";
 import { createJobPosition, createDepartment, createJobLevel, createEmploymentStatus } from "@/app/actions/employees";
@@ -21,6 +22,9 @@ export type OpeningPrefill = {
   employment_status_id: string | null;
   min_experience_years: number;
   headcount: number;
+  require_physical: boolean;
+  min_height_cm: number | null;
+  min_weight_kg: number | null;
   description: string | null;
 };
 
@@ -51,6 +55,9 @@ export function OpeningDrawer({
   const [employmentTypeId, setEmploymentTypeId] = useState<string | null>(null);
   const [minExp, setMinExp] = useState("0");
   const [headcount, setHeadcount] = useState("1");
+  const [requirePhysical, setRequirePhysical] = useState(false);
+  const [minHeight, setMinHeight] = useState("");
+  const [minWeight, setMinWeight] = useState("");
   const [description, setDescription] = useState("");
 
   useEffect(() => {
@@ -63,6 +70,9 @@ export function OpeningDrawer({
     setEmploymentTypeId(prefill?.employment_status_id ?? null);
     setMinExp(prefill ? String(prefill.min_experience_years) : "0");
     setHeadcount(prefill ? String(prefill.headcount) : "1");
+    setRequirePhysical(prefill?.require_physical ?? false);
+    setMinHeight(prefill?.min_height_cm != null ? String(prefill.min_height_cm) : "");
+    setMinWeight(prefill?.min_weight_kg != null ? String(prefill.min_weight_kg) : "");
     setDescription(prefill?.description ?? "");
   }, [open, prefill, formData.positions]);
 
@@ -84,6 +94,9 @@ export function OpeningDrawer({
       employment_status_id: employmentTypeId,
       min_experience_years: Number(minExp) || 0,
       headcount: Number(headcount) || 1,
+      require_physical: requirePhysical,
+      min_height_cm: requirePhysical && minHeight ? Number(minHeight) : null,
+      min_weight_kg: requirePhysical && minWeight ? Number(minWeight) : null,
       description: description.trim() || null,
     };
     start(async () => {
@@ -166,6 +179,28 @@ export function OpeningDrawer({
                 <Label htmlFor="headcount">Headcount</Label>
                 <Input id="headcount" type="number" min="1" step="1" value={headcount} onChange={(e) => setHeadcount(e.target.value)} />
               </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label htmlFor="require-physical">Physical requirements</Label>
+                  <p className="text-xs text-muted-foreground">Ask candidates for height &amp; weight.</p>
+                </div>
+                <Switch id="require-physical" checked={requirePhysical} onCheckedChange={setRequirePhysical} />
+              </div>
+              {requirePhysical && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="min-height">Min. height (cm)</Label>
+                    <Input id="min-height" type="number" min="0" step="1" value={minHeight} onChange={(e) => setMinHeight(e.target.value)} placeholder="e.g. 160" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="min-weight">Min. weight (kg)</Label>
+                    <Input id="min-weight" type="number" min="0" step="1" value={minWeight} onChange={(e) => setMinWeight(e.target.value)} placeholder="e.g. 50" />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

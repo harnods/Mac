@@ -39,6 +39,8 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
               job_position_id: opening.job_position_id, department_id: opening.department_id,
               job_level_id: opening.job_level_id, employment_status_id: opening.employment_status_id,
               min_experience_years: opening.min_experience_years, headcount: opening.headcount,
+              require_physical: opening.require_physical,
+              min_height_cm: opening.min_height_cm, min_weight_kg: opening.min_weight_kg,
               description: opening.description,
             }}
           />
@@ -52,6 +54,12 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
         <Field label="Employment type" value={opening.employment_type} />
         <Field label="Min. experience" value={opening.min_experience_years > 0 ? `${opening.min_experience_years} years` : "—"} />
         <Field label="Headcount" value={String(opening.headcount)} />
+        {opening.require_physical && (
+          <>
+            <Field label="Min. height" value={opening.min_height_cm != null ? `${opening.min_height_cm} cm` : "—"} />
+            <Field label="Min. weight" value={opening.min_weight_kg != null ? `${opening.min_weight_kg} kg` : "—"} />
+          </>
+        )}
       </dl>
 
       {opening.description && (

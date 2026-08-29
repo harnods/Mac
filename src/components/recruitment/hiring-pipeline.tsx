@@ -66,6 +66,13 @@ export function HiringPipeline({ candidates, isAdmin }: { candidates: Candidate[
                   <div className="mt-0.5 space-y-0.5 text-xs text-muted-foreground">
                     {c.experience_years != null && <div>{c.experience_years} yr experience</div>}
                     {c.expected_salary != null && <div>Expected {formatRp(c.expected_salary)}</div>}
+                    {(c.height_cm != null || c.weight_kg != null) && (
+                      <div>
+                        {c.height_cm != null ? `${c.height_cm} cm` : ""}
+                        {c.height_cm != null && c.weight_kg != null ? " · " : ""}
+                        {c.weight_kg != null ? `${c.weight_kg} kg` : ""}
+                      </div>
+                    )}
                   </div>
                   {c.cover_note && <p className="mt-2 line-clamp-3 text-xs">{c.cover_note}</p>}
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">

@@ -13,7 +13,7 @@ function Required() {
   return <span className="text-destructive">*</span>;
 }
 
-export function ApplyForm({ code }: { code: string }) {
+export function ApplyForm({ code, requirePhysical = false }: { code: string; requirePhysical?: boolean }) {
   const [pending, start] = useTransition();
   const [done, setDone] = useState(false);
   const [resumeName, setResumeName] = useState<string | null>(null);
@@ -24,6 +24,8 @@ export function ApplyForm({ code }: { code: string }) {
   const [email, setEmail] = useState("");
   const [experience, setExperience] = useState("");
   const [expectedSalary, setExpectedSalary] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
   const [coverNote, setCoverNote] = useState("");
 
   function submit(e: React.FormEvent) {
@@ -32,6 +34,8 @@ export function ApplyForm({ code }: { code: string }) {
     if (!name.trim()) { toast.error("Nama wajib diisi."); return; }
     if (!whatsapp.trim()) { toast.error("Nomor WhatsApp wajib diisi."); return; }
     if (!email.trim()) { toast.error("Email wajib diisi."); return; }
+    if (requirePhysical && !(Number(height) > 0)) { toast.error("Tinggi badan wajib diisi."); return; }
+    if (requirePhysical && !(Number(weight) > 0)) { toast.error("Berat badan wajib diisi."); return; }
     if (!file) { toast.error("Lampirkan resume (PDF)."); return; }
     if (file.type !== "application/pdf") { toast.error("Resume harus berformat PDF."); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("Ukuran resume maksimal 5MB."); return; }
@@ -43,6 +47,8 @@ export function ApplyForm({ code }: { code: string }) {
     fd.set("email", email.trim());
     fd.set("experience_years", experience.trim());
     fd.set("expected_salary", expectedSalary.trim());
+    fd.set("height_cm", height.trim());
+    fd.set("weight_kg", weight.trim());
     fd.set("cover_note", coverNote.trim());
     fd.set("resume", file);
 
@@ -87,6 +93,19 @@ export function ApplyForm({ code }: { code: string }) {
         <Label htmlFor="ap-salary">Ekspektasi gaji (Rp)</Label>
         <Input id="ap-salary" inputMode="numeric" value={expectedSalary} onChange={(e) => setExpectedSalary(e.target.value)} placeholder="mis. 5000000" />
       </div>
+      {requirePhysical && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="ap-height">Tinggi badan (cm) <Required /></Label>
+            <Input id="ap-height" type="number" min="0" step="1" inputMode="numeric" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="mis. 165" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ap-weight">Berat badan (kg) <Required /></Label>
+            <Input id="ap-weight" type="number" min="0" step="1" inputMode="numeric" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="mis. 55" />
+          </div>
+        </div>
+      )}
+
       <div className="space-y-1.5">
         <Label htmlFor="ap-note">Kenapa kamu cocok? (opsional)</Label>
         <Textarea id="ap-note" rows={3} value={coverNote} onChange={(e) => setCoverNote(e.target.value)} placeholder="Ceritakan singkat pengalaman relevan kamu…" />

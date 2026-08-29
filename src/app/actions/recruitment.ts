@@ -39,6 +39,9 @@ export type OpeningDetail = {
   description: string | null;
   min_experience_years: number;
   headcount: number;
+  require_physical: boolean;
+  min_height_cm: number | null;
+  min_weight_kg: number | null;
   job_position_id: string | null;
   department_id: string | null;
   job_level_id: string | null;
@@ -57,6 +60,8 @@ export type Candidate = {
   email: string | null;
   experience_years: number | null;
   expected_salary: number | null;
+  height_cm: number | null;
+  weight_kg: number | null;
   cover_note: string | null;
   resume_path: string | null;
   stage: HiringStage;
@@ -73,6 +78,7 @@ export type RecruitmentFormData = {
 type OpeningJoin = {
   id: string; code: string; title: string | null; status: "open" | "closed";
   min_experience_years: number; headcount: number; created_at: string;
+  require_physical: boolean; min_height_cm: number | null; min_weight_kg: number | null;
   job_position_id: string | null; department_id: string | null;
   job_level_id: string | null; employment_status_id: string | null;
   description: string | null;
@@ -83,7 +89,7 @@ type OpeningJoin = {
 };
 
 const OPENING_SELECT =
-  "id,code,title,status,description,min_experience_years,headcount,created_at,job_position_id,department_id,job_level_id,employment_status_id,job_positions(name),departments(name),job_levels(name),employment_statuses(name)";
+  "id,code,title,status,description,min_experience_years,headcount,require_physical,min_height_cm,min_weight_kg,created_at,job_position_id,department_id,job_level_id,employment_status_id,job_positions(name),departments(name),job_levels(name),employment_statuses(name)";
 
 // ─── Read ─────────────────────────────────────────────────────────────────────
 
@@ -119,7 +125,7 @@ export async function getOpeningDetail(id: string): Promise<{ opening: OpeningDe
   const row = o as unknown as OpeningJoin;
   const { data: cands } = await supabase
     .from("candidates")
-    .select("id,name,whatsapp,email,experience_years,expected_salary,cover_note,resume_path,stage,created_at")
+    .select("id,name,whatsapp,email,experience_years,expected_salary,height_cm,weight_kg,cover_note,resume_path,stage,created_at")
     .eq("opening_id", id)
     .order("created_at", { ascending: false });
   return {
@@ -127,12 +133,21 @@ export async function getOpeningDetail(id: string): Promise<{ opening: OpeningDe
       id: row.id, code: row.code, title: row.title, status: row.status, description: row.description,
       min_experience_years: Number(row.min_experience_years), headcount: row.headcount,
       job_position_id: row.job_position_id, department_id: row.department_id,
+      require_physical: !!row.require_physical,
+      min_height_cm: row.min_height_cm == null ? null : Number(row.min_height_cm),
+      min_weight_kg: row.min_weight_kg == null ? null : Number(row.min_weight_kg),
       job_level_id: row.job_level_id, employment_status_id: row.employment_status_id,
       position: row.job_positions?.name ?? null, department: row.departments?.name ?? null,
       level: row.job_levels?.name ?? null, employment_type: row.employment_statuses?.name ?? null,
       created_at: row.created_at,
     },
-    candidates: ((cands ?? []) as unknown as Candidate[]).map((c) => ({ ...c, experience_years: c.experience_years == null ? null : Number(c.experience_years), expected_salary: c.expected_salary == null ? null : Number(c.expected_salary) })),
+    candidates: ((cands ?? []) as unknown as Candidate[]).map((c) => ({
+      ...c,
+      experience_years: c.experience_years == null ? null : Number(c.experience_years),
+      expected_salary: c.expected_salary == null ? null : Number(c.expected_salary),
+      height_cm: c.height_cm == null ? null : Number(c.height_cm),
+      weight_kg: c.weight_kg == null ? null : Number(c.weight_kg),
+    })),
   };
 }
 
@@ -162,10 +177,14 @@ export type OpeningInput = {
   employment_status_id: string | null;
   min_experience_years: number;
   headcount: number;
+  require_physical: boolean;
+  min_height_cm: number | null;
+  min_weight_kg: number | null;
   description?: string | null;
 };
 
 function cleanOpening(input: OpeningInput) {
+  const physical = !!input.require_physical;
   return {
     title: input.title?.trim() || null,
     job_position_id: input.job_position_id,
@@ -174,6 +193,9 @@ function cleanOpening(input: OpeningInput) {
     employment_status_id: input.employment_status_id,
     min_experience_years: Math.max(0, Number(input.min_experience_years) || 0),
     headcount: Math.max(1, Math.floor(Number(input.headcount) || 1)),
+    require_physical: physical,
+    min_height_cm: physical && input.min_height_cm ? Number(input.min_height_cm) : null,
+    min_weight_kg: physical && input.min_weight_kg ? Number(input.min_weight_kg) : null,
     description: input.description?.trim() || null,
   };
 }

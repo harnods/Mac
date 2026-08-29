@@ -18,6 +18,9 @@ export type PublicOpening = {
   level: string | null;
   employment_type: string | null;
   min_experience_years: number;
+  require_physical: boolean;
+  min_height_cm: number | null;
+  min_weight_kg: number | null;
   description: string | null;
   status: "open" | "closed";
 };
@@ -27,12 +30,13 @@ export async function getOpeningByCode(code: string): Promise<PublicOpening | nu
   const db = service();
   const { data } = await db
     .from("job_openings")
-    .select("code,title,status,description,min_experience_years,job_positions(name),departments(name),job_levels(name),employment_statuses(name)")
+    .select("code,title,status,description,min_experience_years,require_physical,min_height_cm,min_weight_kg,job_positions(name),departments(name),job_levels(name),employment_statuses(name)")
     .eq("code", code.toLowerCase())
     .maybeSingle();
   if (!data) return null;
   const o = data as unknown as {
     code: string; title: string | null; status: "open" | "closed"; description: string | null; min_experience_years: number;
+    require_physical: boolean; min_height_cm: number | null; min_weight_kg: number | null;
     job_positions: { name: string } | null; departments: { name: string } | null;
     job_levels: { name: string } | null; employment_statuses: { name: string } | null;
   };
@@ -45,6 +49,9 @@ export async function getOpeningByCode(code: string): Promise<PublicOpening | nu
     level: o.job_levels?.name ?? null,
     employment_type: o.employment_statuses?.name ?? null,
     min_experience_years: Number(o.min_experience_years),
+    require_physical: !!o.require_physical,
+    min_height_cm: o.min_height_cm == null ? null : Number(o.min_height_cm),
+    min_weight_kg: o.min_weight_kg == null ? null : Number(o.min_weight_kg),
     description: o.description,
     status: o.status,
   };
@@ -62,6 +69,8 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   const expRaw = String(form.get("experience_years") ?? "").trim();
   const salaryRaw = String(form.get("expected_salary") ?? "").trim();
   const coverNote = String(form.get("cover_note") ?? "").trim();
+  const heightRaw = String(form.get("height_cm") ?? "").trim();
+  const weightRaw = String(form.get("weight_kg") ?? "").trim();
   const resume = form.get("resume");
 
   if (!name) return { ok: false, error: "Nama wajib diisi." };
@@ -72,9 +81,14 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   if (resume.size > 5 * 1024 * 1024) return { ok: false, error: "Ukuran resume maksimal 5MB." };
 
   const db = service();
-  const { data: opening } = await db.from("job_openings").select("id,status").eq("code", code).maybeSingle();
+  const { data: opening } = await db.from("job_openings").select("id,status,require_physical").eq("code", code).maybeSingle();
   if (!opening) return { ok: false, error: "Lowongan tidak ditemukan." };
   if ((opening.status as string) !== "open") return { ok: false, error: "Lowongan ini sudah ditutup." };
+
+  if (opening.require_physical) {
+    if (!heightRaw || !(Number(heightRaw) > 0)) return { ok: false, error: "Tinggi badan wajib diisi." };
+    if (!weightRaw || !(Number(weightRaw) > 0)) return { ok: false, error: "Berat badan wajib diisi." };
+  }
 
   const openingId = opening.id as string;
   const path = `${openingId}/${crypto.randomUUID()}.pdf`;
@@ -90,6 +104,8 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
     email,
     experience_years: expRaw === "" ? null : Number(expRaw),
     expected_salary: salaryRaw === "" ? null : Number(salaryRaw.replace(/[^0-9]/g, "")),
+    height_cm: heightRaw === "" ? null : Number(heightRaw),
+    weight_kg: weightRaw === "" ? null : Number(weightRaw),
     cover_note: coverNote || null,
     resume_path: path,
   });
