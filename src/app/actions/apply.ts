@@ -26,6 +26,83 @@ export async function getOpenPositions(): Promise<OpenPosition[]> {
 
 const phoneOk = (p: string) => /^[0-9+][0-9\s-]{6,}$/.test(p.trim());
 const isUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const EMPLOYMENT_STATUSES = ["working", "not_working"];
+
+export type WorkExperience = { period: string; place: string; position: string; jobdesk: string };
+
+type Application = {
+  positionId: string;
+  name: string;
+  whatsapp: string;
+  birthPlace: string;
+  birthDate: string;
+  domicile: string;
+  mapsLink: string;
+  heightCm: number;
+  freshGraduate: boolean;
+  experiences: WorkExperience[];
+  expectedSalary: number | null;
+  employmentStatus: string;
+  noticePeriod: string;
+  earliestJoin: string;
+  contribution: string;
+  agreeTerms: boolean;
+  agreeInterview: boolean;
+};
+
+/** Read and validate the form fields. Runs before a single byte is uploaded, so
+ *  a submission that can't be accepted never leaves files in the buckets, and
+ *  again on submit so the insert can't be reached with fields that skipped the
+ *  first pass. */
+function parseApplication(form: FormData): { ok: true; data: Application } | { ok: false; error: string } {
+  const str = (key: string) => String(form.get(key) ?? "").trim();
+  const positionId = str("position_id");
+  const name = str("name");
+  const whatsapp = str("whatsapp");
+  const heightRaw = str("height_cm");
+  const heightCm = Number(heightRaw);
+  const employmentStatus = str("employment_status"); // working | not_working
+  const salaryRaw = str("expected_salary").replace(/[^0-9]/g, "");
+  const freshGraduate = str("fresh_graduate") === "1";
+  const agreeTerms = str("agree_terms") === "1";
+
+  if (!positionId || !isUuid(positionId)) return { ok: false, error: "Pilih posisi yang dilamar." };
+  if (!name) return { ok: false, error: "Nama wajib diisi." };
+  if (!whatsapp || !phoneOk(whatsapp)) return { ok: false, error: "Nomor WhatsApp tidak valid." };
+  if (!heightRaw || !(heightCm > 0)) return { ok: false, error: "Tinggi badan wajib diisi." };
+  if (!agreeTerms) return { ok: false, error: "Kamu harus menyetujui sistem & ketentuan kerja." };
+  if (employmentStatus && !EMPLOYMENT_STATUSES.includes(employmentStatus)) {
+    return { ok: false, error: "Status pekerjaan tidak valid." };
+  }
+
+  let raw: WorkExperience[] = [];
+  try { raw = JSON.parse(String(form.get("work_experiences") ?? "[]")); } catch { raw = []; }
+  const experiences = (freshGraduate || !Array.isArray(raw) ? [] : raw)
+    .filter((e) => e && (e.period || e.place || e.position || e.jobdesk))
+    .map((e) => ({ period: String(e.period ?? "").trim(), place: String(e.place ?? "").trim(), position: String(e.position ?? "").trim(), jobdesk: String(e.jobdesk ?? "").trim() }));
+
+  return {
+    ok: true,
+    data: {
+      positionId, name, whatsapp, heightCm, freshGraduate, experiences, agreeTerms, employmentStatus,
+      birthPlace: str("birth_place"),
+      birthDate: str("birth_date"),
+      domicile: str("domicile"),
+      mapsLink: str("maps_link"),
+      expectedSalary: salaryRaw === "" ? null : Number(salaryRaw),
+      noticePeriod: str("notice_period"),
+      earliestJoin: str("earliest_join"),
+      contribution: str("contribution"),
+      agreeInterview: str("agree_interview") === "1",
+    },
+  };
+}
+
+/** The position has to exist before we hand out upload slots or insert. */
+async function positionExists(db: ReturnType<typeof service>, positionId: string) {
+  const { data } = await db.from("job_positions").select("id").eq("id", positionId).maybeSingle();
+  return Boolean(data);
+}
 
 const PHOTO_EXTS = ["jpg", "png", "webp"] as const; // what the photo bucket accepts
 export type PhotoExt = (typeof PHOTO_EXTS)[number];
@@ -54,17 +131,19 @@ function ticketOk(resumePath: string, photoPath: string, ticket: string) {
   return expected.length === got.length && timingSafeEqual(expected, got);
 }
 
-/** Mint signed upload URLs for the résumé + photo. The candidate's browser PUTs
- *  the files to Supabase directly: a multi-MB résumé through a Server Action hits
- *  the platform's 4.5MB request-body cap (and the function timeout on a slow
- *  mobile connection), which is what left applicants on a broken page. */
-export async function createUploadSlots(positionId: string, photoExt: PhotoExt): Promise<UploadSlots> {
-  if (!isUuid(positionId)) return { ok: false, error: "Pilih posisi yang dilamar." };
+/** Validate the application, then mint signed upload URLs for the résumé +
+ *  photo. The candidate's browser PUTs the files to Supabase directly: a
+ *  multi-MB résumé through a Server Action hits the platform's 4.5MB
+ *  request-body cap (and the function timeout on a slow mobile connection),
+ *  which is what left applicants on a broken page. */
+export async function createUploadSlots(form: FormData, photoExt: PhotoExt): Promise<UploadSlots> {
+  const parsed = parseApplication(form);
+  if (!parsed.ok) return parsed;
   if (!PHOTO_EXTS.includes(photoExt)) return { ok: false, error: "Format foto tidak didukung." };
+  const { positionId } = parsed.data;
 
   const db = service();
-  const { data: position } = await db.from("job_positions").select("id").eq("id", positionId).maybeSingle();
-  if (!position) return { ok: false, error: "Posisi tidak ditemukan." };
+  if (!(await positionExists(db, positionId))) return { ok: false, error: "Posisi tidak ditemukan." };
 
   const base = `${positionId}/${crypto.randomUUID()}`;
   const resumePath = `${base}.pdf`;
@@ -97,53 +176,27 @@ export async function discardUploadSlots(resumePath: string, photoPath: string, 
   ]);
 }
 
-export type WorkExperience = { period: string; place: string; position: string; jobdesk: string };
-
-/** Public candidate submission: validate the fields, confirm the résumé + photo
- *  the browser uploaded into the slots we minted, then insert the candidate.
- *  Carries no file payload, so it stays well under the request-body cap.
- *  Bypasses RLS by design. */
+/** Public candidate submission: re-validate the fields, confirm the résumé +
+ *  photo landed in the slots we minted, then insert the candidate. Carries no
+ *  file payload, so it stays well under the request-body cap. Bypasses RLS by
+ *  design. */
 export async function submitApplication(form: FormData): Promise<ApplyResult> {
-  const positionId = String(form.get("position_id") ?? "").trim();
-  const name = String(form.get("name") ?? "").trim();
-  const whatsapp = String(form.get("whatsapp") ?? "").trim();
-  const birthPlace = String(form.get("birth_place") ?? "").trim();
-  const birthDate = String(form.get("birth_date") ?? "").trim();
-  const domicile = String(form.get("domicile") ?? "").trim();
-  const mapsLink = String(form.get("maps_link") ?? "").trim();
-  const heightRaw = String(form.get("height_cm") ?? "").trim();
-  const freshGraduate = String(form.get("fresh_graduate") ?? "") === "1";
-  const salaryRaw = String(form.get("expected_salary") ?? "").trim();
-  const employmentStatus = String(form.get("employment_status") ?? "").trim(); // working | not_working
-  const noticePeriod = String(form.get("notice_period") ?? "").trim();
-  const earliestJoin = String(form.get("earliest_join") ?? "").trim();
-  const contribution = String(form.get("contribution") ?? "").trim();
-  const agreeTerms = String(form.get("agree_terms") ?? "") === "1";
-  const agreeInterview = String(form.get("agree_interview") ?? "") === "1";
-  let experiences: WorkExperience[] = [];
-  try { experiences = JSON.parse(String(form.get("work_experiences") ?? "[]")); } catch { experiences = []; }
+  const parsed = parseApplication(form);
+  if (!parsed.ok) return parsed;
+  const app = parsed.data;
+
   const resumePath = String(form.get("resume_path") ?? "").trim();
   const photoPath = String(form.get("photo_path") ?? "").trim();
   const ticket = String(form.get("upload_ticket") ?? "").trim();
 
-  if (!positionId || !isUuid(positionId)) return { ok: false, error: "Pilih posisi yang dilamar." };
-  if (!name) return { ok: false, error: "Nama wajib diisi." };
-  if (!whatsapp || !phoneOk(whatsapp)) return { ok: false, error: "Nomor WhatsApp tidak valid." };
-  if (!heightRaw || !(Number(heightRaw) > 0)) return { ok: false, error: "Tinggi badan wajib diisi." };
-  if (!agreeTerms) return { ok: false, error: "Kamu harus menyetujui sistem & ketentuan kerja." };
   // Size/MIME are enforced by the buckets themselves on the signed upload; here
   // we only check the paths are ours and belong to the position applied for.
   const stale = { ok: false, error: "Sesi unggah kedaluwarsa. Muat ulang halaman lalu kirim lagi." } as const;
   if (!resumePath || !photoPath || !ticketOk(resumePath, photoPath, ticket)) return stale;
-  if (!resumePath.startsWith(`${positionId}/`) || !photoPath.startsWith(`${positionId}/`)) return stale;
+  if (!resumePath.startsWith(`${app.positionId}/`) || !photoPath.startsWith(`${app.positionId}/`)) return stale;
 
   const db = service();
-  const { data: position } = await db.from("job_positions").select("id").eq("id", positionId).maybeSingle();
-  if (!position) return { ok: false, error: "Posisi tidak ditemukan." };
-
-  const cleanExp = (freshGraduate ? [] : experiences)
-    .filter((e) => e && (e.period || e.place || e.position || e.jobdesk))
-    .map((e) => ({ period: String(e.period ?? "").trim(), place: String(e.place ?? "").trim(), position: String(e.position ?? "").trim(), jobdesk: String(e.jobdesk ?? "").trim() }));
+  if (!(await positionExists(db, app.positionId))) return { ok: false, error: "Posisi tidak ditemukan." };
 
   const [resumeUploaded, photoUploaded] = await Promise.all([
     db.storage.from("resumes").exists(resumePath),
@@ -154,24 +207,24 @@ export async function submitApplication(form: FormData): Promise<ApplyResult> {
   const photoUrl = db.storage.from("candidate-photos").getPublicUrl(photoPath).data.publicUrl;
 
   const { data: inserted, error: insErr } = await db.from("candidates").insert({
-    job_position_id: positionId,
-    name,
-    whatsapp,
-    birth_place: birthPlace || null,
-    birth_date: birthDate || null,
-    domicile: domicile || null,
-    maps_link: mapsLink || null,
-    height_cm: Number(heightRaw),
-    fresh_graduate: freshGraduate,
-    work_experiences: cleanExp,
-    experience_years: cleanExp.length || null,
-    expected_salary: salaryRaw === "" ? null : Number(salaryRaw.replace(/[^0-9]/g, "")),
-    employment_status: employmentStatus || null,
-    notice_period: noticePeriod || null,
-    earliest_join: earliestJoin || null,
-    cover_note: contribution || null,
-    agree_terms: agreeTerms,
-    agree_interview: agreeInterview,
+    job_position_id: app.positionId,
+    name: app.name,
+    whatsapp: app.whatsapp,
+    birth_place: app.birthPlace || null,
+    birth_date: app.birthDate || null,
+    domicile: app.domicile || null,
+    maps_link: app.mapsLink || null,
+    height_cm: app.heightCm,
+    fresh_graduate: app.freshGraduate,
+    work_experiences: app.experiences,
+    experience_years: app.experiences.length || null,
+    expected_salary: app.expectedSalary,
+    employment_status: app.employmentStatus || null,
+    notice_period: app.noticePeriod || null,
+    earliest_join: app.earliestJoin || null,
+    cover_note: app.contribution || null,
+    agree_terms: app.agreeTerms,
+    agree_interview: app.agreeInterview,
     resume_path: resumePath,
     photo_url: photoUrl,
   }).select("id").single();

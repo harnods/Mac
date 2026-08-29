@@ -101,29 +101,6 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
           photoFile = photo;
         }
 
-        // Files go browser → Supabase Storage directly; the Server Action below
-        // carries only the form fields plus the two storage paths, so a multi-MB
-        // résumé never has to fit inside a Server Action request body.
-        setStage("uploading");
-        const slots = await createUploadSlots(openingId, photoExt);
-        if (!slots.ok) { toast.error(slots.error); return; }
-
-        const discard = () => void discardUploadSlots(slots.resume.path, slots.photo.path, slots.ticket);
-
-        const supabase = createClient();
-        const upResume = await supabase.storage
-          .from("resumes")
-          .uploadToSignedUrl(slots.resume.path, slots.resume.token, resume, { contentType: "application/pdf" });
-        if (upResume.error) { discard(); toast.error("Gagal mengunggah resume. Periksa koneksi lalu coba lagi."); return; }
-
-        const upPhoto = await supabase.storage
-          .from("candidate-photos")
-          .uploadToSignedUrl(slots.photo.path, slots.photo.token, photoFile, {
-            contentType: photoExt === "jpg" ? "image/jpeg" : `image/${photoExt}`,
-          });
-        if (upPhoto.error) { discard(); toast.error("Gagal mengunggah foto. Periksa koneksi lalu coba lagi."); return; }
-
-        setStage("saving");
         const fd = new FormData();
         fd.set("position_id", openingId);
         fd.set("name", name.trim());
@@ -141,6 +118,31 @@ export function ApplyForm({ openings }: { openings: OpenPosition[] }) {
         fd.set("contribution", contribution.trim());
         fd.set("agree_terms", agreeTerms === "yes" ? "1" : "0");
         fd.set("agree_interview", agreeInterview === "yes" ? "1" : "0");
+
+        // The server validates the whole form before handing out upload slots,
+        // so nothing reaches Storage — let alone the DB — until it would be
+        // accepted. Files then go browser → Supabase directly; the submit below
+        // carries only these fields plus the two storage paths, so a multi-MB
+        // résumé never has to fit inside a Server Action request body.
+        setStage("uploading");
+        const slots = await createUploadSlots(fd, photoExt);
+        if (!slots.ok) { toast.error(slots.error); return; }
+        const discard = () => void discardUploadSlots(slots.resume.path, slots.photo.path, slots.ticket);
+
+        const supabase = createClient();
+        const upResume = await supabase.storage
+          .from("resumes")
+          .uploadToSignedUrl(slots.resume.path, slots.resume.token, resume, { contentType: "application/pdf" });
+        if (upResume.error) { discard(); toast.error("Gagal mengunggah resume. Periksa koneksi lalu coba lagi."); return; }
+
+        const upPhoto = await supabase.storage
+          .from("candidate-photos")
+          .uploadToSignedUrl(slots.photo.path, slots.photo.token, photoFile, {
+            contentType: photoExt === "jpg" ? "image/jpeg" : `image/${photoExt}`,
+          });
+        if (upPhoto.error) { discard(); toast.error("Gagal mengunggah foto. Periksa koneksi lalu coba lagi."); return; }
+
+        setStage("saving");
         fd.set("resume_path", slots.resume.path);
         fd.set("photo_path", slots.photo.path);
         fd.set("upload_ticket", slots.ticket);
