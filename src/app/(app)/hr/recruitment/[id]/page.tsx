@@ -47,7 +47,7 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
         )}
       </div>
 
-      <dl className="grid max-w-3xl grid-cols-1 gap-x-16 gap-y-1 sm:grid-cols-2">
+      <dl className="max-w-2xl">
         <Field label="Position" value={opening.position} />
         <Field label="Department" value={opening.department} />
         <Field label="Job level" value={opening.level} />
@@ -80,9 +80,9 @@ export default async function RecruitmentDetailPage({ params }: { params: Promis
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b py-2 sm:border-0 sm:py-1">
+    <div className="grid grid-cols-1 gap-1 py-2 sm:grid-cols-3 sm:gap-4">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-sm font-medium text-right">{value ?? "—"}</dd>
+      <dd className="text-sm sm:col-span-2">{value ?? "—"}</dd>
     </div>
   );
 }
