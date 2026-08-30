@@ -3,7 +3,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { DetailBackButton } from "@/components/employees/detail-back-button";
-import { getCandidate, getResumeSignedUrl, getCandidateComments, getCandidateEvents, type CandidateEvent } from "@/app/actions/recruitment";
+import { getCandidate, getResumeSignedUrl, getCandidateComments, getCandidateEvents, getPositions, type CandidateEvent } from "@/app/actions/recruitment";
 import { CandidateActions } from "@/components/recruitment/candidate-actions";
 import { CandidateComments } from "@/components/recruitment/candidate-comments";
 import { HIRING_STAGE_LABEL, ageFromBirthDate } from "@/lib/recruitment";
@@ -31,10 +31,11 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
   if (!data || data.positionId !== id) notFound();
   const c = data.candidate;
 
-  const [resume, comments, events] = await Promise.all([
+  const [resume, comments, events, positions] = await Promise.all([
     c.resume_path ? getResumeSignedUrl(candidateId) : Promise.resolve(null),
     getCandidateComments(candidateId),
     getCandidateEvents(candidateId),
+    getPositions(),
   ]);
   const resumeUrl = resume && resume.ok ? resume.data!.url : null;
 
@@ -61,7 +62,13 @@ export default async function CandidateDetailPage({ params }: { params: Promise<
         </Badge>
         {canWrite && (
           <div className="ml-auto">
-            <CandidateActions candidateId={c.id} openingId={id} name={c.name} />
+            <CandidateActions
+              candidateId={c.id}
+              openingId={id}
+              name={c.name}
+              currentPositionId={id}
+              positions={positions.map((p) => ({ id: p.id, name: p.name }))}
+            />
           </div>
         )}
       </div>

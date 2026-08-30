@@ -163,6 +163,32 @@ export async function addCandidateComment(candidateId: string, body: string): Pr
   return { ok: true };
 }
 
+/** Move a candidate to a different job position's pipeline, resetting to Applied. */
+export async function moveCandidatePosition(candidateId: string, positionId: string): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { data: pos } = await supabase.from("job_positions").select("id").eq("id", positionId).maybeSingle();
+  if (!pos) return { ok: false, error: "Position not found" };
+
+  const { data: prev } = await supabase.from("candidates").select("job_position_id,stage").eq("id", candidateId).maybeSingle();
+  if (prev?.job_position_id === positionId) return { ok: true };
+
+  const { error } = await supabase
+    .from("candidates")
+    .update({ job_position_id: positionId, stage: "applied", reject_reason: null, updated_at: new Date().toISOString() })
+    .eq("id", candidateId);
+  if (error) return { ok: false, error: error.message };
+
+  await supabase.from("candidate_events").insert({
+    candidate_id: candidateId, actor_id: profile.id, type: "stage_changed",
+    from_stage: (prev?.stage as string | undefined) ?? null, to_stage: "applied",
+  });
+  return { ok: true };
+}
+
 export async function deleteCandidate(candidateId: string): Promise<ActionResult> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
