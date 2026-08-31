@@ -123,8 +123,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     // Both layouts keep a real gap between cards so every product name stays
     // fully visible. Neat = straight grid; scattered = same gaps but tilted +
     // jittered so it reads as cards spread on a table (no name-covering overlap).
-    const gapX = neat ? GAP : 34;
-    const gapY = neat ? 22 : 30;
+    const gapX = neat ? GAP : 15;
+    const gapY = neat ? 22 : 14;
     const cols = Math.max(2, Math.floor((w + gapX) / (cw + gapX)));
     const colStep = cols > 1 ? (w - cw) / (cols - 1) : 0;
     const rowStep = ch + gapY;
