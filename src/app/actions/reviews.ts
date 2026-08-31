@@ -1,4 +1,5 @@
 import "server-only";
+import { MANUAL_REVIEWS, MANUAL_REVIEWS_URL } from "@/lib/reviews-data";
 
 export type Review = {
   author: string;
@@ -10,11 +11,22 @@ export type Review = {
 };
 
 /**
- * Google reviews via the Places Details API (returns up to 5, Google's limit).
- * Needs env GOOGLE_PLACES_API_KEY + GOOGLE_PLACE_ID. Returns [] if unset or on
- * any error so the menu still renders. Cached 1h.
+ * Reviews shown on the menu. Uses the hand-written list in
+ * `src/lib/reviews-data.ts` first; if that's empty it falls back to the Google
+ * Places API (needs GOOGLE_PLACES_API_KEY + GOOGLE_PLACE_ID). Returns [] if
+ * neither is available so the menu still renders. Cached 1h for the API path.
  */
 export async function getReviews(): Promise<Review[]> {
+  if (MANUAL_REVIEWS.length > 0) {
+    return MANUAL_REVIEWS.map((r) => ({
+      author: r.author,
+      rating: Math.max(1, Math.min(5, Math.round(r.rating))),
+      text: r.text.trim(),
+      photo: null,
+      when: r.when?.trim() || null,
+      url: r.url?.trim() || MANUAL_REVIEWS_URL,
+    }));
+  }
   const key = process.env.GOOGLE_PLACES_API_KEY;
   const placeId = process.env.GOOGLE_PLACE_ID;
   if (!key || !placeId) return [];
