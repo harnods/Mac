@@ -305,7 +305,6 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Follow</div>
           <a href={SITE.instagram} target="_blank" rel="noopener" style={{ font: `500 13.5px/1.6 ${SANS}`, color: ACCENT }}>Instagram</a>
-          <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13.5px/1.6 ${SANS}`, color: ACCENT }}>Grab &amp; Go</a>
         </div>
         <div style={{ font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)", alignSelf: "flex-end", marginLeft: "auto" }}>© 2026 Machimoto</div>
       </footer>
