@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getMenu } from "@/app/actions/online-order";
+import { getReviews } from "@/app/actions/reviews";
 import { MenuBoard } from "@/components/menu/menu-board";
 import { SITE } from "@/lib/site";
 
@@ -68,7 +69,7 @@ function jsonLd() {
 }
 
 export default async function LandingPage() {
-  const menu = await getMenu();
+  const [menu, reviews] = await Promise.all([getMenu(), getReviews()]);
   const categories = menu.map((c) => ({
     id: c.id,
     name: c.name,
@@ -81,7 +82,7 @@ export default async function LandingPage() {
       <h1 style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap", border: 0 }}>
         Machimoto Cafe — Japanese comfort-food cafe & coffee shop at Ruko DelRey Biztown, BSD. Work-friendly WFC / WFA spot in BSD.
       </h1>
-      <MenuBoard categories={categories} />
+      <MenuBoard categories={categories} reviews={reviews} />
     </>
   );
 }

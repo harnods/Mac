@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SITE } from "@/lib/site";
+import type { Review } from "@/app/actions/reviews";
 
 export type MenuItem = { id: string; name: string; description: string | null; imageUrl: string | null };
 export type MenuCategory = { id: string; name: string; items: MenuItem[] };
 
-type Card = MenuItem & { cat: string; key: string };
+type FoodCard = MenuItem & { cat: string; key: string; kind: "food" };
+type ReviewCard = Review & { key: string; kind: "review" };
+type Card = FoodCard | ReviewCard;
 type Pos = { x: number; y: number; rot: number; z: number };
 
 const CW = 180, CH = 262, GAP = 15, PITCH_X = CW + GAP, PITCH_Y = CH + GAP, MAX_COLS = 8;
@@ -41,10 +44,49 @@ function FadeImg({ src, alt, eager }: { src: string; alt: string; eager?: boolea
   );
 }
 
-/** The card face (image + category + name), shared by the board and the mobile grid. */
-function CardFace({ c, drop, delay }: { c: Card; drop?: boolean; delay?: number }) {
+const cardShell = { width: "100%", height: "100%", boxSizing: "border-box" as const, background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column" as const };
+
+function Stars({ n }: { n: number }) {
   return (
-    <div className={drop ? "mm-card mm-drop" : "mm-card"} style={{ width: "100%", height: "100%", boxSizing: "border-box", background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column", animationDelay: drop ? `${delay ?? 0}ms` : undefined }}>
+    <div aria-label={`${n} of 5`} style={{ display: "flex", gap: 2 }}>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <svg key={i} width="13" height="13" viewBox="0 0 20 20" fill={i < n ? "#e7a915" : "rgba(61,57,41,.18)"}>
+          <path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9z" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+/** The card face — food (photo + category + name) or a Google review. */
+function CardFace({ c, drop, delay }: { c: Card; drop?: boolean; delay?: number }) {
+  const cls = drop ? "mm-card mm-drop" : "mm-card";
+  const anim = { animationDelay: drop ? `${delay ?? 0}ms` : undefined };
+  if (c.kind === "review") {
+    return (
+      <div className={cls} style={{ ...cardShell, ...anim, padding: "15px 15px 14px", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Stars n={c.rating} />
+          <span style={{ font: `500 8.5px/1 ${SANS}`, letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(61,57,41,.4)" }}>Google review</span>
+        </div>
+        <div style={{ font: `450 12.5px/1.55 ${SANS}`, color: INK, flex: 1, display: "-webkit-box", WebkitLineClamp: 7, WebkitBoxOrient: "vertical", overflow: "hidden" }}>“{c.text}”</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {c.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={c.photo} alt={c.author} width={24} height={24} style={{ width: 24, height: 24, borderRadius: 999, objectFit: "cover" }} />
+          ) : (
+            <div style={{ width: 24, height: 24, borderRadius: 999, background: TILE, display: "flex", alignItems: "center", justifyContent: "center", font: `600 11px/1 ${SANS}`, color: "rgba(61,57,41,.6)" }}>{c.author.charAt(0)}</div>
+          )}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ font: `600 11px/1.2 ${SANS}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.author}</div>
+            {c.when && <div style={{ font: `400 9.5px/1.2 ${SANS}`, color: "rgba(61,57,41,.45)" }}>{c.when}</div>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className={cls} style={{ ...cardShell, ...anim }}>
       <div style={{ position: "relative", width: "100%", aspectRatio: "1", overflow: "hidden", background: TILE, flex: "none" }}>
         {c.imageUrl ? (
           <FadeImg src={c.imageUrl} alt={c.name} />
@@ -100,15 +142,18 @@ function StoreInfo({ row }: { row?: boolean }) {
   );
 }
 
-export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
-  const allCards: Card[] = categories.flatMap((c) => c.items.map((it) => ({ ...it, cat: c.name, key: `${c.name}/${it.id}` })));
+export function MenuBoard({ categories, reviews = [] }: { categories: MenuCategory[]; reviews?: Review[] }) {
+  const foodCards: FoodCard[] = categories.flatMap((c) => c.items.map((it) => ({ ...it, cat: c.name, key: `${c.name}/${it.id}`, kind: "food" as const })));
+  const reviewCards: ReviewCard[] = reviews.map((r, i) => ({ ...r, key: `review/${i}`, kind: "review" as const }));
+  const allCards: Card[] = [...foodCards, ...reviewCards];
+  const byKey = new Map(allCards.map((c) => [c.key, c]));
   const cats = ["All", ...categories.map((c) => c.name)];
 
   const [cat, setCat] = useState("All");
   const [pos, setPos] = useState<Record<string, Pos>>({});
   const [order, setOrder] = useState<string[]>([]);
   const [height, setHeight] = useState(1200);
-  const [open, setOpen] = useState<Card | null>(null);
+  const [open, setOpen] = useState<FoodCard | null>(null);
   const [mobile, setMobile] = useState(false);
   const [gridCards, setGridCards] = useState<Card[]>([]);
   const [animateIn, setAnimateIn] = useState(true);
@@ -121,9 +166,10 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const drag = useRef<{ key: string; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; rot: number; nx: number; ny: number; moved: boolean } | null>(null);
 
   const visible = useCallback((c: string): Card[] => {
-    return c === "All" ? shuffle(allCards) : allCards.filter((i) => i.cat === c);
+    // Reviews are sprinkled in only on the "Everything" view.
+    return c === "All" ? shuffle(allCards) : foodCards.filter((i) => i.cat === c);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories]);
+  }, [categories, reviews]);
 
   const tidyRef = useRef(false);
   const layout = useCallback((c: string, tidy?: boolean) => {
@@ -262,11 +308,18 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     d.moved = true; d.nx = d.ox + dx; d.ny = d.oy + dy;
     d.el.style.transform = `translate3d(${d.nx}px,${d.ny}px,0) rotate(${d.rot * 0.4}deg) scale(1.045)`;
   }
+  function activate(key: string) {
+    const c = byKey.get(key);
+    if (!c) return;
+    if (c.kind === "review") { if (c.url) window.open(c.url, "_blank", "noopener"); return; }
+    setOpen(c);
+  }
+
   function onCardUp(key: string) {
     const d = drag.current; if (!d) return;
     drag.current = null;
     d.el.style.cursor = "grab";
-    if (!d.moved) { setOpen(allCards.find((i) => i.key === key) ?? null); return; }
+    if (!d.moved) { activate(key); return; }
     const next: Record<string, Pos> = {};
     Object.keys(pos).forEach((k) => (next[k] = { ...pos[k] }));
     next[key] = { ...next[key], x: d.nx, y: d.ny, z: zTop.current };
@@ -314,7 +367,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         /* Mobile: simple 2-column grid, no category sidebar */
         <div style={{ padding: "20px 16px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {gridCards.map((c, i) => (
-            <button key={c.key} type="button" onClick={() => setOpen(c)} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", height: 262 }}>
+            <button key={c.key} type="button" onClick={() => activate(c.key)} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", height: 262 }}>
               <CardFace c={c} drop={animateIn} delay={Math.min(i * 40, 700)} />
             </button>
           ))}
