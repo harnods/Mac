@@ -281,8 +281,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         @keyframes mmDrop{0%{opacity:0;transform:translateY(240px) scale(.82)}55%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
         .mm-drop{animation:mmDrop .42s cubic-bezier(.18,.7,.28,1) both}
       `}</style>
-      {/* Header — transparent so the grid shows through (full-screen texture) */}
-      <header style={{ position: "relative", zIndex: 900 }}>
+      {/* Header — transparent + low z so dragged cards can cover the logo */}
+      <header style={{ position: "relative", zIndex: 0 }}>
         <div style={{ padding: "26px 22px 22px", display: "flex", justifyContent: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-machimoto.svg" alt="Machimoto" style={{ height: mobile ? 104 : 132, width: "auto" }} />
@@ -305,7 +305,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         </div>
       ) : (
         /* Desktop: full-width draggable board + category sidebar */
-        <div style={{ margin: "0 auto", padding: "26px 22px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
+        <div style={{ position: "relative", zIndex: 1, margin: "0 auto", padding: "26px 22px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
           <div ref={canvasRef} style={{ position: "relative", flex: "1 1 auto", minWidth: 0, height }}>
             {cards.map((c) => {
               const p = pos[c.key] ?? { x: 0, y: 0, rot: 0, z: 1 };
