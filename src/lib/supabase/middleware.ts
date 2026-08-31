@@ -15,8 +15,13 @@ export async function updateSession(request: NextRequest) {
   // Apex + www show a public placeholder landing page.
   const isApexHost = host === "machimoto.cafe" || host === "www.machimoto.cafe";
 
+  // Metadata/static files must serve directly (not be rewritten to /landing on apex).
+  const isMeta =
+    pathname === "/robots.txt" || pathname === "/sitemap.xml" ||
+    pathname === "/icon.svg" || pathname === "/favicon.ico" ||
+    pathname === "/opengraph-image" || pathname === "/manifest.webmanifest";
   const isInfraEarly =
-    pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico";
+    pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico" || isMeta;
   if (isApexHost && !isInfraEarly) {
     const rw = url.clone();
     rw.pathname = "/landing";
@@ -33,7 +38,7 @@ export async function updateSession(request: NextRequest) {
     request.cookies.has(cookieName) || request.cookies.has(`${cookieName}.0`);
 
   const isInfra =
-    pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico";
+    pathname.startsWith("/_next") || pathname.startsWith("/api/") || pathname === "/favicon.ico" || isMeta;
 
   // --- Order subdomain: map the root onto /order/*, fully public (no auth) ---
   if (isOrderHost && !isInfra) {

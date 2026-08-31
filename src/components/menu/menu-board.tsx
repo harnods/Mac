@@ -74,7 +74,7 @@ function StoreInfo({ row }: { row?: boolean }) {
           <div style={label}>Find us</div>
           <div style={val}>
             {SITE.address.map((l, i) => <div key={i}>{l}</div>)}
-            {SITE.mapsUrl && <a href={SITE.mapsUrl} target="_blank" rel="noopener" style={{ color: ACCENT }}>Google Maps</a>}
+            {SITE.mapsUrl && <a href={SITE.mapsUrl} target="_blank" rel="noopener" style={{ color: ACCENT, display: "inline-block", marginTop: 4 }}>{SITE.mapsLabel} →</a>}
           </div>
         </div>
       )}
