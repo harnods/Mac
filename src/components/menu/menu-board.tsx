@@ -46,6 +46,44 @@ function CardFace({ c, drop, delay }: { c: Card; drop?: boolean; delay?: number 
   );
 }
 
+/** Store info block (Find us / Hours / Follow) — sidebar on desktop, footer on mobile. */
+function StoreInfo({ row }: { row?: boolean }) {
+  const hasAddress = SITE.address.some((a) => a && !a.startsWith("["));
+  const label = { font: `600 9.5px/1 ${SANS}`, letterSpacing: ".15em", textTransform: "uppercase" as const, color: "rgba(61,57,41,.5)" };
+  const val = { font: `500 12.5px/1.6 ${SANS}`, color: INK };
+  return (
+    <div style={{ display: "flex", flexDirection: row ? "row" : "column", flexWrap: "wrap", gap: row ? "24px 56px" : 22 }}>
+      {hasAddress && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={label}>Find us</div>
+          <div style={val}>
+            {SITE.address.map((l, i) => <div key={i}>{l}</div>)}
+            {SITE.mapsUrl && <a href={SITE.mapsUrl} target="_blank" rel="noopener" style={{ color: ACCENT }}>Google Maps</a>}
+          </div>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={label}>Hours</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {SITE.hours.map((h, i) => (
+            <div key={i} style={{ ...val, display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ minWidth: 62, display: "inline-block" }}>{h.days}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                {h.sun && <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>☀️</span>}
+                {h.time}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={label}>Follow</div>
+        <a href={SITE.instagram} target="_blank" rel="noopener" style={{ ...val, color: ACCENT }}>Instagram</a>
+      </div>
+    </div>
+  );
+}
+
 export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const allCards: Card[] = categories.flatMap((c) => c.items.map((it) => ({ ...it, cat: c.name, key: `${c.name}/${it.id}` })));
   const cats = ["All", ...categories.map((c) => c.name)];
@@ -59,8 +97,10 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const [mobile, setMobile] = useState(false);
   const [gridCards, setGridCards] = useState<Card[]>([]);
   const [animateIn, setAnimateIn] = useState(true);
+  const [dim, setDim] = useState({ cw: CW, ch: CH });
 
   const canvasRef = useRef<HTMLDivElement>(null);
+  const dimRef = useRef({ cw: CW, ch: CH });
   const lastW = useRef(0);
   const zTop = useRef(1);
   const drag = useRef<{ key: string; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; rot: number; nx: number; ny: number; moved: boolean } | null>(null);
@@ -70,29 +110,44 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories]);
 
-  const layout = useCallback((c: string) => {
+  const tidyRef = useRef(false);
+  const layout = useCallback((c: string, tidy?: boolean) => {
+    if (tidy !== undefined) tidyRef.current = tidy;
+    const neat = tidyRef.current;
     const w = (canvasRef.current?.clientWidth ?? 1000);
     lastW.current = w;
-    const cols = Math.max(1, Math.min(MAX_COLS, Math.floor((w + GAP) / PITCH_X)));
-    const spanW = cols * PITCH_X - GAP;
-    const left = Math.max(0, (w - spanW) / 2);
+    // Cards grow on bigger screens.
+    const cw = w >= 1600 ? 234 : w >= 1280 ? 210 : w >= 1000 ? 194 : 180;
+    const ch = cw + 82;
+    setDim({ cw, ch });
+    dimRef.current = { cw, ch };
+    // Neat = tidy grid, small rotation, no overlap. Scattered = piled/overlapping.
+    const hStep = neat ? cw + GAP : cw * 0.8;
+    const cols = neat
+      ? Math.max(2, Math.floor((w + GAP) / (cw + GAP)))
+      : Math.max(2, Math.min(12, Math.round((w - cw) / hStep) + 1));
+    const colStep = cols > 1 ? (w - cw) / (cols - 1) : 0;
+    const rowStep = neat ? ch + 22 : ch * 0.72;
+    const jitterX = neat ? 9 : Math.min(48, colStep * 0.55);
+    const jitterY = neat ? 9 : Math.min(46, rowStep * 0.5);
+    const rotAmp = neat ? 4.5 : 13;
     const list = visible(c);
     const next: Record<string, Pos> = {};
-    // Tighter pitch + big jitter → cards scatter and overlap like on a real table.
-    const stepX = PITCH_X - 40, stepY = PITCH_Y - 44;
     list.forEach((it, i) => {
       const col = i % cols, row = (i / cols) | 0;
+      let x = col * colStep + (Math.random() - 0.5) * jitterX;
+      x = Math.max(-6, Math.min(w - cw + 6, x));
       next[it.key] = {
-        x: left + 20 + col * stepX + (Math.random() - 0.5) * 62,
-        y: 8 + row * stepY + (Math.random() - 0.5) * 58,
-        rot: (Math.random() - 0.5) * 13, z: 1 + ((Math.random() * list.length) | 0),
+        x,
+        y: 8 + row * rowStep + (Math.random() - 0.5) * jitterY,
+        rot: (Math.random() - 0.5) * rotAmp, z: neat ? row * cols + col + 1 : 1 + ((Math.random() * list.length) | 0),
       };
     });
     const rows = Math.ceil(list.length / cols) || 1;
     zTop.current = list.length + 1;
     setOrder(list.map((i) => i.key));
     setPos(next);
-    setHeight(8 + (rows - 1) * stepY + CH + 70);
+    setHeight(8 + (rows - 1) * rowStep + ch + 60);
   }, [visible]);
 
   // Track viewport: mobile = simple 2-col grid (no drag, no category sidebar).
@@ -101,7 +156,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     const apply = () => {
       setMobile(mq.matches);
       if (mq.matches) setGridCards(shuffle(allCards));
-      else layout("All");
+      else layout("All", false);
     };
     apply();
     mq.addEventListener("change", apply);
@@ -135,20 +190,21 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("keydown", onKey); };
   }, []);
 
-  function pickCat(c: string) { setAnimateIn(false); setCat(c); layout(c); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function pickCat(c: string) { setAnimateIn(false); setCat(c); layout(c, false); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   function resolve(p: Record<string, Pos>, pinned: string): number {
     const ids = Object.keys(p), PAD = 5;
+    const { cw, ch } = dimRef.current;
     for (let iter = 0; iter < 60; iter++) {
       let hit = false;
       for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
         const A = p[ids[i]], B = p[ids[j]];
         const dx = B.x - A.x, dy = B.y - A.y;
-        const ox = (CW + PAD) - Math.abs(dx), oy = (CH + PAD) - Math.abs(dy);
+        const ox = (cw + PAD) - Math.abs(dx), oy = (ch + PAD) - Math.abs(dy);
         if (ox <= 0 || oy <= 0) continue;
         hit = true;
         const aPin = ids[i] === pinned, bPin = ids[j] === pinned;
-        if (ox / (CW + PAD) < oy / (CH + PAD)) {
+        if (ox / (cw + PAD) < oy / (ch + PAD)) {
           const s = (dx >= 0 ? 1 : -1) * ox;
           if (aPin) B.x += s; else if (bPin) A.x -= s; else { A.x -= s / 2; B.x += s / 2; }
         } else {
@@ -162,9 +218,9 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     let maxY = 0;
     ids.forEach((k) => {
       const q = p[k];
-      q.x = Math.max(-6, Math.min(w - CW + 6, q.x));
+      q.x = Math.max(-6, Math.min(w - cw + 6, q.x));
       q.y = Math.max(0, q.y);
-      if (q.y + CH > maxY) maxY = q.y + CH;
+      if (q.y + ch > maxY) maxY = q.y + ch;
     });
     return maxY + 40;
   }
@@ -202,7 +258,6 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   }
 
   const cards = order.map((k) => allCards.find((i) => i.key === k)).filter(Boolean) as Card[];
-  const hasAddress = SITE.address.some((a) => a && !a.startsWith("["));
 
   return (
     <div
@@ -219,8 +274,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
           .mm-card:hover{transform:scale(1.05);box-shadow:0 10px 20px -6px rgba(61,57,41,.2),0 34px 54px -24px rgba(61,57,41,.6)}
         }
         @media (max-width:720px){.mm-modal{grid-template-columns:1fr !important}}
-        @keyframes mmDrop{0%{opacity:0;transform:translateY(-72px) scale(1.14) rotate(-3deg)}55%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
-        .mm-drop{animation:mmDrop .6s cubic-bezier(.2,.85,.25,1) both}
+        @keyframes mmDrop{0%{opacity:0;transform:translateY(120px) scale(.9)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
+        .mm-drop{animation:mmDrop .38s cubic-bezier(.2,.8,.3,1) both}
       `}</style>
       {/* Header */}
       <header style={{ position: "relative", zIndex: 900, background: PAPER, borderBottom: "1px solid rgba(61,57,41,.09)" }}>
@@ -230,7 +285,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "13px 22px", letterSpacing: ".02em" }}>Grab &amp; Go</a>
             {!mobile && (
-              <button type="button" onClick={() => { setAnimateIn(false); layout(cat); }} title="Shuffle every card back onto the grid" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
+              <button type="button" onClick={() => { setAnimateIn(false); layout(cat, true); }} title="Neatly arrange the cards" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
             )}
           </div>
         </div>
@@ -259,7 +314,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
                   onPointerUp={() => onCardUp(c.key)}
                   onPointerCancel={() => onCardUp(c.key)}
                   style={{
-                    position: "absolute", left: 0, top: 0, width: CW, height: CH,
+                    position: "absolute", left: 0, top: 0, width: dim.cw, height: dim.ch,
                     transform: `translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0) rotate(${p.rot.toFixed(2)}deg)`,
                     zIndex: p.z + 10, cursor: "grab", touchAction: "none", userSelect: "none",
                     transition: drag.current?.key === c.key ? "none" : "transform .42s cubic-bezier(.2,.9,.25,1)",
@@ -285,40 +340,15 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
                 })}
               </div>
             </div>
+            <div style={{ marginTop: 28 }}><StoreInfo /></div>
           </aside>
         </div>
       )}
 
-      {/* Footer — store info (black, consistent font) */}
-      <footer style={{ margin: "44px auto 0", padding: "26px 22px 40px", borderTop: "1px solid rgba(61,57,41,.09)", display: "flex", flexWrap: "wrap", gap: "26px 64px" }}>
-        {hasAddress && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Find us</div>
-            <div style={{ font: `500 13.5px/1.6 ${SANS}`, color: INK }}>
-              {SITE.address.map((l, i) => <div key={i}>{l}</div>)}
-              {SITE.mapsUrl && <a href={SITE.mapsUrl} target="_blank" rel="noopener" style={{ color: ACCENT }}>Google Maps</a>}
-            </div>
-          </div>
-        )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Hours</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {SITE.hours.map((h, i) => (
-              <div key={i} style={{ font: `500 13.5px/1.5 ${SANS}`, color: INK, display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ minWidth: 64, display: "inline-block" }}>{h.days}</span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  {h.sun && <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>☀️</span>}
-                  {h.time}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Follow</div>
-          <a href={SITE.instagram} target="_blank" rel="noopener" style={{ font: `500 13.5px/1.6 ${SANS}`, color: ACCENT }}>Instagram</a>
-        </div>
-        <div style={{ font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)", alignSelf: "flex-end", marginLeft: "auto" }}>© 2026 Machimoto</div>
+      {/* Footer — store info only on mobile (desktop shows it in the sidebar) */}
+      <footer style={{ margin: "44px auto 0", padding: "26px 22px 40px", borderTop: "1px solid rgba(61,57,41,.09)", display: "flex", flexDirection: "column", gap: 24 }}>
+        {mobile && <StoreInfo row />}
+        <div style={{ font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)" }}>© 2026 Machimoto</div>
       </footer>
 
       {/* Sticky CTA */}
