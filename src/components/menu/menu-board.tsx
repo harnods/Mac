@@ -93,7 +93,6 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const [order, setOrder] = useState<string[]>([]);
   const [height, setHeight] = useState(1200);
   const [open, setOpen] = useState<Card | null>(null);
-  const [showSticky, setShowSticky] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [gridCards, setGridCards] = useState<Card[]>([]);
   const [animateIn, setAnimateIn] = useState(true);
@@ -183,11 +182,9 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   }, []);
 
   useEffect(() => {
-    const onScroll = () => setShowSticky(window.scrollY > 200);
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
-    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("keydown", onKey); };
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   function pickCat(c: string) { setAnimateIn(false); setCat(c); layout(c, false); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -215,11 +212,15 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
       if (!hit) break;
     }
     const w = lastW.current || 1000;
+    // Free-roam: a card can be dropped almost anywhere on screen (only kept
+    // from getting fully lost off an edge).
+    const minKeep = 46;
+    const maxX = w + 300; // allow dragging over the sidebar / far right
     let maxY = 0;
     ids.forEach((k) => {
       const q = p[k];
-      q.x = Math.max(-6, Math.min(w - cw + 6, q.x));
-      q.y = Math.max(0, q.y);
+      q.x = Math.max(-(cw - minKeep), Math.min(maxX, q.x));
+      q.y = Math.max(-(ch - minKeep), q.y);
       if (q.y + ch > maxY) maxY = q.y + ch;
     });
     return maxY + 40;
@@ -277,19 +278,18 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         @keyframes mmDrop{0%{opacity:0;transform:translateY(120px) scale(.9)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
         .mm-drop{animation:mmDrop .38s cubic-bezier(.2,.8,.3,1) both}
       `}</style>
-      {/* Header */}
-      <header style={{ position: "relative", zIndex: 900, background: PAPER, borderBottom: "1px solid rgba(61,57,41,.09)" }}>
-        <div style={{ margin: "0 auto", padding: "24px 22px 18px", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+      {/* Header — transparent so the grid shows through (full-screen texture) */}
+      <header style={{ position: "relative", zIndex: 900 }}>
+        <div style={{ padding: "26px 22px 22px", display: "flex", justifyContent: "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-machimoto.svg" alt="Machimoto" style={{ height: 88, width: "auto" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "13px 22px", letterSpacing: ".02em" }}>Grab &amp; Go</a>
-            {!mobile && (
-              <button type="button" onClick={() => { setAnimateIn(false); layout(cat, true); }} title="Neatly arrange the cards" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
-            )}
-          </div>
+          <img src="/logo-machimoto.svg" alt="Machimoto" style={{ height: mobile ? 104 : 132, width: "auto" }} />
         </div>
       </header>
+
+      {/* Tidy — top-right corner (desktop) */}
+      {!mobile && (
+        <button type="button" onClick={() => { setAnimateIn(false); layout(cat, true); }} title="Neatly arrange the cards" style={{ position: "fixed", top: 22, right: 22, zIndex: 960, font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em", boxShadow: "0 4px 14px -6px rgba(61,57,41,.3)" }}>Tidy the table</button>
+      )}
 
       {mobile ? (
         /* Mobile: simple 2-column grid, no category sidebar */
@@ -351,8 +351,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         <div style={{ font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)" }}>© 2026 Machimoto</div>
       </footer>
 
-      {/* Sticky CTA */}
-      <a href={SITE.order} target="_blank" rel="noopener" style={{ position: "fixed", left: "50%", bottom: 26, zIndex: 950, transform: showSticky ? "translate(-50%,0)" : "translate(-50%,22px)", opacity: showSticky ? 1 : 0, pointerEvents: showSticky ? "auto" : "none", transition: "opacity .28s cubic-bezier(.22,.61,.36,1),transform .28s cubic-bezier(.22,.61,.36,1)", font: `500 13px/1 ${SANS}`, letterSpacing: ".02em", color: "#faf9f5", background: DARK, borderRadius: 999, padding: "15px 26px", boxShadow: "0 10px 30px -10px rgba(28,26,23,.55)" }}>Grab &amp; Go</a>
+      {/* Sticky CTA — always visible, bottom center */}
+      <a href={SITE.order} target="_blank" rel="noopener" style={{ position: "fixed", left: "50%", bottom: 26, zIndex: 950, transform: "translateX(-50%)", font: `500 14px/1 ${SANS}`, letterSpacing: ".02em", color: "#faf9f5", background: DARK, borderRadius: 999, padding: "16px 28px", boxShadow: "0 10px 30px -10px rgba(28,26,23,.55)" }}>Grab &amp; Go</a>
 
       {/* Modal */}
       {open && (
