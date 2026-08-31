@@ -120,17 +120,17 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     const ch = cw + 82;
     setDim({ cw, ch });
     dimRef.current = { cw, ch };
-    // Neat = tidy grid, small rotation. Scattered = spread out with a little
-    // overlap (roomy enough to read each card).
-    const hStep = neat ? cw + GAP : cw * 1.02;
-    const cols = neat
-      ? Math.max(2, Math.floor((w + GAP) / (cw + GAP)))
-      : Math.max(2, Math.min(12, Math.round((w - cw) / hStep) + 1));
+    // Both layouts keep a real gap between cards so every product name stays
+    // fully visible. Neat = straight grid; scattered = same gaps but tilted +
+    // jittered so it reads as cards spread on a table (no name-covering overlap).
+    const gapX = neat ? GAP : 34;
+    const gapY = neat ? 22 : 30;
+    const cols = Math.max(2, Math.floor((w + gapX) / (cw + gapX)));
     const colStep = cols > 1 ? (w - cw) / (cols - 1) : 0;
-    const rowStep = neat ? ch + 22 : ch * 0.9;
-    const jitterX = neat ? 9 : Math.min(40, colStep * 0.4);
-    const jitterY = neat ? 9 : Math.min(38, rowStep * 0.38);
-    const rotAmp = neat ? 4.5 : 12;
+    const rowStep = ch + gapY;
+    const jitterX = neat ? 9 : 14;
+    const jitterY = neat ? 9 : 14;
+    const rotAmp = neat ? 4.5 : 9;
     const list = visible(c);
     const next: Record<string, Pos> = {};
     list.forEach((it, i) => {
