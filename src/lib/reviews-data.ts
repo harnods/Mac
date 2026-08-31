@@ -24,6 +24,14 @@ export type ManualReview = {
 const GOOGLE_REVIEWS_URL =
   "https://www.google.com/maps/search/?api=1&query=Machimoto%20Cafe%20Ruko%20DelRey%20Biztown%20BSD";
 
+// Tapping a review card opens this. To send people straight to Google's
+// "write a review" form, paste your review link here. Get it from Google
+// Business Profile ("Ask for reviews" → copy link, e.g.
+// https://g.page/r/XXXXXXXX/review) or use
+// https://search.google.com/local/writereview?placeid=YOUR_PLACE_ID
+// Leave "" to just open the cafe on Google Maps.
+const REVIEW_FORM_URL = "";
+
 export const MANUAL_REVIEWS: ManualReview[] = [
   {
     author: "Joshua Lee",
@@ -69,5 +77,5 @@ export const MANUAL_REVIEWS: ManualReview[] = [
   },
 ];
 
-// Every manual review defaults to opening your Google reviews page on tap.
-export const MANUAL_REVIEWS_URL = GOOGLE_REVIEWS_URL;
+// Where a review card goes on tap — the write-a-review form if set, else Maps.
+export const MANUAL_REVIEWS_URL = REVIEW_FORM_URL || GOOGLE_REVIEWS_URL;
