@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
+  verification: { google: "3NJDsbLJgGtyOmxh_uiNt1jw6kYsAr00ix3U3H9NFIk" },
   openGraph: {
     title: TITLE,
     description: DESC,
