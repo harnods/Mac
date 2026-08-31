@@ -46,11 +46,20 @@ function FadeImg({ src, alt, eager }: { src: string; alt: string; eager?: boolea
 
 const cardShell = { width: "100%", height: "100%", boxSizing: "border-box" as const, background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column" as const };
 
-function Stars({ n }: { n: number }) {
+// Darker earth-tone / muted-pastel backgrounds for review cards; cream text.
+const REVIEW_COLORS = ["#7c5a43", "#5e6047", "#4f6155", "#6a4f57", "#8a6a4a", "#4e5a63", "#65503a", "#556150", "#7a5348", "#5a5140"];
+const CREAM = "#f4efe4";
+function reviewColor(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return REVIEW_COLORS[h % REVIEW_COLORS.length];
+}
+
+function Stars({ n, empty = "rgba(61,57,41,.18)" }: { n: number; empty?: string }) {
   return (
     <div aria-label={`${n} of 5`} style={{ display: "flex", gap: 2 }}>
       {[0, 1, 2, 3, 4].map((i) => (
-        <svg key={i} width="13" height="13" viewBox="0 0 20 20" fill={i < n ? "#e7a915" : "rgba(61,57,41,.18)"}>
+        <svg key={i} width="13" height="13" viewBox="0 0 20 20" fill={i < n ? "#f2c14e" : empty}>
           <path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9z" />
         </svg>
       ))}
@@ -63,23 +72,24 @@ function CardFace({ c, drop, delay }: { c: Card; drop?: boolean; delay?: number 
   const cls = drop ? "mm-card mm-drop" : "mm-card";
   const anim = { animationDelay: drop ? `${delay ?? 0}ms` : undefined };
   if (c.kind === "review") {
+    const bg = reviewColor(c.author + c.text.slice(0, 8));
     return (
-      <div className={cls} style={{ ...cardShell, ...anim, padding: "15px 15px 14px", gap: 10 }}>
+      <div className={cls} style={{ ...cardShell, ...anim, background: bg, border: "1px solid rgba(255,255,255,.1)", color: CREAM, padding: "15px 15px 14px", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Stars n={c.rating} />
-          <span style={{ font: `500 8.5px/1 ${SANS}`, letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(61,57,41,.4)" }}>Google review</span>
+          <Stars n={c.rating} empty="rgba(244,239,228,.28)" />
+          <span style={{ font: `500 8.5px/1 ${SANS}`, letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(244,239,228,.6)" }}>Google review</span>
         </div>
-        <div style={{ font: `450 12.5px/1.55 ${SANS}`, color: INK, flex: 1, display: "-webkit-box", WebkitLineClamp: 7, WebkitBoxOrient: "vertical", overflow: "hidden" }}>“{c.text}”</div>
+        <div style={{ font: `450 12.5px/1.55 ${SANS}`, color: CREAM, flex: 1, display: "-webkit-box", WebkitLineClamp: 7, WebkitBoxOrient: "vertical", overflow: "hidden" }}>“{c.text}”</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {c.photo ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={c.photo} alt={c.author} width={24} height={24} style={{ width: 24, height: 24, borderRadius: 999, objectFit: "cover" }} />
           ) : (
-            <div style={{ width: 24, height: 24, borderRadius: 999, background: TILE, display: "flex", alignItems: "center", justifyContent: "center", font: `600 11px/1 ${SANS}`, color: "rgba(61,57,41,.6)" }}>{c.author.charAt(0)}</div>
+            <div style={{ width: 24, height: 24, borderRadius: 999, background: "rgba(244,239,228,.2)", display: "flex", alignItems: "center", justifyContent: "center", font: `600 11px/1 ${SANS}`, color: CREAM }}>{c.author.charAt(0)}</div>
           )}
           <div style={{ minWidth: 0 }}>
-            <div style={{ font: `600 11px/1.2 ${SANS}`, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.author}</div>
-            {c.when && <div style={{ font: `400 9.5px/1.2 ${SANS}`, color: "rgba(61,57,41,.45)" }}>{c.when}</div>}
+            <div style={{ font: `600 11px/1.2 ${SANS}`, color: CREAM, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.author}</div>
+            {c.when && <div style={{ font: `400 9.5px/1.2 ${SANS}`, color: "rgba(244,239,228,.6)" }}>{c.when}</div>}
           </div>
         </div>
       </div>
