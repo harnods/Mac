@@ -120,16 +120,17 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     const ch = cw + 82;
     setDim({ cw, ch });
     dimRef.current = { cw, ch };
-    // Neat = tidy grid, small rotation, no overlap. Scattered = piled/overlapping.
-    const hStep = neat ? cw + GAP : cw * 0.8;
+    // Neat = tidy grid, small rotation. Scattered = spread out with a little
+    // overlap (roomy enough to read each card).
+    const hStep = neat ? cw + GAP : cw * 1.02;
     const cols = neat
       ? Math.max(2, Math.floor((w + GAP) / (cw + GAP)))
       : Math.max(2, Math.min(12, Math.round((w - cw) / hStep) + 1));
     const colStep = cols > 1 ? (w - cw) / (cols - 1) : 0;
-    const rowStep = neat ? ch + 22 : ch * 0.72;
-    const jitterX = neat ? 9 : Math.min(48, colStep * 0.55);
-    const jitterY = neat ? 9 : Math.min(46, rowStep * 0.5);
-    const rotAmp = neat ? 4.5 : 13;
+    const rowStep = neat ? ch + 22 : ch * 0.9;
+    const jitterX = neat ? 9 : Math.min(40, colStep * 0.4);
+    const jitterY = neat ? 9 : Math.min(38, rowStep * 0.38);
+    const rotAmp = neat ? 4.5 : 12;
     const list = visible(c);
     const next: Record<string, Pos> = {};
     list.forEach((it, i) => {
@@ -259,6 +260,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   }
 
   const cards = order.map((k) => allCards.find((i) => i.key === k)).filter(Boolean) as Card[];
+  // Scatter wave: bottom cards land first, rising toward the logo (south→north).
+  const maxCardY = cards.reduce((m, c) => Math.max(m, pos[c.key]?.y ?? 0), 1);
 
   return (
     <div
@@ -275,8 +278,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
           .mm-card:hover{transform:scale(1.05);box-shadow:0 10px 20px -6px rgba(61,57,41,.2),0 34px 54px -24px rgba(61,57,41,.6)}
         }
         @media (max-width:720px){.mm-modal{grid-template-columns:1fr !important}}
-        @keyframes mmDrop{0%{opacity:0;transform:translateY(120px) scale(.9)}60%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
-        .mm-drop{animation:mmDrop .38s cubic-bezier(.2,.8,.3,1) both}
+        @keyframes mmDrop{0%{opacity:0;transform:translateY(240px) scale(.82)}55%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1)}}
+        .mm-drop{animation:mmDrop .42s cubic-bezier(.18,.7,.28,1) both}
       `}</style>
       {/* Header — transparent so the grid shows through (full-screen texture) */}
       <header style={{ position: "relative", zIndex: 900 }}>
@@ -304,7 +307,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
         /* Desktop: full-width draggable board + category sidebar */
         <div style={{ margin: "0 auto", padding: "26px 22px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
           <div ref={canvasRef} style={{ position: "relative", flex: "1 1 auto", minWidth: 0, height }}>
-            {cards.map((c, i) => {
+            {cards.map((c) => {
               const p = pos[c.key] ?? { x: 0, y: 0, rot: 0, z: 1 };
               return (
                 <div
@@ -320,7 +323,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
                     transition: drag.current?.key === c.key ? "none" : "transform .42s cubic-bezier(.2,.9,.25,1)",
                   }}
                 >
-                  <CardFace c={c} drop={animateIn} delay={Math.min(i * 32, 900)} />
+                  <CardFace c={c} drop={animateIn} delay={Math.round(((maxCardY - p.y) / maxCardY) * 520)} />
                 </div>
               );
             })}
