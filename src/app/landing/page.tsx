@@ -5,7 +5,7 @@ import { MenuBoard } from "@/components/menu/menu-board";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Machimoto — Menu",
+  title: "Machimoto Cafe - Ruko Delrey Biztown C2 No. 8",
   description: "The Machimoto menu — Japanese comfort food, coffee, matcha & more. Order ahead with Grab & Go.",
 };
 

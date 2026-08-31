@@ -24,14 +24,30 @@ function shuffle<T>(a: T[]): T[] {
   return r;
 }
 
+/** Lazy, progressive image: sits on the tile placeholder and fades in on load. */
+function FadeImg({ src, alt, eager }: { src: string; alt: string; eager?: boolean }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none", userSelect: "none", opacity: loaded ? 1 : 0, transition: "opacity .5s ease" }}
+    />
+  );
+}
+
 /** The card face (image + category + name), shared by the board and the mobile grid. */
 function CardFace({ c, drop, delay }: { c: Card; drop?: boolean; delay?: number }) {
   return (
     <div className={drop ? "mm-card mm-drop" : "mm-card"} style={{ width: "100%", height: "100%", boxSizing: "border-box", background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column", animationDelay: drop ? `${delay ?? 0}ms` : undefined }}>
       <div style={{ position: "relative", width: "100%", aspectRatio: "1", overflow: "hidden", background: TILE, flex: "none" }}>
         {c.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={c.imageUrl} alt={c.name} draggable={false} loading="lazy" decoding="async" width={480} height={480} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none", userSelect: "none" }} />
+          <FadeImg src={c.imageUrl} alt={c.name} />
         ) : (
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-linear-gradient(135deg,#eae7dd 0 7px,#e3dfd3 7px 14px)" }}>
             <span style={{ font: `400 9px/1.3 ${MONO}`, color: "rgba(61,57,41,.5)", textAlign: "center", padding: "0 8px" }}>photo<br />pending</span>
@@ -366,8 +382,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
             </button>
             <div style={{ position: "relative", background: TILE, minHeight: 320 }}>
               {open.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={open.imageUrl} alt={open.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <FadeImg src={open.imageUrl} alt={open.name} eager />
               ) : (
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-linear-gradient(135deg,#eae7dd 0 10px,#e3dfd3 10px 20px)" }}>
                   <span style={{ font: `400 11px/1.4 ${MONO}`, color: "rgba(61,57,41,.5)" }}>product photo pending</span>
