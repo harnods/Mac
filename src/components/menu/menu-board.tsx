@@ -25,9 +25,9 @@ function shuffle<T>(a: T[]): T[] {
 }
 
 /** The card face (image + category + name), shared by the board and the mobile grid. */
-function CardFace({ c }: { c: Card }) {
+function CardFace({ c, drop, delay }: { c: Card; drop?: boolean; delay?: number }) {
   return (
-    <div className="mm-card" style={{ width: "100%", height: "100%", boxSizing: "border-box", background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div className={drop ? "mm-card mm-drop" : "mm-card"} style={{ width: "100%", height: "100%", boxSizing: "border-box", background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column", animationDelay: drop ? `${delay ?? 0}ms` : undefined }}>
       <div style={{ position: "relative", width: "100%", aspectRatio: "1", overflow: "hidden", background: TILE, flex: "none" }}>
         {c.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -58,6 +58,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const [showSticky, setShowSticky] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [gridCards, setGridCards] = useState<Card[]>([]);
+  const [animateIn, setAnimateIn] = useState(true);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const lastW = useRef(0);
@@ -77,19 +78,21 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     const left = Math.max(0, (w - spanW) / 2);
     const list = visible(c);
     const next: Record<string, Pos> = {};
+    // Tighter pitch + big jitter → cards scatter and overlap like on a real table.
+    const stepX = PITCH_X - 40, stepY = PITCH_Y - 44;
     list.forEach((it, i) => {
       const col = i % cols, row = (i / cols) | 0;
       next[it.key] = {
-        x: left + col * PITCH_X + (Math.random() - 0.5) * 15,
-        y: row * PITCH_Y + (Math.random() - 0.5) * 17 + (col % 2 ? 9 : 0),
-        rot: (Math.random() - 0.5) * 6.4, z: 1,
+        x: left + 20 + col * stepX + (Math.random() - 0.5) * 62,
+        y: 8 + row * stepY + (Math.random() - 0.5) * 58,
+        rot: (Math.random() - 0.5) * 13, z: 1 + ((Math.random() * list.length) | 0),
       };
     });
     const rows = Math.ceil(list.length / cols) || 1;
-    zTop.current = 1;
+    zTop.current = list.length + 1;
     setOrder(list.map((i) => i.key));
     setPos(next);
-    setHeight(rows * PITCH_Y + 40);
+    setHeight(8 + (rows - 1) * stepY + CH + 70);
   }, [visible]);
 
   // Track viewport: mobile = simple 2-col grid (no drag, no category sidebar).
@@ -118,6 +121,12 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     return () => ro.disconnect();
   }, [cat, layout, mobile]);
 
+  // Drop-in plays once on first load; stop it after the cards have settled.
+  useEffect(() => {
+    const t = setTimeout(() => setAnimateIn(false), 2200);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     const onScroll = () => setShowSticky(window.scrollY > 200);
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -126,7 +135,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     return () => { window.removeEventListener("scroll", onScroll); window.removeEventListener("keydown", onKey); };
   }, []);
 
-  function pickCat(c: string) { setCat(c); layout(c); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function pickCat(c: string) { setAnimateIn(false); setCat(c); layout(c); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
   function resolve(p: Record<string, Pos>, pinned: string): number {
     const ids = Object.keys(p), PAD = 5;
@@ -164,6 +173,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     const el = e.currentTarget as HTMLElement;
     const p = pos[key];
     if (!p) return;
+    if (animateIn) setAnimateIn(false);
     el.setPointerCapture(e.pointerId);
     zTop.current += 1;
     drag.current = { key, el, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, rot: p.rot, nx: p.x, ny: p.y, moved: false };
@@ -195,13 +205,22 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const hasAddress = SITE.address.some((a) => a && !a.startsWith("["));
 
   return (
-    <div style={{ minHeight: "100vh", background: PAPER, color: INK }}>
+    <div
+      style={{
+        minHeight: "100vh", color: INK,
+        backgroundColor: PAPER,
+        backgroundImage: `${PAPER_TEX},${FIBER_TEX},linear-gradient(to right,rgba(61,57,41,.055) 1px,transparent 1px),linear-gradient(to bottom,rgba(61,57,41,.055) 1px,transparent 1px)`,
+        backgroundSize: "200px 200px,320px 320px,39px 39px,39px 39px",
+      }}
+    >
       <style>{`
-        .mm-card{transition:transform .26s cubic-bezier(.22,.61,.36,1),box-shadow .26s cubic-bezier(.22,.61,.36,1)}
+        .mm-card{transition:transform .24s cubic-bezier(.22,.61,.36,1),box-shadow .24s cubic-bezier(.22,.61,.36,1)}
         @media (hover:hover){
-          .mm-card:hover{transform:translateY(-3px);box-shadow:0 2px 3px rgba(61,57,41,.08),0 20px 30px -20px rgba(61,57,41,.5)}
+          .mm-card:hover{transform:scale(1.05);box-shadow:0 10px 20px -6px rgba(61,57,41,.2),0 34px 54px -24px rgba(61,57,41,.6)}
         }
         @media (max-width:720px){.mm-modal{grid-template-columns:1fr !important}}
+        @keyframes mmDrop{0%{opacity:0;transform:translateY(-72px) scale(1.14) rotate(-3deg)}55%{opacity:1}100%{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+        .mm-drop{animation:mmDrop .6s cubic-bezier(.2,.85,.25,1) both}
       `}</style>
       {/* Header */}
       <header style={{ position: "relative", zIndex: 900, background: PAPER, borderBottom: "1px solid rgba(61,57,41,.09)" }}>
@@ -211,7 +230,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "13px 22px", letterSpacing: ".02em" }}>Grab &amp; Go</a>
             {!mobile && (
-              <button type="button" onClick={() => layout(cat)} title="Shuffle every card back onto the grid" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
+              <button type="button" onClick={() => { setAnimateIn(false); layout(cat); }} title="Shuffle every card back onto the grid" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
             )}
           </div>
         </div>
@@ -220,24 +239,17 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
       {mobile ? (
         /* Mobile: simple 2-column grid, no category sidebar */
         <div style={{ padding: "20px 16px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          {gridCards.map((c) => (
+          {gridCards.map((c, i) => (
             <button key={c.key} type="button" onClick={() => setOpen(c)} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", height: 262 }}>
-              <CardFace c={c} />
+              <CardFace c={c} drop={animateIn} delay={Math.min(i * 40, 700)} />
             </button>
           ))}
         </div>
       ) : (
         /* Desktop: full-width draggable board + category sidebar */
         <div style={{ margin: "0 auto", padding: "26px 22px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
-          <div
-            ref={canvasRef}
-            style={{
-              position: "relative", flex: "1 1 auto", minWidth: 0, height,
-              backgroundImage: `${PAPER_TEX},${FIBER_TEX},linear-gradient(to right,rgba(61,57,41,.055) 1px,transparent 1px),linear-gradient(to bottom,rgba(61,57,41,.055) 1px,transparent 1px)`,
-              backgroundSize: "200px 200px,320px 320px,39px 39px,39px 39px",
-            }}
-          >
-            {cards.map((c) => {
+          <div ref={canvasRef} style={{ position: "relative", flex: "1 1 auto", minWidth: 0, height }}>
+            {cards.map((c, i) => {
               const p = pos[c.key] ?? { x: 0, y: 0, rot: 0, z: 1 };
               return (
                 <div
@@ -253,7 +265,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
                     transition: drag.current?.key === c.key ? "none" : "transform .42s cubic-bezier(.2,.9,.25,1)",
                   }}
                 >
-                  <CardFace c={c} />
+                  <CardFace c={c} drop={animateIn} delay={Math.min(i * 32, 900)} />
                 </div>
               );
             })}
