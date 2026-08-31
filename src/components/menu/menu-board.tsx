@@ -9,7 +9,7 @@ export type MenuCategory = { id: string; name: string; items: MenuItem[] };
 type Card = MenuItem & { cat: string; key: string };
 type Pos = { x: number; y: number; rot: number; z: number };
 
-const CW = 180, CH = 262, GAP = 15, PITCH_X = CW + GAP, PITCH_Y = CH + GAP, MAX_COLS = 5;
+const CW = 180, CH = 262, GAP = 15, PITCH_X = CW + GAP, PITCH_Y = CH + GAP, MAX_COLS = 8;
 const INK = "#3d3929", ACCENT = "#a4562f", PAPER = "#f0eee6", CARD = "#fffdf9", DARK = "#1c1a17", TILE = "#eae7dd";
 const SANS = "'Scoutie Sans','ScoutieSans',ui-sans-serif,system-ui,-apple-system,'Helvetica Neue',sans-serif";
 const MONO = "ui-monospace,Menlo,monospace";
@@ -24,6 +24,28 @@ function shuffle<T>(a: T[]): T[] {
   return r;
 }
 
+/** The card face (image + category + name), shared by the board and the mobile grid. */
+function CardFace({ c }: { c: Card }) {
+  return (
+    <div className="mm-card" style={{ width: "100%", height: "100%", boxSizing: "border-box", background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ position: "relative", width: "100%", aspectRatio: "1", overflow: "hidden", background: TILE, flex: "none" }}>
+        {c.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={c.imageUrl} alt={c.name} draggable={false} loading="lazy" decoding="async" width={480} height={480} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none", userSelect: "none" }} />
+        ) : (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-linear-gradient(135deg,#eae7dd 0 7px,#e3dfd3 7px 14px)" }}>
+            <span style={{ font: `400 9px/1.3 ${MONO}`, color: "rgba(61,57,41,.5)", textAlign: "center", padding: "0 8px" }}>photo<br />pending</span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 13px 16px" }}>
+        <div style={{ font: `500 9.5px/1 ${SANS}`, letterSpacing: ".09em", textTransform: "uppercase", color: "rgba(61,57,41,.5)" }}>{c.cat}</div>
+        <div style={{ font: `500 13px/1.35 ${SANS}`, color: INK, minHeight: "2.7em", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{c.name}</div>
+      </div>
+    </div>
+  );
+}
+
 export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const allCards: Card[] = categories.flatMap((c) => c.items.map((it) => ({ ...it, cat: c.name, key: `${c.name}/${it.id}` })));
   const cats = ["All", ...categories.map((c) => c.name)];
@@ -34,6 +56,8 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const [height, setHeight] = useState(1200);
   const [open, setOpen] = useState<Card | null>(null);
   const [showSticky, setShowSticky] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [gridCards, setGridCards] = useState<Card[]>([]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const lastW = useRef(0);
@@ -41,8 +65,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   const drag = useRef<{ key: string; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; rot: number; nx: number; ny: number; moved: boolean } | null>(null);
 
   const visible = useCallback((c: string): Card[] => {
-    const list = c === "All" ? shuffle(allCards) : allCards.filter((i) => i.cat === c);
-    return list;
+    return c === "All" ? shuffle(allCards) : allCards.filter((i) => i.cat === c);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories]);
 
@@ -69,9 +92,22 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     setHeight(rows * PITCH_Y + 40);
   }, [visible]);
 
-  useEffect(() => { layout("All"); /* eslint-disable-next-line */ }, []);
+  // Track viewport: mobile = simple 2-col grid (no drag, no category sidebar).
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 899px)");
+    const apply = () => {
+      setMobile(mq.matches);
+      if (mq.matches) setGridCards(shuffle(allCards));
+      else layout("All");
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
+    if (mobile) return;
     const el = canvasRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
@@ -80,7 +116,7 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [cat, layout]);
+  }, [cat, layout, mobile]);
 
   useEffect(() => {
     const onScroll = () => setShowSticky(window.scrollY > 200);
@@ -92,7 +128,6 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
 
   function pickCat(c: string) { setCat(c); layout(c); window.scrollTo({ top: 0, behavior: "smooth" }); }
 
-  // Collision resolve on drop (ported from the design).
   function resolve(p: Record<string, Pos>, pinned: string): number {
     const ids = Object.keys(p), PAD = 5;
     for (let iter = 0; iter < 60; iter++) {
@@ -157,134 +192,123 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
   }
 
   const cards = order.map((k) => allCards.find((i) => i.key === k)).filter(Boolean) as Card[];
-  const hasHours = SITE.hours.length > 0;
   const hasAddress = SITE.address.some((a) => a && !a.startsWith("["));
 
   return (
     <div style={{ minHeight: "100vh", background: PAPER, color: INK }}>
       <style>{`
-        .mm-board{}
-        @media (max-width: 900px){
-          .mm-board{flex-direction:column !important}
-          .mm-info{position:static !important;width:auto !important;order:-1;display:flex;flex-wrap:wrap;gap:26px !important}
-          .mm-info > *{margin-top:0 !important}
+        .mm-card{transition:transform .26s cubic-bezier(.22,.61,.36,1),box-shadow .26s cubic-bezier(.22,.61,.36,1)}
+        @media (hover:hover){
+          .mm-card:hover{transform:translateY(-3px);box-shadow:0 2px 3px rgba(61,57,41,.08),0 20px 30px -20px rgba(61,57,41,.5)}
         }
-        @media (max-width: 720px){
-          .mm-modal{grid-template-columns:1fr !important}
-        }
+        @media (max-width:720px){.mm-modal{grid-template-columns:1fr !important}}
       `}</style>
       {/* Header */}
       <header style={{ position: "relative", zIndex: 900, background: PAPER, borderBottom: "1px solid rgba(61,57,41,.09)" }}>
-        <div style={{ maxWidth: 1360, margin: "0 auto", padding: "24px 22px 18px", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+        <div style={{ margin: "0 auto", padding: "24px 22px 18px", display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-machimoto.svg" alt="Machimoto" style={{ height: 88, width: "auto" }} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
             <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "13px 22px", letterSpacing: ".02em" }}>Grab &amp; Go</a>
-            <button type="button" onClick={() => layout(cat)} title="Shuffle every card back onto the grid" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
+            {!mobile && (
+              <button type="button" onClick={() => layout(cat)} title="Shuffle every card back onto the grid" style={{ font: `500 13px/1 ${SANS}`, color: INK, background: CARD, border: "1px solid rgba(61,57,41,.16)", borderRadius: 999, padding: "12px 19px", cursor: "pointer", letterSpacing: ".02em" }}>Tidy the table</button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Board */}
-      <div className="mm-board" style={{ maxWidth: 1360, margin: "0 auto", padding: "26px 22px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
-        {/* Cards canvas */}
-        <div
-          ref={canvasRef}
-          style={{
-            position: "relative", flex: "1 1 auto", minWidth: 0, height,
-            backgroundImage: `${PAPER_TEX},${FIBER_TEX},linear-gradient(to right,rgba(61,57,41,.055) 1px,transparent 1px),linear-gradient(to bottom,rgba(61,57,41,.055) 1px,transparent 1px)`,
-            backgroundSize: "200px 200px,320px 320px,39px 39px,39px 39px",
-          }}
-        >
-          {cards.map((c) => {
-            const p = pos[c.key] ?? { x: 0, y: 0, rot: 0, z: 1 };
-            return (
-              <div
-                key={c.key}
-                onPointerDown={(e) => onCardDown(e, c.key)}
-                onPointerMove={onCardMove}
-                onPointerUp={() => onCardUp(c.key)}
-                onPointerCancel={() => onCardUp(c.key)}
-                style={{
-                  position: "absolute", left: 0, top: 0, width: CW, height: CH,
-                  transform: `translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0) rotate(${p.rot.toFixed(2)}deg)`,
-                  zIndex: p.z + 10, cursor: "grab", touchAction: "none", userSelect: "none",
-                  transition: drag.current?.key === c.key ? "none" : "transform .42s cubic-bezier(.2,.9,.25,1)",
-                }}
-              >
-                <div style={{ width: "100%", height: "100%", boxSizing: "border-box", background: `${CARD} url(${CARD_TEX})`, border: "1px solid rgba(61,57,41,.1)", borderRadius: 15, boxShadow: "0 1px 2px rgba(61,57,41,.08),0 14px 26px -20px rgba(61,57,41,.45)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                  <div style={{ position: "relative", width: "100%", aspectRatio: "1", overflow: "hidden", background: TILE, flex: "none" }}>
-                    {c.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.imageUrl} alt={c.name} draggable={false} loading="lazy" decoding="async" width={480} height={480} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", pointerEvents: "none", userSelect: "none" }} />
-                    ) : (
-                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "repeating-linear-gradient(135deg,#eae7dd 0 7px,#e3dfd3 7px 14px)" }}>
-                        <span style={{ font: `400 9px/1.3 ${MONO}`, color: "rgba(61,57,41,.5)", textAlign: "center", padding: "0 8px" }}>photo<br />pending</span>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 13px 16px" }}>
-                    <div style={{ font: `500 9.5px/1 ${SANS}`, letterSpacing: ".09em", textTransform: "uppercase", color: "rgba(61,57,41,.5)" }}>{c.cat}</div>
-                    <div style={{ font: `500 13px/1.35 ${SANS}`, color: INK, minHeight: "2.7em", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{c.name}</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      {mobile ? (
+        /* Mobile: simple 2-column grid, no category sidebar */
+        <div style={{ padding: "20px 16px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {gridCards.map((c) => (
+            <button key={c.key} type="button" onClick={() => setOpen(c)} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left", height: 262 }}>
+              <CardFace c={c} />
+            </button>
+          ))}
         </div>
-
-        {/* Info sidebar */}
-        <aside className="mm-info" style={{ position: "sticky", top: 24, width: CW, flex: "none", alignSelf: "flex-start", paddingTop: 4 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-            <div style={{ font: `500 9.5px/1 ${SANS}`, letterSpacing: ".15em", textTransform: "uppercase", color: "rgba(61,57,41,.42)" }}>Menu</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-start" }}>
-              {cats.map((c) => {
-                const on = c === cat;
-                return (
-                  <button key={c} type="button" onClick={() => pickCat(c)} style={{ font: `${on ? "600" : "500"} 12.5px/1.55 ${SANS}`, textAlign: "left", padding: "2px 0", background: "none", border: "none", cursor: "pointer", color: on ? ACCENT : "rgba(61,57,41,.72)", textDecoration: on ? "underline" : "none", textUnderlineOffset: 3 }}>
-                    {c === "All" ? "Everything" : c}
-                  </button>
-                );
-              })}
-            </div>
+      ) : (
+        /* Desktop: full-width draggable board + category sidebar */
+        <div style={{ margin: "0 auto", padding: "26px 22px 0", display: "flex", gap: 20, alignItems: "flex-start" }}>
+          <div
+            ref={canvasRef}
+            style={{
+              position: "relative", flex: "1 1 auto", minWidth: 0, height,
+              backgroundImage: `${PAPER_TEX},${FIBER_TEX},linear-gradient(to right,rgba(61,57,41,.055) 1px,transparent 1px),linear-gradient(to bottom,rgba(61,57,41,.055) 1px,transparent 1px)`,
+              backgroundSize: "200px 200px,320px 320px,39px 39px,39px 39px",
+            }}
+          >
+            {cards.map((c) => {
+              const p = pos[c.key] ?? { x: 0, y: 0, rot: 0, z: 1 };
+              return (
+                <div
+                  key={c.key}
+                  onPointerDown={(e) => onCardDown(e, c.key)}
+                  onPointerMove={onCardMove}
+                  onPointerUp={() => onCardUp(c.key)}
+                  onPointerCancel={() => onCardUp(c.key)}
+                  style={{
+                    position: "absolute", left: 0, top: 0, width: CW, height: CH,
+                    transform: `translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0) rotate(${p.rot.toFixed(2)}deg)`,
+                    zIndex: p.z + 10, cursor: "grab", touchAction: "none", userSelect: "none",
+                    transition: drag.current?.key === c.key ? "none" : "transform .42s cubic-bezier(.2,.9,.25,1)",
+                  }}
+                >
+                  <CardFace c={c} />
+                </div>
+              );
+            })}
           </div>
 
-          {hasAddress && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 26 }}>
-              <div style={{ font: `500 9.5px/1 ${SANS}`, letterSpacing: ".15em", textTransform: "uppercase", color: "rgba(61,57,41,.42)" }}>Find us</div>
-              <div style={{ font: `500 12.5px/1.6 ${SANS}`, color: INK }}>{SITE.name}</div>
-              <div style={{ font: `400 10.5px/1.7 ${MONO}`, color: "rgba(61,57,41,.5)" }}>
-                {SITE.address.map((l, i) => <span key={i}>{l}<br /></span>)}
-                {SITE.mapsUrl && <a href={SITE.mapsUrl} target="_blank" rel="noopener">Google Maps</a>}
+          <aside style={{ position: "sticky", top: 24, width: CW, flex: "none", alignSelf: "flex-start", paddingTop: 4 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <div style={{ font: `500 9.5px/1 ${SANS}`, letterSpacing: ".15em", textTransform: "uppercase", color: "rgba(61,57,41,.42)" }}>Menu</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "flex-start" }}>
+                {cats.map((c) => {
+                  const on = c === cat;
+                  return (
+                    <button key={c} type="button" onClick={() => pickCat(c)} style={{ font: `${on ? "600" : "500"} 12.5px/1.55 ${SANS}`, textAlign: "left", padding: "2px 0", background: "none", border: "none", cursor: "pointer", color: on ? ACCENT : "rgba(61,57,41,.72)", textDecoration: on ? "underline" : "none", textUnderlineOffset: 3 }}>
+                      {c === "All" ? "Everything" : c}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
+          </aside>
+        </div>
+      )}
 
-          {hasHours && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 7, marginTop: 22 }}>
-              <div style={{ font: `500 9.5px/1 ${SANS}`, letterSpacing: ".15em", textTransform: "uppercase", color: "rgba(61,57,41,.42)" }}>Hours</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {SITE.hours.map((h, i) => (
-                  <div key={i} style={{ font: `400 10.5px/1.5 ${MONO}`, color: "rgba(61,57,41,.5)", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ minWidth: 58, display: "inline-block" }}>{h.days}</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                      {h.sun && <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>☀️</span>}
-                      {h.time}
-                    </span>
-                  </div>
-                ))}
-              </div>
+      {/* Footer — store info (black, consistent font) */}
+      <footer style={{ margin: "44px auto 0", padding: "26px 22px 40px", borderTop: "1px solid rgba(61,57,41,.09)", display: "flex", flexWrap: "wrap", gap: "26px 64px" }}>
+        {hasAddress && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Find us</div>
+            <div style={{ font: `500 13.5px/1.6 ${SANS}`, color: INK }}>
+              {SITE.address.map((l, i) => <div key={i}>{l}</div>)}
+              {SITE.mapsUrl && <a href={SITE.mapsUrl} target="_blank" rel="noopener" style={{ color: ACCENT }}>Google Maps</a>}
             </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 22, alignItems: "flex-start" }}>
-            <a href={SITE.instagram} target="_blank" rel="noopener" style={{ font: `400 12px/1.6 ${SANS}`, color: ACCENT }}>Instagram</a>
-            <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `400 12px/1.6 ${SANS}`, color: ACCENT }}>Grab &amp; Go</a>
           </div>
-        </aside>
-      </div>
-
-      <footer style={{ maxWidth: 1360, margin: "44px auto 0", padding: "26px 22px 40px", borderTop: "1px solid rgba(61,57,41,.09)", font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)" }}>© 2026 Machimoto</footer>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Hours</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {SITE.hours.map((h, i) => (
+              <div key={i} style={{ font: `500 13.5px/1.5 ${SANS}`, color: INK, display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ minWidth: 64, display: "inline-block" }}>{h.days}</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                  {h.sun && <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>☀️</span>}
+                  {h.time}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ font: `600 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: INK }}>Follow</div>
+          <a href={SITE.instagram} target="_blank" rel="noopener" style={{ font: `500 13.5px/1.6 ${SANS}`, color: ACCENT }}>Instagram</a>
+          <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13.5px/1.6 ${SANS}`, color: ACCENT }}>Grab &amp; Go</a>
+        </div>
+        <div style={{ font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)", alignSelf: "flex-end", marginLeft: "auto" }}>© 2026 Machimoto</div>
+      </footer>
 
       {/* Sticky CTA */}
       <a href={SITE.order} target="_blank" rel="noopener" style={{ position: "fixed", left: "50%", bottom: 26, zIndex: 950, transform: showSticky ? "translate(-50%,0)" : "translate(-50%,22px)", opacity: showSticky ? 1 : 0, pointerEvents: showSticky ? "auto" : "none", transition: "opacity .28s cubic-bezier(.22,.61,.36,1),transform .28s cubic-bezier(.22,.61,.36,1)", font: `500 13px/1 ${SANS}`, letterSpacing: ".02em", color: "#faf9f5", background: DARK, borderRadius: 999, padding: "15px 26px", boxShadow: "0 10px 30px -10px rgba(28,26,23,.55)" }}>Grab &amp; Go</a>
@@ -292,8 +316,11 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
       {/* Modal */}
       {open && (
         <div onClick={() => setOpen(null)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(40,37,28,.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 22 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "min(760px,100%)", maxHeight: "88vh", overflow: "auto", background: "#faf9f5", borderRadius: 24, boxShadow: "0 40px 90px -30px rgba(40,37,28,.55)", display: "grid", gridTemplateColumns: "minmax(0,300px) 1fr" }} className="mm-modal">
-            <div style={{ position: "relative", background: TILE, minHeight: 260 }}>
+          <div onClick={(e) => e.stopPropagation()} className="mm-modal" style={{ position: "relative", width: "min(1040px,100%)", maxHeight: "90vh", overflow: "auto", background: "#faf9f5", borderRadius: 24, boxShadow: "0 40px 90px -30px rgba(40,37,28,.55)", display: "grid", gridTemplateColumns: "minmax(0,1.15fr) 1fr" }}>
+            <button type="button" onClick={() => setOpen(null)} aria-label="Close" style={{ position: "absolute", top: 14, right: 14, zIndex: 2, width: 38, height: 38, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 999, background: "rgba(255,253,249,.92)", border: "1px solid rgba(61,57,41,.14)", cursor: "pointer", boxShadow: "0 2px 8px rgba(40,37,28,.18)" }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={INK} strokeWidth="1.8" strokeLinecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>
+            </button>
+            <div style={{ position: "relative", background: TILE, minHeight: 320 }}>
               {open.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={open.imageUrl} alt={open.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -303,14 +330,13 @@ export function MenuBoard({ categories }: { categories: MenuCategory[] }) {
                 </div>
               )}
             </div>
-            <div style={{ padding: "34px 34px 30px", display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ font: `500 10px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: ACCENT }}>{open.cat}</div>
-              <div style={{ font: `500 26px/1.25 ${SANS}`, color: INK }}>{open.name}</div>
+            <div style={{ padding: "40px 38px 34px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ font: `600 10.5px/1 ${SANS}`, letterSpacing: ".14em", textTransform: "uppercase", color: ACCENT }}>{open.cat}</div>
+              <div style={{ font: `500 30px/1.22 ${SANS}`, color: INK }}>{open.name}</div>
               <div style={{ height: 1, background: "rgba(61,57,41,.11)" }} />
-              {open.description && <div style={{ font: `400 12.5px/1.7 ${SANS}`, color: "rgba(61,57,41,.7)" }}>{open.description}</div>}
-              <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 6 }}>
-                <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 13px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "14px 22px" }}>Grab &amp; Go</a>
-                <button type="button" onClick={() => setOpen(null)} style={{ font: `500 13px/1 ${SANS}`, color: INK, background: "transparent", border: "1px solid rgba(61,57,41,.18)", borderRadius: 999, padding: "14px 20px", cursor: "pointer" }}>Back to the table</button>
+              {open.description && <div style={{ font: `450 16px/1.7 ${SANS}`, color: INK }}>{open.description}</div>}
+              <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 8 }}>
+                <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 14px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "15px 24px" }}>Grab &amp; Go</a>
               </div>
             </div>
           </div>
