@@ -38,6 +38,7 @@ export function PositionsList({ positions, hireBase }: { positions: PositionRow[
             <TableRow>
               <TableHead>Job position</TableHead>
               <TableHead className="w-[110px] text-right">Candidates</TableHead>
+              <TableHead className="w-[100px] text-right">New</TableHead>
               <TableHead className="w-[100px] text-right">Screening</TableHead>
               <TableHead className="w-[100px] text-right">Interview</TableHead>
               <TableHead className="w-[100px] text-right">Offer</TableHead>
@@ -47,7 +48,7 @@ export function PositionsList({ positions, hireBase }: { positions: PositionRow[
           <TableBody>
             {positions.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">No job positions.</TableCell>
+                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">No job positions.</TableCell>
               </TableRow>
             )}
             {positions.map((p) => (
@@ -56,6 +57,7 @@ export function PositionsList({ positions, hireBase }: { positions: PositionRow[
                   <Link href={`/hr/recruitment/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p.name}</Link>
                 </TableCell>
                 <TableCell className="text-sm text-right tabular-nums">{p.candidate_count}</TableCell>
+                <TableCell className="text-sm text-right tabular-nums text-muted-foreground">{p.stage_counts.applied || "—"}</TableCell>
                 <TableCell className="text-sm text-right tabular-nums text-muted-foreground">{p.stage_counts.screening || "—"}</TableCell>
                 <TableCell className="text-sm text-right tabular-nums text-muted-foreground">{p.stage_counts.interview || "—"}</TableCell>
                 <TableCell className="text-sm text-right tabular-nums text-muted-foreground">{p.stage_counts.offer || "—"}</TableCell>
