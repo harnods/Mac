@@ -5,7 +5,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
 import { createEmployee } from "@/app/actions/employees";
-import type { HiringStage } from "@/lib/recruitment";
+import { HIRING_STAGES, type HiringStage } from "@/lib/recruitment";
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -67,20 +67,38 @@ function normCandidate(c: Candidate): Candidate {
 
 // ─── Positions (the recruitment index) ────────────────────────────────────────
 
-export type PositionRow = { id: string; name: string; candidate_count: number };
+export type PositionRow = {
+  id: string;
+  name: string;
+  candidate_count: number;
+  stage_counts: Record<HiringStage, number>;
+};
+
+const emptyStageCounts = (): Record<HiringStage, number> =>
+  Object.fromEntries(HIRING_STAGES.map((s) => [s, 0])) as Record<HiringStage, number>;
 
 /** All job positions (except CEO), each always open for recruitment. */
 export async function getPositions(): Promise<PositionRow[]> {
   const supabase = await createClient();
   const [{ data: positions }, { data: cands }] = await Promise.all([
     supabase.from("job_positions").select("id,name").not("name", "ilike", "CEO").order("name"),
-    supabase.from("candidates").select("job_position_id"),
+    supabase.from("candidates").select("job_position_id,stage"),
   ]);
   const count = new Map<string, number>();
-  for (const c of (cands ?? []) as { job_position_id: string | null }[]) {
-    if (c.job_position_id) count.set(c.job_position_id, (count.get(c.job_position_id) ?? 0) + 1);
+  const stages = new Map<string, Record<HiringStage, number>>();
+  for (const c of (cands ?? []) as { job_position_id: string | null; stage: HiringStage | null }[]) {
+    if (!c.job_position_id) continue;
+    count.set(c.job_position_id, (count.get(c.job_position_id) ?? 0) + 1);
+    const bucket = stages.get(c.job_position_id) ?? emptyStageCounts();
+    if (c.stage && bucket[c.stage] !== undefined) bucket[c.stage] += 1;
+    stages.set(c.job_position_id, bucket);
   }
-  return ((positions ?? []) as { id: string; name: string }[]).map((p) => ({ id: p.id, name: p.name, candidate_count: count.get(p.id) ?? 0 }));
+  return ((positions ?? []) as { id: string; name: string }[]).map((p) => ({
+    id: p.id,
+    name: p.name,
+    candidate_count: count.get(p.id) ?? 0,
+    stage_counts: stages.get(p.id) ?? emptyStageCounts(),
+  }));
 }
 
 export type PositionDetail = { id: string; name: string; department: string | null };
