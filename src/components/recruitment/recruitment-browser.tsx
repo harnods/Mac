@@ -63,7 +63,7 @@ export function RecruitmentBrowser({ positions, hireBase }: { positions: Positio
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search candidates — e.g. barista pengalaman 2 tahun, bisa produk…"
+          placeholder="Search..."
           className="pl-9 pr-9"
         />
         {q && (
