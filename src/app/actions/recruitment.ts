@@ -119,6 +119,162 @@ export async function setPositionAcceptingApplications(positionId: string, accep
   return { ok: true };
 }
 
+// ─── Candidate search (recruitment index) ─────────────────────────────────────
+
+export type CandidateHit = {
+  id: string;
+  job_position_id: string;
+  name: string;
+  position_name: string;
+  stage: HiringStage;
+  experience_years: number | null;
+  fresh_graduate: boolean;
+  domicile: string | null;
+  photo_url: string | null;
+  /** A trimmed excerpt of the field that matched, so the searcher sees why. */
+  snippet: string | null;
+  /** How many query terms this candidate hit — used for the ranking. */
+  matched: number;
+};
+
+// Common Indonesian/English connectors that would match everyone and only add
+// noise to the ranking. "bisa" is intentionally NOT here — it carries meaning.
+const SEARCH_STOPWORDS = new Set(["yang", "dan", "di", "ke", "dari", "untuk", "dengan", "atau", "the", "a", "an", "of", "in", "for"]);
+
+/** Lowercase, strip accents and punctuation, collapse whitespace — so
+ *  "Pengalaman 2 Tahun!" and "pengalaman 2 tahun" fold to the same tokens. */
+function foldText(s: string | null | undefined): string {
+  return (s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** First folded field containing a term → a short excerpt around the hit. */
+function snippetFor(fields: (string | null | undefined)[], terms: string[]): string | null {
+  for (const raw of fields) {
+    const folded = foldText(raw);
+    if (!folded) continue;
+    for (const t of terms) {
+      const at = folded.indexOf(t);
+      if (at < 0) continue;
+      const start = Math.max(0, at - 40);
+      const end = Math.min(folded.length, at + 80);
+      return (start > 0 ? "…" : "") + folded.slice(start, end).trim() + (end < folded.length ? "…" : "");
+    }
+  }
+  return null;
+}
+
+/** Free-text candidate search across the whole recruitment pool: name, position,
+ *  cover note, my comments/notes, work history, domicile and a humanised
+ *  experience phrase. The query is split into terms and results are ranked by how
+ *  many terms hit and how strong the field was — keyword/fuzzy, no AI. */
+export async function searchCandidates(query: string): Promise<CandidateHit[]> {
+  const terms = foldText(query)
+    .split(" ")
+    .filter((t) => t.length > 0 && !SEARCH_STOPWORDS.has(t));
+  if (terms.length === 0) return [];
+
+  const supabase = await createClient();
+  const [{ data: positions }, { data: cands }] = await Promise.all([
+    supabase.from("job_positions").select("id,name"),
+    supabase
+      .from("candidates")
+      .select(
+        "id,job_position_id,name,stage,experience_years,fresh_graduate,work_experiences,cover_note,domicile,birth_place,employment_status,notice_period,photo_url,created_at",
+      )
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const posName = new Map<string, string>();
+  for (const p of (positions ?? []) as { id: string; name: string }[]) posName.set(p.id, p.name);
+
+  const rows = (cands ?? []) as unknown as (Candidate & { job_position_id: string })[];
+
+  // Pull every comment once and concatenate per candidate — the notes are a
+  // first-class search field ("barista bisa produk" often lives in a note).
+  const notes = new Map<string, string>();
+  if (rows.length > 0) {
+    const { data: cm } = await supabase
+      .from("candidate_comments")
+      .select("candidate_id,body")
+      .in("candidate_id", rows.map((c) => c.id));
+    for (const c of (cm ?? []) as { candidate_id: string; body: string }[]) {
+      notes.set(c.candidate_id, notes.has(c.candidate_id) ? `${notes.get(c.candidate_id)} • ${c.body}` : c.body);
+    }
+  }
+
+  const scored: (CandidateHit & { score: number })[] = [];
+  for (const c of rows) {
+    const position = posName.get(c.job_position_id) ?? "";
+    const note = notes.get(c.id) ?? "";
+    const workText = (c.work_experiences ?? [])
+      .map((w) => [w.place, w.position, w.jobdesk, w.period].filter(Boolean).join(" "))
+      .join(" ");
+    const expYears = num(c.experience_years);
+    // Synthetic phrase so "2 tahun" / "2 years" / "fresh graduate" become matchable.
+    const expPhrase = [
+      expYears != null ? `${expYears} tahun pengalaman ${expYears} years experience` : "",
+      c.fresh_graduate ? "fresh graduate fresh grad tanpa pengalaman no experience" : "",
+    ].join(" ");
+
+    // Weighted fields — a term hitting a stronger field scores higher.
+    const fields: { text: string; w: number }[] = [
+      { text: foldText(c.name), w: 4 },
+      { text: foldText(position), w: 4 },
+      { text: expPhrase, w: 3 },
+      { text: foldText(note), w: 2 },
+      { text: foldText(c.cover_note), w: 2 },
+      { text: foldText(workText), w: 2 },
+      { text: foldText([c.domicile, c.birth_place, c.employment_status, c.notice_period, c.stage].join(" ")), w: 1 },
+    ];
+
+    let score = 0;
+    let matched = 0;
+    for (const term of terms) {
+      let best = 0;
+      const wordStart = new RegExp(`\\b${escapeRe(term)}`);
+      for (const f of fields) {
+        if (!f.text) continue;
+        if (wordStart.test(f.text)) best = Math.max(best, f.w * 2); // word-start match
+        else if (f.text.includes(term)) best = Math.max(best, f.w); // loose substring
+      }
+      if (best > 0) {
+        score += best;
+        matched += 1;
+      }
+    }
+    if (matched === 0) continue;
+    if (matched === terms.length) score += 8; // hits every term → float to the top
+
+    scored.push({
+      id: c.id,
+      job_position_id: c.job_position_id,
+      name: c.name,
+      position_name: position,
+      stage: c.stage,
+      experience_years: expYears,
+      fresh_graduate: Boolean(c.fresh_graduate),
+      domicile: c.domicile ?? null,
+      photo_url: c.photo_url ?? null,
+      snippet: snippetFor([note, c.cover_note, workText], terms),
+      matched,
+      score,
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score || b.matched - a.matched || a.name.localeCompare(b.name));
+  return scored.slice(0, 40).map(({ score: _score, ...hit }) => hit);
+}
+
 export type PositionDetail = { id: string; name: string; department: string | null };
 
 export async function getPositionDetail(positionId: string): Promise<{ position: PositionDetail; candidates: Candidate[] } | null> {
