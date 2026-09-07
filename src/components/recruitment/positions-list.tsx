@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Copy, Check } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClickableTableRow } from "@/components/ui/clickable-table-row";
+import { PositionAcceptingToggle } from "@/components/recruitment/position-accepting-toggle";
 import type { PositionRow } from "@/app/actions/recruitment";
 
 export function PositionsList({ positions, hireBase }: { positions: PositionRow[]; hireBase: string }) {
@@ -36,6 +37,7 @@ export function PositionsList({ positions, hireBase }: { positions: PositionRow[
         <Table className="w-auto min-w-full table-fixed">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[64px] text-center">Open</TableHead>
               <TableHead>Job position</TableHead>
               <TableHead className="w-[110px] text-right">Candidates</TableHead>
               <TableHead className="w-[100px] text-right">New</TableHead>
@@ -48,11 +50,14 @@ export function PositionsList({ positions, hireBase }: { positions: PositionRow[
           <TableBody>
             {positions.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">No job positions.</TableCell>
+                <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">No job positions.</TableCell>
               </TableRow>
             )}
             {positions.map((p) => (
               <ClickableTableRow key={p.id} href={`/hr/recruitment/${p.id}`}>
+                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                  <PositionAcceptingToggle id={p.id} name={p.name} accepting={p.accepting_applications} />
+                </TableCell>
                 <TableCell className="font-medium">
                   <Link href={`/hr/recruitment/${p.id}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{p.name}</Link>
                 </TableCell>

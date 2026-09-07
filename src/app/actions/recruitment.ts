@@ -70,6 +70,8 @@ function normCandidate(c: Candidate): Candidate {
 export type PositionRow = {
   id: string;
   name: string;
+  /** When false, candidates cannot pick this position on the public apply form. */
+  accepting_applications: boolean;
   candidate_count: number;
   stage_counts: Record<HiringStage, number>;
 };
@@ -77,11 +79,11 @@ export type PositionRow = {
 const emptyStageCounts = (): Record<HiringStage, number> =>
   Object.fromEntries(HIRING_STAGES.map((s) => [s, 0])) as Record<HiringStage, number>;
 
-/** All job positions (except CEO), each always open for recruitment. */
+/** All job positions (except CEO), with their open/closed apply toggle + counts. */
 export async function getPositions(): Promise<PositionRow[]> {
   const supabase = await createClient();
   const [{ data: positions }, { data: cands }] = await Promise.all([
-    supabase.from("job_positions").select("id,name").not("name", "ilike", "CEO").order("name"),
+    supabase.from("job_positions").select("id,name,accepting_applications").not("name", "ilike", "CEO").order("name"),
     supabase.from("candidates").select("job_position_id,stage"),
   ]);
   const count = new Map<string, number>();
@@ -93,12 +95,28 @@ export async function getPositions(): Promise<PositionRow[]> {
     if (c.stage && bucket[c.stage] !== undefined) bucket[c.stage] += 1;
     stages.set(c.job_position_id, bucket);
   }
-  return ((positions ?? []) as { id: string; name: string }[]).map((p) => ({
+  return ((positions ?? []) as { id: string; name: string; accepting_applications: boolean }[]).map((p) => ({
     id: p.id,
     name: p.name,
+    accepting_applications: p.accepting_applications,
     candidate_count: count.get(p.id) ?? 0,
     stage_counts: stages.get(p.id) ?? emptyStageCounts(),
   }));
+}
+
+/** Toggle whether candidates can apply to a position on the public apply form. */
+export async function setPositionAcceptingApplications(positionId: string, accepting: boolean): Promise<ActionResult> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { ok: false, error: "Not authenticated" };
+  if (!can(profile, P.EMPLOYEES_WRITE)) return { ok: false, error: "No permission" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("job_positions")
+    .update({ accepting_applications: accepting })
+    .eq("id", positionId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export type PositionDetail = { id: string; name: string; department: string | null };

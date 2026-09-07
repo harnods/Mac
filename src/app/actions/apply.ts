@@ -15,13 +15,15 @@ function service() {
 
 export type OpenPosition = { id: string; title: string };
 
-/** Every job position (except CEO) — all are open for application. */
+/** Job positions open for application — excludes CEO and any position whose
+ *  apply toggle is off (accepting_applications = false) in the admin index. */
 export async function getOpenPositions(): Promise<OpenPosition[]> {
   const db = service();
   const { data } = await db
     .from("job_positions")
     .select("id,name")
     .not("name", "ilike", "CEO")
+    .eq("accepting_applications", true)
     .order("name");
   return ((data ?? []) as { id: string; name: string }[]).map((p) => ({ id: p.id, title: p.name }));
 }
@@ -100,9 +102,15 @@ function parseApplication(form: FormData): { ok: true; data: Application } | { o
   };
 }
 
-/** The position has to exist before we hand out upload slots or insert. */
+/** The position has to exist AND still be accepting applications before we hand
+ *  out upload slots or insert — guards against a crafted id for a closed position. */
 async function positionExists(db: ReturnType<typeof service>, positionId: string) {
-  const { data } = await db.from("job_positions").select("id").eq("id", positionId).maybeSingle();
+  const { data } = await db
+    .from("job_positions")
+    .select("id")
+    .eq("id", positionId)
+    .eq("accepting_applications", true)
+    .maybeSingle();
   return Boolean(data);
 }
 
