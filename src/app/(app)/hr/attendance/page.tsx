@@ -22,9 +22,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export default async function AttendancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; date?: string }>;
+  searchParams: Promise<{ q?: string; date?: string; debug?: string }>;
 }) {
-  const { q = "", date: rawDate } = await searchParams;
+  const { q = "", date: rawDate, debug } = await searchParams;
   const today = todayJakarta();
   const date = rawDate && DATE_RE.test(rawDate) ? rawDate : today;
 
@@ -83,6 +83,11 @@ export default async function AttendancePage({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Attendance</h1>
+        {debug === "1" && (
+          <span className="rounded bg-yellow-100 px-2 py-1 font-mono text-xs text-yellow-900">
+            role={String(profile?.role)} · viewAs={String(profile?.viewingAsRole)} · canWrite={String(canWrite)} · formData={String(!!formData)} · perms={profile?.permissions?.length ?? "null"} · empWrite={String(profile?.permissions?.includes("employees:write"))}
+          </span>
+        )}
         {canWrite && formData && (
           <AttendanceFormDialog
             formData={formData}
