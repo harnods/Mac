@@ -433,9 +433,6 @@ export function MenuBoard({ categories, reviews = [] }: { categories: MenuCatego
         <div style={{ font: `400 11.5px/1.6 ${SANS}`, color: "rgba(61,57,41,.45)" }}>© 2026 Machimoto</div>
       </footer>
 
-      {/* Sticky CTA — always visible, bottom center */}
-      <a href={SITE.order} target="_blank" rel="noopener" style={{ position: "fixed", left: "50%", bottom: 26, zIndex: 950, transform: "translateX(-50%)", font: `500 14px/1 ${SANS}`, letterSpacing: ".02em", color: "#faf9f5", background: DARK, borderRadius: 999, padding: "16px 28px", boxShadow: "0 10px 30px -10px rgba(28,26,23,.55)" }}>Grab &amp; Go</a>
-
       {/* Modal */}
       {open && (
         <div onClick={() => setOpen(null)} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(40,37,28,.42)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 22 }}>
@@ -457,9 +454,6 @@ export function MenuBoard({ categories, reviews = [] }: { categories: MenuCatego
               <div style={{ font: `500 30px/1.22 ${SANS}`, color: INK }}>{open.name}</div>
               <div style={{ height: 1, background: "rgba(61,57,41,.11)" }} />
               {open.description && <div style={{ font: `450 16px/1.7 ${SANS}`, color: INK }}>{open.description}</div>}
-              <div style={{ display: "flex", gap: 9, flexWrap: "wrap", marginTop: 8 }}>
-                <a href={SITE.order} target="_blank" rel="noopener" style={{ font: `500 14px/1 ${SANS}`, color: "#faf9f5", background: DARK, borderRadius: 999, padding: "15px 24px" }}>Grab &amp; Go</a>
-              </div>
             </div>
           </div>
         </div>
