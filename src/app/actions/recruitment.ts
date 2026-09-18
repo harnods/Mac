@@ -425,11 +425,20 @@ export async function setCandidateStage(candidateId: string, stage: HiringStage,
   if (stage === "hired") return hireCandidate(candidateId);
 
   const supabase = await createClient();
-  const { data: prev } = await supabase.from("candidates").select("stage").eq("id", candidateId).maybeSingle();
+  const { data: prev } = await supabase.from("candidates").select("stage,resume_path").eq("id", candidateId).maybeSingle();
   const fromStage = (prev?.stage as string | undefined) ?? null;
 
   const patch: Record<string, unknown> = { stage, updated_at: new Date().toISOString() };
-  if (stage === "rejected") patch.reject_reason = reason?.trim() || null;
+  if (stage === "rejected") {
+    patch.reject_reason = reason?.trim() || null;
+    // Rejected candidates: permanently delete the uploaded CV/PDF from storage so it
+    // doesn't fill up the server, then clear the reference.
+    const resumePath = (prev?.resume_path as string | null) ?? null;
+    if (resumePath) {
+      await service().storage.from("resumes").remove([resumePath]);
+      patch.resume_path = null;
+    }
+  }
   const { error } = await supabase.from("candidates").update(patch).eq("id", candidateId);
   if (error) return { ok: false, error: error.message };
 
