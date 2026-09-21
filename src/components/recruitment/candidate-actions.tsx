@@ -12,7 +12,9 @@ import {
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { deleteCandidate, moveCandidatePosition } from "@/app/actions/recruitment";
+import { deleteCandidate, moveCandidatePosition, type HireComponent } from "@/app/actions/recruitment";
+import { HIRING_STAGES, HIRING_STAGE_LABEL, type HiringStage } from "@/lib/recruitment";
+import { useStageMove } from "@/components/recruitment/stage-move";
 
 export function CandidateActions({
   candidateId,
@@ -20,16 +22,21 @@ export function CandidateActions({
   name,
   currentPositionId,
   positions,
+  stage,
+  hireComponents,
 }: {
   candidateId: string;
   openingId: string;
   name: string;
   currentPositionId: string;
   positions: { id: string; name: string }[];
+  stage: HiringStage;
+  hireComponents: HireComponent[];
 }) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, start] = useTransition();
+  const stageMove = useStageMove(hireComponents);
 
   function handleDelete() {
     start(async () => {
@@ -55,9 +62,24 @@ export function CandidateActions({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" disabled={pending}>Actions <ChevronDown className="size-4" /></Button>
+          <Button variant="outline" disabled={pending || stageMove.pending}>Actions <ChevronDown className="size-4" /></Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-auto min-w-fit">
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="whitespace-nowrap">Move to stage</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {HIRING_STAGES.filter((s) => s !== stage).map((s) => (
+                <DropdownMenuItem
+                  key={s}
+                  className="whitespace-nowrap"
+                  // Defer so the menu finishes closing before a Reject/Hire dialog opens.
+                  onSelect={() => setTimeout(() => stageMove.requestMove({ id: candidateId, name, stage }, s), 0)}
+                >
+                  {HIRING_STAGE_LABEL[s]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="whitespace-nowrap">Move to position</DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
@@ -74,6 +96,8 @@ export function CandidateActions({
           <DropdownMenuItem className="whitespace-nowrap" onSelect={(e) => { e.preventDefault(); setTimeout(() => setConfirmOpen(true), 0); }}>Delete candidate</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {stageMove.dialogs}
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>

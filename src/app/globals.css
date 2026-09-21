@@ -159,3 +159,12 @@
     border-color: var(--table-border-row);
   }
 }
+/* Recruitment pipeline: always-visible horizontal scrollbar so the board can be
+   scrolled with a plain mouse (macOS hides overlay scrollbars otherwise). */
+.pipeline-scroll {
+  scrollbar-width: auto;
+  scrollbar-color: var(--muted-foreground) var(--muted);
+}
+.pipeline-scroll::-webkit-scrollbar { height: 12px; }
+.pipeline-scroll::-webkit-scrollbar-track { background: var(--muted); border-radius: 9999px; }
+.pipeline-scroll::-webkit-scrollbar-thumb { background: var(--muted-foreground); border-radius: 9999px; border: 3px solid var(--muted); }
