@@ -88,6 +88,10 @@ const round = (n: number) => Math.round(n);
 
 export function computePayslip(args: {
   period: { start: string; end: string };
+  /** Full period length (calendar days) before tenure clamping. When the
+   *  effective period is shorter (mid-period join/resign), monthly amounts are
+   *  prorated: effectiveDays / fullPeriodDays. */
+  fullPeriodDays?: number;
   employee: CalcEmployee;
   attendance: CalcAttendance[];
   /** Approved overtime requests in the period (by request, not from attendance). */
@@ -106,9 +110,10 @@ export function computePayslip(args: {
     per_attendance?: boolean;
   }[];
 }): PayslipResult {
-  const { period, employee, attendance, overtimeEntries, settings, overtime, components, adjustments } = args;
+  const { period, fullPeriodDays: fullDays, employee, attendance, overtimeEntries, settings, overtime, components, adjustments } = args;
 
   const periodDays = daysInclusive(period.start, period.end);
+  const prorata = fullDays && fullDays > periodDays ? periodDays / fullDays : 1;
 
   // Working days come from the entitlement (e.g. 6 of every 7 days), so each
   // crew has the same working-day base regardless of which days they took off.
@@ -206,7 +211,9 @@ export function computePayslip(args: {
         detail: `${weeksInPeriod} week(s) × Rp ${rate.toLocaleString("id-ID")}`,
       };
     }
-    return { amount: round(rate), detail: null };
+    const amt = round(rate * prorata);
+    const detail = prorata < 1 ? `Prorated ${periodDays}/${fullDays} days` : null;
+    return { amount: amt, detail };
   }
 
   // ── Earnings ──────────────────────────────────────────────────────────────
@@ -214,7 +221,9 @@ export function computePayslip(args: {
     const amount = round(basic * presentDays);
     lines.push({ kind: "earning", label: "Basic salary", detail: `${presentDays} day(s) × Rp ${basic.toLocaleString("id-ID")}/day`, amount });
   } else {
-    lines.push({ kind: "earning", label: "Basic salary", detail: "Monthly", amount: round(basic) });
+    const prorated = round(basic * prorata);
+    const detail = prorata < 1 ? `Prorated ${periodDays}/${fullDays} days` : "Monthly";
+    lines.push({ kind: "earning", label: "Basic salary", detail, amount: prorated });
   }
 
   if (overtime && overtimeHours > 0) {
@@ -250,11 +259,12 @@ export function computePayslip(args: {
 
   // ── Deductions ──────────────────────────────────────────────────────────────
   if (settings.deduct_absence_from_salary && !employee.salary_per_day && workingDays > 0 && absentDays > 0) {
-    const amount = round((basic / workingDays) * absentDays);
+    const salaryBase = round(basic * prorata);
+    const amount = round((salaryBase / workingDays) * absentDays);
     lines.push({
       kind: "deduction",
       label: "Absence deduction",
-      detail: `${absentDays} absent day(s) × (Rp ${basic.toLocaleString("id-ID")} ÷ ${workingDays})`,
+      detail: `${absentDays} absent day(s) × (Rp ${salaryBase.toLocaleString("id-ID")} ÷ ${workingDays})`,
       amount,
     });
   }

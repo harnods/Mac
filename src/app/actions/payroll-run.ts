@@ -193,8 +193,12 @@ export async function runPayroll(anchorYear: number, anchorMonth: number): Promi
     const effStart = c.join_date && c.join_date > period.start ? c.join_date : period.start;
     const effEndRaw = c.last_day ?? c.termination_date;
     const effEnd = effEndRaw && effEndRaw < period.end ? effEndRaw : period.end;
+    const [ys, ms, ds] = period.start.split("-").map(Number);
+    const [ye, me, de] = period.end.split("-").map(Number);
+    const fullPeriodDays = Math.floor((Date.UTC(ye, me - 1, de) - Date.UTC(ys, ms - 1, ds)) / 86400000) + 1;
     const result = computePayslip({
       period: { start: effStart, end: effEnd },
+      fullPeriodDays,
       employee: {
         basic_salary: c.basic_salary,
         allowances: c.allowances ?? [],
