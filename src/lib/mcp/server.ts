@@ -551,7 +551,7 @@ export function createMachitoriServer() {
     },
     async ({ date_from, date_to, employee_id, limit, offset }) => {
       const { from, to } = paginate({ limit, offset });
-      let q = getDb().from("schedules").select("id,employee_id,shift_id,work_date,day_off,employees(id,name),shifts(id,name,start_time,end_time)").gte("work_date", date_from).lte("work_date", date_to).order("work_date").range(from, to);
+      let q = getDb().from("schedules").select("id,employee_id,shift_id,work_date,employees(id,name),shifts(id,name,start_time,end_time)").gte("work_date", date_from).lte("work_date", date_to).order("work_date").range(from, to);
       if (employee_id) q = q.eq("employee_id", employee_id);
       const { data, error } = await q;
       return error ? err(error) : json(data);
@@ -565,15 +565,14 @@ export function createMachitoriServer() {
       employee_id: z.string().uuid(),
       work_date: z.string().describe("YYYY-MM-DD"),
       shift_id: z.string().uuid().nullable(),
-      day_off: z.boolean().optional().default(false),
     },
-    async ({ employee_id, work_date, shift_id, day_off }) => {
+    async ({ employee_id, work_date, shift_id }) => {
       const { data: existing } = await getDb().from("schedules").select("id").eq("employee_id", employee_id).eq("work_date", work_date).maybeSingle();
       if (existing) {
-        const { data, error } = await getDb().from("schedules").update({ shift_id, day_off }).eq("id", existing.id).select().single();
+        const { data, error } = await getDb().from("schedules").update({ shift_id }).eq("id", existing.id).select().single();
         return error ? err(error) : json(data);
       }
-      const { data, error } = await getDb().from("schedules").insert({ employee_id, work_date, shift_id, day_off }).select().single();
+      const { data, error } = await getDb().from("schedules").insert({ employee_id, work_date, shift_id }).select().single();
       return error ? err(error) : json(data);
     }
   );
