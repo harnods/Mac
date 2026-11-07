@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { mcpAuthorize } from "./actions";
 
 function AuthorizeForm() {
   const params = useSearchParams();
@@ -10,68 +10,27 @@ function AuthorizeForm() {
   const state = params.get("state") ?? "";
   const clientId = params.get("client_id") ?? "";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    form.set("redirect_uri", redirectUri);
+    form.set("client_id", clientId);
+    form.set("state", state);
 
-    try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { persistSession: false } }
-      );
-
-      const { data: auth, error: authErr } =
-        await supabase.auth.signInWithPassword({ email, password });
-      if (authErr || !auth.session) {
-        setError("Email atau password salah");
-        setLoading(false);
+    startTransition(async () => {
+      const result = await mcpAuthorize(form);
+      if (result.error) {
+        setError(result.error);
         return;
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", auth.user.id)
-        .single();
-
-      if (profile?.role !== "admin") {
-        setError("Hanya admin yang bisa menghubungkan MCP");
-        setLoading(false);
-        return;
+      if (result.redirect_url) {
+        window.location.href = result.redirect_url;
       }
-
-      const res = await fetch("/api/mcp/authorize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          access_token: auth.session.access_token,
-          refresh_token: auth.session.refresh_token,
-          user_id: auth.user.id,
-          redirect_uri: redirectUri,
-          client_id: clientId,
-          state,
-        }),
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        setError(result.error ?? "Gagal membuat kode otorisasi");
-        setLoading(false);
-        return;
-      }
-
-      window.location.href = result.redirect_url;
-    } catch {
-      setError("Terjadi kesalahan, coba lagi");
-      setLoading(false);
-    }
+    });
   }
 
   if (!redirectUri) {
@@ -90,24 +49,24 @@ function AuthorizeForm() {
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <input
+          name="email"
           type="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
           required
+          autoComplete="email"
           style={styles.input}
         />
         <input
+          name="password"
           type="password"
           placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           required
+          autoComplete="current-password"
           style={styles.input}
         />
         {error && <p style={styles.error}>{error}</p>}
-        <button type="submit" disabled={loading} style={styles.button}>
-          {loading ? "Menghubungkan..." : "Login & Hubungkan"}
+        <button type="submit" disabled={isPending} style={styles.button}>
+          {isPending ? "Menghubungkan..." : "Login & Hubungkan"}
         </button>
       </form>
 
