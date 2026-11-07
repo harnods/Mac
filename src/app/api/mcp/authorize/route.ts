@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     if (state) redirectUrl.searchParams.set("state", state);
 
     return Response.json({ redirect_url: redirectUrl.toString() });
-  } catch (e: any) {
-    return Response.json({ error: e.message }, { status: 500 });
+  } catch {
+    return Response.json({ error: "Internal server error" }, { status: 500 });
   }
 }

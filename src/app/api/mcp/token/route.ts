@@ -23,8 +23,8 @@ export async function POST(req: Request) {
     }
 
     return jsonError("unsupported_grant_type", 400);
-  } catch (e: any) {
-    return jsonError(e.message, 500);
+  } catch {
+    return jsonError("Internal server error", 500);
   }
 }
 
