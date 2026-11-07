@@ -3,10 +3,20 @@ import crypto from "crypto";
 const ALGORITHM = "aes-256-gcm";
 const CODE_TTL = 5 * 60 * 1000;
 
+function deriveKey(secret: string): Buffer {
+  return crypto.createHash("sha256").update(secret).digest();
+}
+
 function getSecret(): Buffer {
   const s = process.env.MCP_OAUTH_SECRET;
   if (!s) throw new Error("MCP_OAUTH_SECRET not set");
-  return crypto.createHash("sha256").update(s).digest();
+  return deriveKey(s);
+}
+
+function getOldSecret(): Buffer | null {
+  const s = process.env.MCP_OAUTH_SECRET_OLD;
+  if (!s) return null;
+  return deriveKey(s);
 }
 
 interface AuthCodePayload {
@@ -16,9 +26,10 @@ interface AuthCodePayload {
   redirect_uri: string;
   client_id: string;
   nonce: string;
+  exp: number;
 }
 
-export function encryptAuthCode(payload: Omit<AuthCodePayload, "nonce">): string {
+export function encryptAuthCode(payload: Omit<AuthCodePayload, "nonce" | "exp">): string {
   const key = getSecret();
   const iv = crypto.randomBytes(16);
   const nonce = crypto.randomBytes(16).toString("hex");
@@ -29,13 +40,7 @@ export function encryptAuthCode(payload: Omit<AuthCodePayload, "nonce">): string
   return Buffer.concat([iv, tag, enc]).toString("base64url");
 }
 
-export function decryptAuthCode(
-  code: string,
-  expectedRedirectUri: string,
-  expectedClientId: string,
-): AuthCodePayload {
-  const key = getSecret();
-  const buf = Buffer.from(code, "base64url");
+function tryDecrypt(key: Buffer, buf: Buffer): AuthCodePayload {
   if (buf.length < 33) throw new Error("Invalid auth code");
   const iv = buf.subarray(0, 16);
   const tag = buf.subarray(16, 32);
@@ -43,7 +48,24 @@ export function decryptAuthCode(
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(tag);
   const dec = decipher.update(enc) + decipher.final("utf8");
-  const payload = JSON.parse(dec);
+  return JSON.parse(dec);
+}
+
+export function decryptAuthCode(
+  code: string,
+  expectedRedirectUri: string,
+  expectedClientId: string,
+): AuthCodePayload {
+  const buf = Buffer.from(code, "base64url");
+
+  let payload: AuthCodePayload;
+  try {
+    payload = tryDecrypt(getSecret(), buf);
+  } catch {
+    const oldKey = getOldSecret();
+    if (!oldKey) throw new Error("Invalid auth code");
+    payload = tryDecrypt(oldKey, buf);
+  }
 
   if (payload.exp < Date.now()) throw new Error("Auth code expired");
   if (payload.redirect_uri !== expectedRedirectUri) {

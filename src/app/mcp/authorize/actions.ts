@@ -3,21 +3,7 @@
 import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { encryptAuthCode, isAllowedRedirectUri } from "@/lib/mcp/oauth";
-
-const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 15 * 60 * 1000;
-
-function isRateLimited(key: string): boolean {
-  const now = Date.now();
-  const entry = loginAttempts.get(key);
-  if (!entry || now > entry.resetAt) {
-    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count++;
-  return entry.count > MAX_ATTEMPTS;
-}
+import { rateLimitPersistent } from "@/lib/mcp/rate-limit";
 
 export async function mcpAuthorize(formData: FormData): Promise<{
   redirect_url?: string;
@@ -36,7 +22,8 @@ export async function mcpAuthorize(formData: FormData): Promise<{
   const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   const rateLimitKey = `${ip}:${email}`;
 
-  if (isRateLimited(rateLimitKey)) {
+  const { limited } = await rateLimitPersistent(rateLimitKey, 5, 15 * 60 * 1000);
+  if (limited) {
     return { error: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit." };
   }
 
