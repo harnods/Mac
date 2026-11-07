@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { getDb, paginate } from "./db";
+import { paginate } from "./db";
 
 function txt(text: string) {
   return { content: [{ type: "text" as const, text }] };
@@ -14,11 +15,13 @@ function err(e: { message: string }) {
   return txt(`Error: ${e.message}`);
 }
 
-export function createMachitoriServer() {
+export function createMachitoriServer(db: SupabaseClient) {
   const server = new McpServer({
     name: "machitori",
     version: "1.0.0",
   });
+
+  const getDb = () => db;
 
   // ── Employees ────────────────────────────────────────────────────────
 
