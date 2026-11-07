@@ -106,6 +106,8 @@ export async function updateSession(request: NextRequest) {
     pathname === "/apply" ||
     pathname.startsWith("/apply/") ||
     pathname === "/landing" ||
+    pathname.startsWith("/mcp/") ||
+    pathname.startsWith("/.well-known/") ||
     isInfra;
 
   // Crew paths reached on a non-crew host still use the crew login.
