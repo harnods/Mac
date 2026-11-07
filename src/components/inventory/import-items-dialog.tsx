@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   Dialog,
   DialogContent,
@@ -65,43 +65,74 @@ const SKIP = "__skip__";
 
 // ─── File parsing ─────────────────────────────────────────────────────────────
 
-function readFile(file: File): Promise<XLSX.WorkBook> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        resolve(XLSX.read(data, { type: "array" }));
-      } catch {
-        reject(new Error("Failed to parse file. Make sure it's a valid Excel or CSV file."));
-      }
-    };
-    reader.onerror = () => reject(new Error("Failed to read file."));
-    reader.readAsArrayBuffer(file);
-  });
-}
+async function readAndExtract(file: File): Promise<FileData | string> {
+  const ext = file.name.split(".").pop()?.toLowerCase();
 
-function extractFileData(wb: XLSX.WorkBook): FileData | string {
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const raw: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  if (ext === "csv") {
+    const text = await file.text();
+    const csvRows = text
+      .split(/\r?\n/)
+      .map((line) => {
+        const cells: string[] = [];
+        let cur = "";
+        let inQuote = false;
+        for (let j = 0; j < line.length; j++) {
+          const ch = line[j];
+          if (inQuote) {
+            if (ch === '"' && line[j + 1] === '"') { cur += '"'; j++; }
+            else if (ch === '"') inQuote = false;
+            else cur += ch;
+          } else {
+            if (ch === '"') inQuote = true;
+            else if (ch === ",") { cells.push(cur.trim()); cur = ""; }
+            else cur += ch;
+          }
+        }
+        cells.push(cur.trim());
+        return cells;
+      })
+      .filter((row) => row.some((c) => c !== ""));
+    if (csvRows.length === 0) return "The file appears to be empty.";
+    const tsvText = csvRows.map((r) => r.join("\t")).join("\n");
+    return parsePastedText(tsvText);
+  }
+
+  const buffer = await file.arrayBuffer();
+  const wb = new ExcelJS.Workbook();
+  try {
+    await wb.xlsx.load(buffer);
+  } catch {
+    return "Failed to parse file. Make sure it's a valid Excel or CSV file.";
+  }
+
+  const ws = wb.worksheets[0];
+  if (!ws || ws.rowCount === 0) return "The file appears to be empty.";
+
+  const raw: unknown[][] = [];
+  ws.eachRow({ includeEmpty: false }, (row) => {
+    const vals = Array.isArray(row.values)
+      ? (row.values as unknown[]).slice(1)
+      : [];
+    raw.push(vals);
+  });
 
   let headerIdx = -1;
   for (let i = 0; i < Math.min(10, raw.length); i++) {
-    if ((raw[i] as unknown[]).some((c) => String(c).trim() !== "")) {
+    if (raw[i].some((c) => String(c ?? "").trim() !== "")) {
       headerIdx = i;
       break;
     }
   }
   if (headerIdx === -1) return "The file appears to be empty.";
 
-  const headers = (raw[headerIdx] as unknown[])
-    .map((h) => String(h).trim())
+  const headers = raw[headerIdx]
+    .map((h) => String(h ?? "").trim())
     .filter(Boolean);
   if (headers.length === 0) return "No columns found in the header row.";
 
   const rows: string[][] = [];
   for (let i = headerIdx + 1; i < raw.length; i++) {
-    const r = raw[i] as unknown[];
+    const r = raw[i];
     const cells = headers.map((_, ci) => String(r[ci] ?? "").trim());
     if (cells.some((c) => c !== "")) rows.push(cells);
   }
@@ -233,8 +264,7 @@ export function ImportItemsDialog({ itemTypeSlug, open, onOpenChange }: Props) {
 
   const processFile = useCallback(async (file: File) => {
     try {
-      const wb = await readFile(file);
-      const result = extractFileData(wb);
+      const result = await readAndExtract(file);
       if (typeof result === "string") { toast.error(result); return; }
       setFileData(result);
       setMapping(guessMapping(result.headers, config.hasCategories));
