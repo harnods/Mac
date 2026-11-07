@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const grantType = params.get("grant_type");
 
     if (grantType === "authorization_code") {
-      return handleAuthorizationCode(params.get("code"));
+      return handleAuthorizationCode(params);
     }
 
     if (grantType === "refresh_token") {
@@ -21,10 +21,16 @@ export async function POST(req: Request) {
   }
 }
 
-async function handleAuthorizationCode(code: string | null) {
-  if (!code) return jsonError("Missing code", 400);
+async function handleAuthorizationCode(params: URLSearchParams) {
+  const code = params.get("code");
+  const redirectUri = params.get("redirect_uri");
+  const clientId = params.get("client_id");
 
-  const payload = decryptAuthCode(code);
+  if (!code) return jsonError("Missing code", 400);
+  if (!redirectUri) return jsonError("Missing redirect_uri", 400);
+  if (!clientId) return jsonError("Missing client_id", 400);
+
+  const payload = decryptAuthCode(code, redirectUri, clientId);
 
   return Response.json({
     access_token: payload.access_token,

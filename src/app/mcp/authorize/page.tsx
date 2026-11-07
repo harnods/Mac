@@ -8,6 +8,7 @@ function AuthorizeForm() {
   const params = useSearchParams();
   const redirectUri = params.get("redirect_uri") ?? "";
   const state = params.get("state") ?? "";
+  const clientId = params.get("client_id") ?? "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,6 +55,7 @@ function AuthorizeForm() {
           refresh_token: auth.session.refresh_token,
           user_id: auth.user.id,
           redirect_uri: redirectUri,
+          client_id: clientId,
           state,
         }),
       });

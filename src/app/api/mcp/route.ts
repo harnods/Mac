@@ -4,12 +4,16 @@ import {
 import { createClient } from "@supabase/supabase-js";
 import { createMachitoriServer } from "@/lib/mcp/server";
 import { getDbForUser } from "@/lib/mcp/db";
+import { getMcpCorsOrigin } from "@/lib/mcp/oauth";
 
-function jsonResponse(body: object, status: number) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+function jsonResponse(body: object, status: number, req?: Request) {
+  const origin = getMcpCorsOrigin(req?.headers.get("origin") ?? null);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Vary"] = "Origin";
+  }
+  return new Response(JSON.stringify(body), { status, headers });
 }
 
 async function authenticate(req: Request) {
@@ -34,9 +38,19 @@ async function authenticate(req: Request) {
   return { user: data.user, token };
 }
 
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = getMcpCorsOrigin(req.headers.get("origin") ?? null);
+  const headers: Record<string, string> = {};
+  if (origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Vary"] = "Origin";
+  }
+  return headers;
+}
+
 async function handleMcp(req: Request): Promise<Response> {
   const auth = await authenticate(req);
-  if ("error" in auth) return jsonResponse({ error: auth.error }, 401);
+  if ("error" in auth) return jsonResponse({ error: auth.error }, 401, req);
 
   const db = getDbForUser(auth.token);
   const server = createMachitoriServer(db);
@@ -48,7 +62,12 @@ async function handleMcp(req: Request): Promise<Response> {
   await server.connect(transport);
 
   try {
-    return await transport.handleRequest(req);
+    const response = await transport.handleRequest(req);
+    const extra = corsHeaders(req);
+    for (const [k, v] of Object.entries(extra)) {
+      response.headers.set(k, v);
+    }
+    return response;
   } finally {
     await transport.close();
     await server.close();
@@ -67,14 +86,17 @@ export async function DELETE(req: Request) {
   return handleMcp(req);
 }
 
-export async function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
-      "Access-Control-Allow-Headers":
-        "Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version",
-    },
-  });
+export async function OPTIONS(req: Request) {
+  const origin = getMcpCorsOrigin(req.headers.get("origin") ?? null);
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, Mcp-Session-Id, MCP-Protocol-Version",
+    "Access-Control-Max-Age": "86400",
+  };
+  if (origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Vary"] = "Origin";
+  }
+  return new Response(null, { status: 204, headers });
 }
