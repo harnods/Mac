@@ -1,8 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { decryptAuthCode } from "@/lib/mcp/oauth";
+import { rateLimit, getClientIp } from "@/lib/mcp/rate-limit";
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    const { limited } = rateLimit(`token:${ip}`, 20, 60_000);
+    if (limited) {
+      return Response.json({ error: "Too many requests" }, { status: 429 });
+    }
+
     const body = await req.text();
     const params = new URLSearchParams(body);
     const grantType = params.get("grant_type");

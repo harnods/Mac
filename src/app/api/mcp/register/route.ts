@@ -1,7 +1,14 @@
 import crypto from "crypto";
 import { isAllowedRedirectUri } from "@/lib/mcp/oauth";
+import { rateLimit, getClientIp } from "@/lib/mcp/rate-limit";
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  const { limited } = rateLimit(`dcr:${ip}`, 10, 60_000);
+  if (limited) {
+    return Response.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   let body: any;
   try {
     body = await req.json();

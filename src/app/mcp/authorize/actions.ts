@@ -1,13 +1,29 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { encryptAuthCode, isAllowedRedirectUri } from "@/lib/mcp/oauth";
+
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 15 * 60 * 1000;
+
+function isRateLimited(key: string): boolean {
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > MAX_ATTEMPTS;
+}
 
 export async function mcpAuthorize(formData: FormData): Promise<{
   redirect_url?: string;
   error?: string;
 }> {
-  const email = String(formData.get("email") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const redirectUri = String(formData.get("redirect_uri") ?? "").trim();
   const clientId = String(formData.get("client_id") ?? "").trim();
@@ -15,6 +31,14 @@ export async function mcpAuthorize(formData: FormData): Promise<{
 
   if (!email || !password) return { error: "Email dan password wajib diisi" };
   if (!redirectUri) return { error: "Missing redirect_uri" };
+
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const rateLimitKey = `${ip}:${email}`;
+
+  if (isRateLimited(rateLimitKey)) {
+    return { error: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit." };
+  }
 
   if (!isAllowedRedirectUri(redirectUri)) {
     return { error: "Unauthorized redirect_uri" };

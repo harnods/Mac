@@ -19,7 +19,7 @@ export async function setViewAsRole(role: string | null): Promise<Result> {
   if (!role || isSuperRole(role)) {
     jar.delete(VIEW_AS_COOKIE);
   } else {
-    jar.set(VIEW_AS_COOKIE, role, { httpOnly: true, sameSite: "lax", path: "/" });
+    jar.set(VIEW_AS_COOKIE, role, { httpOnly: true, secure: true, sameSite: "lax", path: "/" });
   }
   revalidatePath("/", "layout");
   return { ok: true };
