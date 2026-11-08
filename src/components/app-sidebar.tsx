@@ -65,6 +65,7 @@ export const MENU: MenuNode[] = [
       { label: "Purchase requests", href: "/purchasing/requests" },
       { label: "Purchases", href: "/purchasing/purchases" },
       { label: "Suppliers", href: "/purchasing/suppliers" },
+      { label: "Telegram", href: "/purchasing/telegram", perm: P.PURCHASING_PURCHASE },
     ],
   },
   { label: "Sales", icon: Calculator, href: "/sales" },

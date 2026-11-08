@@ -38,6 +38,14 @@ const getPermissionsForRole = unstable_cache(
   { tags: ["role-permissions"], revalidate: 60 },
 );
 
+/**
+ * Permissions for a role, for callers without a web session (e.g. the Telegram
+ * bot, which resolves the Telegram user → profile → role itself).
+ */
+export async function permissionsForRole(role: string): Promise<string[]> {
+  return getPermissionsForRole(role);
+}
+
 // The signed-in user's real profile, ignoring any "view as" preview.
 export const getRealProfile = cache(async (): Promise<ProfileWithPermissions | null> => {
   const supabase = await createClient();

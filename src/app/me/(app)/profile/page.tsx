@@ -5,6 +5,9 @@ import { getCurrentProfile } from "@/lib/auth";
 import { getMyProfile } from "@/app/actions/crew-self";
 import { formatDate } from "@/lib/format";
 import { CrewLogoutButton } from "@/components/crew/crew-logout-button";
+import { TelegramLinkButton } from "@/components/telegram/telegram-link-button";
+import { createClient } from "@/lib/supabase/server";
+import { can, P } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +48,19 @@ export default async function MeProfilePage() {
 
   const waDigits = p.phone?.replace(/\D/g, "");
 
+  // Telegram purchasing bot — only for people who can create purchase requests.
+  const canUseBot = can(profile, P.PURCHASING_REQUEST);
+  let telegramLabel: string | null = null;
+  if (canUseBot && profile) {
+    const supabase = await createClient();
+    const { data: tgAcct } = await supabase
+      .from("telegram_accounts")
+      .select("telegram_username, telegram_name")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    if (tgAcct) telegramLabel = tgAcct.telegram_username ? `@${tgAcct.telegram_username}` : (tgAcct.telegram_name ?? "Telegram");
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-lg font-semibold tracking-tight">Profile</h1>
@@ -67,6 +83,17 @@ export default async function MeProfilePage() {
         <Row label="Gender" value={cap(p.gender)} />
         <Row label="Address" value={p.address} />
       </Section>
+
+      {canUseBot && (
+        <Section title="Telegram">
+          <div className="py-2 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Hubungkan Telegram untuk membuat purchase request lewat chat bot.
+            </p>
+            <TelegramLinkButton linkedAs={telegramLabel} />
+          </div>
+        </Section>
+      )}
 
       <Section title="Employment info">
         <Row label="Department" value={p.department} />
