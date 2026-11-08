@@ -63,7 +63,7 @@ export type UsedInRecipeRow = {
   product: { id: string; name: string; type: string; unit: UnitCode } | null;
 };
 
-type Tab = "prep" | "stock" | "recipes" | "conversions";
+type Tab = "prep" | "stock" | "recipes" | "conversions" | "suppliers";
 
 export function ItemUsageTabs({
   ledger,
@@ -80,12 +80,15 @@ export function ItemUsageTabs({
   showReserved = true,
   units = [],
   prepOrdersSlot,
+  suppliersSlot,
 }: {
   ledger: LedgerRow[];
   itemUnit: UnitCode;
   usedInRecipes?: UsedInRecipeRow[];
   /** When provided, adds a leading "Prep orders" tab (prep items only). */
   prepOrdersSlot?: React.ReactNode;
+  /** When provided, adds a trailing "Suppliers" tab (ingredients only). */
+  suppliersSlot?: React.ReactNode;
   unitConversions?: UnitConversionRow[];
   itemId?: string;
   canEditConversions?: boolean;
@@ -100,6 +103,7 @@ export function ItemUsageTabs({
   const hasRecipeTab = usedInRecipes !== undefined;
   const hasConversionTab = unitConversions !== undefined && itemId !== undefined;
   const hasPrepTab = prepOrdersSlot !== undefined;
+  const hasSuppliersTab = suppliersSlot !== undefined;
   const [tab, setTab] = useState<Tab>(hasPrepTab ? "prep" : "stock");
 
   const movementsProps = {
@@ -107,7 +111,7 @@ export function ItemUsageTabs({
     unitConversions, canManualAdjust, showReserved,
   };
 
-  if (!hasRecipeTab && !hasConversionTab && !hasPrepTab) {
+  if (!hasRecipeTab && !hasConversionTab && !hasPrepTab && !hasSuppliersTab) {
     return (
       <div className="space-y-2">
         <h2 className="text-sm font-medium">Stock movements</h2>
@@ -138,11 +142,18 @@ export function ItemUsageTabs({
               Unit conversions
             </TabButton>
           )}
+          {hasSuppliersTab && (
+            <TabButton active={tab === "suppliers"} onClick={() => setTab("suppliers")}>
+              Suppliers
+            </TabButton>
+          )}
         </div>
       </div>
 
       {tab === "prep" && hasPrepTab ? (
         <>{prepOrdersSlot}</>
+      ) : tab === "suppliers" && hasSuppliersTab ? (
+        <>{suppliersSlot}</>
       ) : tab === "stock" ? (
         <StockMovementsTable {...movementsProps} />
       ) : tab === "recipes" && hasRecipeTab ? (

@@ -89,6 +89,16 @@ export type SupplierWithPics = Supplier & {
   supplier_pics: SupplierPic[];
 };
 
+/** Link between an ingredient and a supplier it can be bought from. */
+export type ItemSupplier = {
+  item_id: string;
+  supplier_id: string;
+  is_primary: boolean;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ItemWithCategory = Item & {
   categories: Pick<Category, "id" | "name"> | null;
   location?: Pick<Location, "id" | "name"> | null;

@@ -45,7 +45,10 @@ export function ItemTableRow({
   isSelected = false,
   onToggleSelect,
   hasRecipe,
+  onAddSupplier,
 }: {
+  /** When set, the kebab menu shows "Add supplier" (ingredients only). */
+  onAddSupplier?: () => void;
   item: ItemWithCategory;
   isAdmin: boolean;
   itemTypeSlug: string;
@@ -216,6 +219,9 @@ export function ItemTableRow({
                 <DropdownMenuItem asChild>
                   <Link href={`/inventory/${rowSlug}/${item.id}/edit`}>Edit</Link>
                 </DropdownMenuItem>
+              )}
+              {onAddSupplier && (
+                <DropdownMenuItem onSelect={onAddSupplier}>Add supplier</DropdownMenuItem>
               )}
               {(otherUnits.length > 0 || viewUnit !== item.unit) && (
                 <>

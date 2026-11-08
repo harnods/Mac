@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { can, canViewCost, itemWritePermission, itemReadPermission, canAccessRecipeStation } from "@/lib/permissions";
+import { can, canViewCost, itemWritePermission, itemReadPermission, canAccessRecipeStation, canManageItemSuppliers } from "@/lib/permissions";
 import { ItemStockSection } from "@/components/inventory/item-stock-section";
 import { ItemPhotoThumbnail } from "@/components/inventory/item-photo-thumbnail";
 import { LinkedRecipeIngredientsTable } from "@/components/inventory/linked-recipe-ingredients-table";
@@ -15,7 +15,8 @@ import { DetailBackButton } from "@/components/employees/detail-back-button";
 import { Badge } from "@/components/ui/badge";
 import { ItemUsageTabs, type LedgerRow, type UsedInRecipeRow } from "@/components/inventory/item-usage-tabs";
 import type { UnitConversionRow } from "@/components/inventory/unit-conversions-panel";
-import type { ItemWithCategory } from "@/lib/supabase/types";
+import { ItemSuppliersPanel, type ItemSupplierRow } from "@/components/inventory/item-suppliers-panel";
+import type { ItemWithCategory, Updater } from "@/lib/supabase/types";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,8 @@ export default async function ItemDetailPage({
     { data: recipeData },
     { data: usageData },
     { data: conversionData },
+    { data: itemSuppliersData },
+    { data: allSuppliersData },
   ] = await Promise.all([
     getCurrentProfile(),
     supabase
@@ -81,6 +84,15 @@ export default async function ItemDetailPage({
           .select("id, from_unit, factor, to_unit")
           .eq("item_id", id)
           .order("from_unit")
+      : Promise.resolve({ data: [] }),
+    config.dbType === 'ingredient'
+      ? supabase
+          .from("item_suppliers")
+          .select("supplier_id, is_primary, created_at, updated_at, supplier:suppliers(id, name, supplier_pics(name, whatsapp, created_at)), updater:profiles!updated_by(full_name,email)")
+          .eq("item_id", id)
+      : Promise.resolve({ data: [] }),
+    config.dbType === 'ingredient'
+      ? supabase.from("suppliers").select("id, name").order("name")
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -128,6 +140,29 @@ export default async function ItemDetailPage({
   type RecipeIngredient = { id: string; quantity: number; unit: string; item: { id: string; name: string; deleted_at: string | null } | null };
   type LinkedRecipe = { id: string; name: string; recipe_items: RecipeIngredient[] };
   const linkedRecipe = recipeData as LinkedRecipe | null;
+
+  // Suppliers tab (ingredients): primary first, then by name.
+  const itemSuppliers: ItemSupplierRow[] = ((itemSuppliersData ?? []) as unknown as {
+    supplier_id: string;
+    is_primary: boolean;
+    updated_at: string;
+    supplier: { id: string; name: string; supplier_pics: { name: string; whatsapp: string | null; created_at: string }[] } | null;
+    updater: Updater | null;
+  }[])
+    .filter((r) => r.supplier)
+    .map((r) => {
+      const pics = [...r.supplier!.supplier_pics].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      return {
+        supplierId: r.supplier_id,
+        name: r.supplier!.name,
+        isPrimary: r.is_primary,
+        pic: pics[0] ? { name: pics[0].name, whatsapp: pics[0].whatsapp } : null,
+        updatedAt: r.updated_at,
+        updaterLabel: r.updater ? updaterName(r.updater) : null,
+      };
+    })
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.name.localeCompare(b.name));
+  const allSuppliers = (allSuppliersData ?? []) as { id: string; name: string }[];
 
   const onHand = Number(item.on_hand);
   const reserved = Number(item.reserved);
@@ -253,6 +288,16 @@ export default async function ItemDetailPage({
           canManualAdjust={isAdmin && (config.dbType === "ingredient" || config.dbType === "supply")}
           showReserved={config.stockMode === "full"}
           units={unitCodes}
+          suppliersSlot={
+            config.dbType === "ingredient" ? (
+              <ItemSuppliersPanel
+                itemId={item.id}
+                rows={itemSuppliers}
+                suppliers={allSuppliers}
+                canEdit={canManageItemSuppliers(profile)}
+              />
+            ) : undefined
+          }
         />
       )}
     </div>

@@ -140,6 +140,15 @@ export function can(
  * item's `type` column ('ingredient' | 'supply' | 'prep_item' | 'product').
  * ('supply' surfaces to users as "Assets".)
  */
+/**
+ * Linking suppliers to ingredients is allowed from the ingredient side
+ * (ingredients:write) or the purchasing side (anyone who can request/purchase).
+ * Mirrors the RLS policy on public.item_suppliers.
+ */
+export function canManageItemSuppliers(profile: { permissions: string[] } | null | undefined): boolean {
+  return can(profile, P.INGREDIENTS_WRITE) || can(profile, P.PURCHASING_PURCHASE) || can(profile, P.PURCHASING_REQUEST);
+}
+
 export function itemWritePermission(dbType?: string | null): PermissionKey {
   switch (dbType) {
     case 'supply':    return P.ASSETS_WRITE;

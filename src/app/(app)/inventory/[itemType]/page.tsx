@@ -86,7 +86,7 @@ export default async function ItemTypePage({
     if (hidden.length) query = query.not("id", "in", `(${hidden.join(",")})`);
   }
 
-  const [{ data: items, count }, { data: categories }, { data: locationsData }] = await Promise.all([
+  const [{ data: items, count }, { data: categories }, { data: locationsData }, { data: suppliersData }] = await Promise.all([
     query,
     config.hasCategories
       ? supabase.from("categories").select("id,name").eq("type", config.dbType).order("name")
@@ -94,6 +94,10 @@ export default async function ItemTypePage({
     config.dbType === "supply"
       ? supabase.from("locations").select("id,name").order("name")
       : Promise.resolve({ data: [] }),
+    // Supplier picker for "Add supplier" (row + bulk) — ingredients only.
+    config.dbType === "ingredient" && isAdmin
+      ? supabase.from("suppliers").select("id,name").order("name")
+      : Promise.resolve({ data: null }),
   ]);
 
   const rawList = (items ?? []) as ItemWithCategory[];
@@ -187,6 +191,7 @@ export default async function ItemTypePage({
             showSellable={config.showSellable}
             showDefaultCost={showDefaultCost}
             linkedRecipeProductIds={config.dbType === "product" ? linkedRecipeProductIds : undefined}
+            suppliers={(suppliersData as { id: string; name: string }[] | null) ?? undefined}
           />
 
           <div className="grid gap-3 md:hidden">

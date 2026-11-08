@@ -12,9 +12,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Pencil, X } from "lucide-react";
+import { Trash2, Pencil, X, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { ItemTableRow } from "./item-table-row";
+import { AddSupplierDialog, type SupplierOption } from "@/components/purchasing/add-supplier-dialog";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { getItemColumns } from "@/lib/item-columns";
 import { bulkDeleteItems, bulkUpdateItems } from "@/app/actions/inventory";
@@ -38,15 +39,19 @@ type Props = {
   showSellable?: boolean;
   showDefaultCost?: boolean;
   linkedRecipeProductIds?: Set<string>;
+  /** Ingredients only: enables "Add supplier" per row and in bulk. */
+  suppliers?: SupplierOption[];
 };
 
 const NONE = "__none__";
 
 export function ItemBulkTable({
-  items, categories, locations = [], isAdmin, itemTypeSlug, showPhoto = false, showBrand = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds,
+  items, categories, locations = [], isAdmin, itemTypeSlug, showPhoto = false, showBrand = false, showCategory, showLocation = false, stockMode, showCost, showSellable, showDefaultCost, linkedRecipeProductIds, suppliers,
 }: Props) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Items targeted by the "Add supplier" dialog: one row (kebab) or the bulk selection.
+  const [supplierTarget, setSupplierTarget] = useState<{ ids: string[]; bulk: boolean } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editCategoryId, setEditCategoryId] = useState<string>("");
@@ -131,6 +136,11 @@ export function ItemBulkTable({
                 <Pencil className="size-3.5" /> Edit
               </Button>
             )}
+            {suppliers && (
+              <Button size="sm" variant="outline" onClick={() => setSupplierTarget({ ids: [...selected], bulk: true })}>
+                <Truck className="size-3.5" /> Add supplier
+              </Button>
+            )}
             <Button size="sm" variant="outline" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="size-3.5" /> Delete
             </Button>
@@ -200,11 +210,29 @@ export function ItemBulkTable({
                 isSelected={selected.has(item.id)}
                 onToggleSelect={isAdmin ? () => toggleOne(item.id) : undefined}
                 hasRecipe={linkedRecipeProductIds ? linkedRecipeProductIds.has(item.id) : undefined}
+                onAddSupplier={suppliers && isAdmin ? () => setSupplierTarget({ ids: [item.id], bulk: false }) : undefined}
               />
             ))}
           </TableBody>
         </Table>
       </div>
+
+      {/* Add supplier — single row (with primary toggle) or bulk (add only) */}
+      {suppliers && (
+        <AddSupplierDialog
+          open={!!supplierTarget}
+          onOpenChange={(o) => { if (!o) setSupplierTarget(null); }}
+          itemIds={supplierTarget?.ids ?? []}
+          suppliers={suppliers}
+          allowPrimary={supplierTarget?.bulk === false}
+          title={
+            supplierTarget?.bulk
+              ? `Add supplier to ${supplierTarget.ids.length} ingredient${supplierTarget.ids.length !== 1 ? "s" : ""}`
+              : "Add supplier"
+          }
+          onDone={() => { if (supplierTarget?.bulk) setSelected(new Set()); }}
+        />
+      )}
 
       {/* Bulk delete dialog */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
