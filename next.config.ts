@@ -4,7 +4,11 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // geolocation=(self): allow the app's OWN origin to use the browser
+  // geolocation API (attendance geofence / require_location depends on it);
+  // third-party iframes stay blocked. "geolocation=()" disabled it for
+  // everyone — including us — which broke clock in/out.
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(self)" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
   {
     key: "Strict-Transport-Security",
