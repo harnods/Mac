@@ -88,7 +88,7 @@ export default async function MeProfilePage() {
         <Section title="Telegram">
           <div className="py-2 space-y-2">
             <p className="text-sm text-muted-foreground">
-              Hubungkan Telegram untuk membuat purchase request lewat chat bot.
+              Hubungkan Telegram supaya bisa membuat purchase request di grup Telegram Purchase Requests.
             </p>
             <TelegramLinkButton linkedAs={telegramLabel} />
           </div>

@@ -8,6 +8,19 @@ import { formatNum } from "@/lib/units";
 import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 
+/*
+ * Flow
+ * ────
+ * Employees post their shopping list in the Purchase Requests GROUP
+ * (telegram_settings.pr_chat_id). The bot replies to that message with the
+ * parsed items + [✅ Kirim] [❌ Batal]; only the requester can press them.
+ * On Kirim the confirmation message becomes the final per-supplier summary
+ * and each supplier's group gets its own list.
+ *
+ * DMs are only used to link an account (/start <code> from the web app).
+ * Supplier groups are output-only — messages there are ignored.
+ */
+
 // ─── Telegram update shapes (only the fields we use) ─────────────────────────
 
 type TgUser = { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string };
@@ -31,15 +44,18 @@ export type TgUpdate = {
 const MAX_TEXT = 2000;
 const MAX_PARSES_PER_HOUR = 30;
 
-const HELP = [
-  "Kirim daftar belanja dalam satu pesan, contoh:",
+const GROUP_HELP = [
+  "Tulis daftar belanja di grup ini dalam satu pesan, contoh:",
   "<i>almond 2 kg, ayam 5 kg, susu UHT 3 karton</i>",
   "",
-  "Saya akan mencocokkan ke daftar ingredient, lalu minta konfirmasi sebelum dikirim.",
-  "Setelah dikirim, request masuk ke grup Purchase Requests dan dibagi ke grup supplier masing-masing.",
+  "Bot akan membalas dengan daftar barang + tombol ✅ Kirim / ❌ Batal (hanya pengirim yang bisa menekan).",
+  "Setelah dikirim, barang otomatis diteruskan ke grup supplier masing-masing.",
   "",
-  "/batal — batalkan request yang belum dikirim",
+  "/batal — batalkan request kamu yang belum dikirim",
 ].join("\n");
+
+const LINK_HELP =
+  "Akun Telegram kamu belum terhubung ke Machitori.\nBuka Machitori → <b>Profile</b> → <b>Hubungkan Telegram</b>, lalu tekan Start di chat bot.";
 
 function db() {
   return createServiceClient();
@@ -58,6 +74,15 @@ function qtyText(qty: number, unit: string): string {
   return `${formatNum(qty)} ${esc(unit)}`;
 }
 
+function displayName(u: TgUser): string {
+  return [u.first_name, u.last_name].filter(Boolean).join(" ") || (u.username ? `@${u.username}` : "Karyawan");
+}
+
+async function prChatId(): Promise<number | null> {
+  const { data } = await db().from("telegram_settings").select("pr_chat_id").eq("id", 1).maybeSingle();
+  return data?.pr_chat_id != null ? Number(data.pr_chat_id) : null;
+}
+
 // ─── Entry point ─────────────────────────────────────────────────────────────
 
 export async function handleUpdate(update: TgUpdate): Promise<void> {
@@ -74,20 +99,23 @@ export async function handleUpdate(update: TgUpdate): Promise<void> {
   if (!msg) return;
   if (msg.migrate_to_chat_id) return migrateChat(msg.chat.id, msg.migrate_to_chat_id, msg.chat);
   if (msg.chat.type === "private") return handlePrivate(msg);
-  // Group messages: just keep the group's title fresh.
+
+  // Group message: keep the title fresh; only the Purchase Requests group takes requests.
   await rememberChat(msg.chat, true);
+  if (msg.chat.id === (await prChatId())) return handlePrGroupMessage(msg);
 }
 
 // ─── Groups ──────────────────────────────────────────────────────────────────
 
 async function rememberChat(chat: TgChat, isMember: boolean) {
   if (chat.type === "private") return;
-  await db()
+  const { error } = await db()
     .from("telegram_chats")
     .upsert(
       { chat_id: chat.id, title: chat.title ?? null, type: chat.type, is_member: isMember, updated_at: new Date().toISOString() },
       { onConflict: "chat_id" },
     );
+  if (error) console.error("[telegram] rememberChat failed", error);
 }
 
 async function handleMembership(u: TgChatMemberUpdated) {
@@ -113,7 +141,7 @@ async function migrateChat(oldId: number, newId: number, chat: TgChat) {
   await supabase.from("telegram_chats").update({ is_member: false }).eq("chat_id", oldId);
 }
 
-// ─── Private chat ────────────────────────────────────────────────────────────
+// ─── Requester ───────────────────────────────────────────────────────────────
 
 type Requester = { profileId: string; name: string };
 
@@ -124,12 +152,7 @@ async function requesterFor(user: TgUser): Promise<Requester | { error: string }
     .select("profile_id")
     .eq("telegram_user_id", user.id)
     .maybeSingle();
-  if (!acct) {
-    return {
-      error:
-        "Akun Telegram kamu belum terhubung ke Machitori.\nBuka Machitori → <b>Profile</b> → <b>Hubungkan Telegram</b>, lalu ikuti link-nya.",
-    };
-  }
+  if (!acct) return { error: LINK_HELP };
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, role, full_name, email")
@@ -146,126 +169,32 @@ async function requesterFor(user: TgUser): Promise<Requester | { error: string }
   };
 }
 
+function parseCommand(text: string): { cmd: string; args: string[] } | null {
+  if (!text.startsWith("/")) return null;
+  const [command, ...args] = text.split(/\s+/);
+  return { cmd: command.toLowerCase().replace(/@\w+$/, ""), args };
+}
+
+// ─── Private chat: account linking only ──────────────────────────────────────
+
 async function handlePrivate(msg: TgMessage) {
   const chatId = msg.chat.id;
   const user = msg.from;
   if (!user || user.is_bot) return;
   const text = (msg.text ?? "").trim();
-  if (!text) {
-    await sendMessage(chatId, "Kirim daftar belanja dalam bentuk teks ya.");
-    return;
-  }
+  const command = parseCommand(text);
 
-  const [command, ...args] = text.split(/\s+/);
-  const cmd = command.toLowerCase().replace(/@\w+$/, "");
-
-  if (cmd === "/start") {
-    if (args[0]) return linkAccount(chatId, user, args[0]);
-    const r = await requesterFor(user);
-    await sendMessage(chatId, "error" in r ? r.error : `Halo ${esc(r.name)}! 👋\n\n${HELP}`);
-    return;
-  }
-  if (cmd === "/help" || cmd === "/bantuan") {
-    await sendMessage(chatId, HELP);
-    return;
-  }
-  if (cmd === "/batal" || cmd === "/cancel") {
-    const { data } = await db()
-      .from("telegram_pr_drafts")
-      .update({ status: "cancelled" })
-      .eq("telegram_user_id", user.id)
-      .eq("status", "pending")
-      .select("id");
-    await sendMessage(chatId, data?.length ? "Request yang belum dikirim sudah dibatalkan." : "Tidak ada request yang menunggu konfirmasi.");
-    return;
-  }
-  if (cmd.startsWith("/")) {
-    await sendMessage(chatId, HELP);
-    return;
-  }
+  if (command?.cmd === "/start" && command.args[0]) return linkAccount(chatId, user, command.args[0]);
 
   const r = await requesterFor(user);
   if ("error" in r) {
     await sendMessage(chatId, r.error);
     return;
   }
-  if (text.length > MAX_TEXT) {
-    await sendMessage(chatId, `Pesan terlalu panjang (maks ${MAX_TEXT} karakter). Bagi jadi beberapa request.`);
-    return;
-  }
-
-  const supabase = db();
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await supabase
-    .from("telegram_pr_drafts")
-    .select("id", { count: "exact", head: true })
-    .eq("telegram_user_id", user.id)
-    .gte("created_at", since);
-  if ((count ?? 0) >= MAX_PARSES_PER_HOUR) {
-    await sendMessage(chatId, "Terlalu banyak request dalam 1 jam terakhir. Coba lagi nanti.");
-    return;
-  }
-
-  await sendTyping(chatId);
-  let parsed: Awaited<ReturnType<typeof parsePurchaseText>>;
-  try {
-    parsed = await parsePurchaseText(text);
-  } catch (e) {
-    console.error("[telegram] parse failed", e);
-    await sendMessage(chatId, "Maaf, gagal membaca pesan kamu. Coba lagi sebentar lagi.");
-    return;
-  }
-
-  if (parsed.items.length === 0) {
-    await sendMessage(
-      chatId,
-      ["Tidak ada barang yang bisa saya cocokkan.", unmatchedBlock(parsed.unmatched), "", HELP].filter(Boolean).join("\n"),
-    );
-    return;
-  }
-
-  // Only one open draft per user — older unconfirmed drafts are superseded.
-  await supabase
-    .from("telegram_pr_drafts")
-    .update({ status: "cancelled" })
-    .eq("telegram_user_id", user.id)
-    .eq("status", "pending");
-
-  const { data: draft, error } = await supabase
-    .from("telegram_pr_drafts")
-    .insert({
-      telegram_user_id: user.id,
-      profile_id: r.profileId,
-      source_text: text,
-      items: parsed.items,
-      unmatched: parsed.unmatched,
-    })
-    .select("id")
-    .single();
-  if (error || !draft) {
-    console.error("[telegram] draft insert failed", error);
-    await sendMessage(chatId, "Maaf, terjadi kesalahan. Coba lagi.");
-    return;
-  }
-
-  const keyboard: InlineKeyboard = [[
-    { text: "✅ Kirim", callback_data: `pr:ok:${draft.id}` },
-    { text: "❌ Batal", callback_data: `pr:no:${draft.id}` },
-  ]];
-  await sendMessage(chatId, draftText(parsed.items, parsed.unmatched) + "\n\nKirim request ini?", keyboard);
-}
-
-function itemsBlock(items: ParsedItem[]): string {
-  return items.map((it, i) => `${i + 1}. ${esc(it.name)} — ${qtyText(it.qty, it.unit)}`).join("\n");
-}
-
-function unmatchedBlock(unmatched: Unmatched[]): string {
-  if (unmatched.length === 0) return "";
-  return ["", "⚠️ <b>Tidak dimasukkan:</b>", ...unmatched.map((u) => `• "${esc(u.raw)}" — ${esc(u.reason)}`)].join("\n");
-}
-
-function draftText(items: ParsedItem[], unmatched: Unmatched[]): string {
-  return ["🛒 <b>Purchase request</b>", itemsBlock(items), unmatchedBlock(unmatched)].filter(Boolean).join("\n");
+  await sendMessage(
+    chatId,
+    `Halo ${esc(r.name)}! 👋\nAkun kamu sudah terhubung.\n\nBuat purchase request di grup <b>Purchase Requests</b> (bukan di sini).\n\n${GROUP_HELP}`,
+  );
 }
 
 async function linkAccount(chatId: number, user: TgUser, code: string) {
@@ -298,7 +227,139 @@ async function linkAccount(chatId: number, user: TgUser, code: string) {
   revalidatePath("/purchasing/telegram");
 
   const r = await requesterFor(user);
-  await sendMessage(chatId, `✅ Akun terhubung!\n\n${"error" in r ? r.error : HELP}`);
+  await sendMessage(
+    chatId,
+    "error" in r
+      ? `✅ Akun terhubung!\n\n${r.error}`
+      : `✅ Akun terhubung!\n\nSekarang kamu bisa membuat purchase request di grup <b>Purchase Requests</b>.\n\n${GROUP_HELP}`,
+  );
+}
+
+// ─── Purchase Requests group ─────────────────────────────────────────────────
+
+async function handlePrGroupMessage(msg: TgMessage) {
+  const chatId = msg.chat.id;
+  const user = msg.from;
+  if (!user || user.is_bot) return;
+  const text = (msg.text ?? "").replace(/@\w+bot\b/gi, "").trim();
+  if (!text) return;
+
+  const command = parseCommand(text);
+  if (command) {
+    if (command.cmd === "/help" || command.cmd === "/bantuan" || command.cmd === "/start") {
+      await sendMessage(chatId, GROUP_HELP, undefined, msg.message_id);
+    } else if (command.cmd === "/batal" || command.cmd === "/cancel") {
+      const { data } = await db()
+        .from("telegram_pr_drafts")
+        .update({ status: "cancelled" })
+        .eq("telegram_user_id", user.id)
+        .eq("status", "pending")
+        .select("id");
+      await sendMessage(
+        chatId,
+        data?.length ? "Request kamu yang belum dikirim sudah dibatalkan." : "Tidak ada request kamu yang menunggu konfirmasi.",
+        undefined,
+        msg.message_id,
+      );
+    }
+    return;
+  }
+
+  // Plain chat without any number is very unlikely to be a shopping list —
+  // stay quiet so the group isn't flooded with bot replies.
+  const looksLikeRequest = /\d/.test(text);
+
+  const r = await requesterFor(user);
+  if ("error" in r) {
+    if (looksLikeRequest) await sendMessage(chatId, r.error, undefined, msg.message_id);
+    return;
+  }
+  if (!looksLikeRequest) return;
+  if (text.length > MAX_TEXT) {
+    await sendMessage(chatId, `Pesan terlalu panjang (maks ${MAX_TEXT} karakter). Bagi jadi beberapa request.`, undefined, msg.message_id);
+    return;
+  }
+
+  const supabase = db();
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from("telegram_pr_drafts")
+    .select("id", { count: "exact", head: true })
+    .eq("telegram_user_id", user.id)
+    .gte("created_at", since);
+  if ((count ?? 0) >= MAX_PARSES_PER_HOUR) {
+    await sendMessage(chatId, "Terlalu banyak request dalam 1 jam terakhir. Coba lagi nanti.", undefined, msg.message_id);
+    return;
+  }
+
+  await sendTyping(chatId);
+  let parsed: Awaited<ReturnType<typeof parsePurchaseText>>;
+  try {
+    parsed = await parsePurchaseText(text);
+  } catch (e) {
+    console.error("[telegram] parse failed", e);
+    await sendMessage(chatId, "Maaf, gagal membaca pesan kamu. Coba lagi sebentar lagi.", undefined, msg.message_id);
+    return;
+  }
+
+  if (parsed.items.length === 0) {
+    // It had numbers, so it was probably meant as a request — explain why nothing matched.
+    if (parsed.unmatched.length > 0) {
+      await sendMessage(
+        chatId,
+        ["Tidak ada barang yang bisa dicocokkan.", unmatchedBlock(parsed.unmatched)].join("\n"),
+        undefined,
+        msg.message_id,
+      );
+    }
+    return;
+  }
+
+  // One open draft per user — older unconfirmed drafts are superseded.
+  await supabase.from("telegram_pr_drafts").update({ status: "cancelled" }).eq("telegram_user_id", user.id).eq("status", "pending");
+
+  const { data: draft, error } = await supabase
+    .from("telegram_pr_drafts")
+    .insert({
+      telegram_user_id: user.id,
+      profile_id: r.profileId,
+      source_text: text,
+      items: parsed.items,
+      unmatched: parsed.unmatched,
+    })
+    .select("id")
+    .single();
+  if (error || !draft) {
+    console.error("[telegram] draft insert failed", error);
+    await sendMessage(chatId, "Maaf, terjadi kesalahan. Coba lagi.", undefined, msg.message_id);
+    return;
+  }
+
+  const keyboard: InlineKeyboard = [[
+    { text: "✅ Kirim", callback_data: `pr:ok:${draft.id}` },
+    { text: "❌ Batal", callback_data: `pr:no:${draft.id}` },
+  ]];
+  await sendMessage(
+    chatId,
+    `${draftText(r.name, parsed.items, parsed.unmatched)}\n\n${esc(displayName(user))}, kirim request ini?`,
+    keyboard,
+    msg.message_id,
+  );
+}
+
+function itemsBlock(items: ParsedItem[]): string {
+  return items.map((it, i) => `${i + 1}. ${esc(it.name)} — ${qtyText(it.qty, it.unit)}`).join("\n");
+}
+
+function unmatchedBlock(unmatched: Unmatched[]): string {
+  if (unmatched.length === 0) return "";
+  return ["", "⚠️ <b>Tidak dimasukkan:</b>", ...unmatched.map((u) => `• "${esc(u.raw)}" — ${esc(u.reason)}`)].join("\n");
+}
+
+function draftText(requester: string, items: ParsedItem[], unmatched: Unmatched[]): string {
+  return [`🛒 <b>Purchase request</b> dari ${esc(requester)}`, itemsBlock(items), unmatchedBlock(unmatched)]
+    .filter(Boolean)
+    .join("\n");
 }
 
 // ─── Confirm / cancel buttons ────────────────────────────────────────────────
@@ -315,20 +376,27 @@ async function handleCallback(cq: TgCallbackQuery) {
 
   const { data: draft } = await supabase
     .from("telegram_pr_drafts")
-    .select("id, telegram_user_id, status, items, unmatched")
+    .select("id, telegram_user_id, status, items, unmatched, profile:profiles!profile_id(full_name, email)")
     .eq("id", draftId)
     .maybeSingle();
-  if (!draft || Number(draft.telegram_user_id) !== cq.from.id) {
+  if (!draft) {
     await answerCallback(cq.id, "Request tidak ditemukan.");
     return;
   }
+  // In the group anyone can see the buttons — only the requester may use them.
+  if (Number(draft.telegram_user_id) !== cq.from.id) {
+    await answerCallback(cq.id, "Hanya pengirim request yang bisa menekan tombol ini.");
+    return;
+  }
+  const owner = draft.profile as unknown as { full_name: string | null; email: string } | null;
+  const ownerName = owner?.full_name || owner?.email?.split("@")[0] || displayName(cq.from);
   const items = draft.items as ParsedItem[];
   const unmatched = draft.unmatched as Unmatched[];
 
   if (action === "no") {
     await supabase.from("telegram_pr_drafts").update({ status: "cancelled" }).eq("id", draftId).eq("status", "pending");
     await answerCallback(cq.id, "Dibatalkan");
-    await editMessage(chatId, messageId, draftText(items, unmatched) + "\n\n❌ <i>Dibatalkan.</i>").catch(() => undefined);
+    await editMessage(chatId, messageId, `${draftText(ownerName, items, unmatched)}\n\n❌ <i>Dibatalkan.</i>`).catch(() => undefined);
     return;
   }
   if (action !== "ok") {
@@ -352,7 +420,7 @@ async function handleCallback(cq: TgCallbackQuery) {
   if ("error" in r) {
     await supabase.from("telegram_pr_drafts").update({ status: "cancelled" }).eq("id", draftId);
     await answerCallback(cq.id);
-    await editMessage(chatId, messageId, `${draftText(items, unmatched)}\n\n${r.error}`).catch(() => undefined);
+    await editMessage(chatId, messageId, `${draftText(ownerName, items, unmatched)}\n\n${r.error}`).catch(() => undefined);
     return;
   }
 
@@ -360,14 +428,16 @@ async function handleCallback(cq: TgCallbackQuery) {
   try {
     const requestId = await createRequest(r, items);
     await supabase.from("telegram_pr_drafts").update({ request_id: requestId }).eq("id", draftId);
-    const summary = await distributeRequest(requestId);
+    const result = await distributeRequest(requestId, chatId);
     revalidatePath("/purchasing/requests");
-    await editMessage(chatId, messageId, `${draftText(items, unmatched)}\n\n✅ <b>Terkirim</b> — PR #${shortRef(requestId)}\n${summary}`);
+    // The confirmation message becomes the final summary (no duplicate post).
+    const footer = unmatchedBlock(unmatched);
+    await editMessage(chatId, messageId, `${result.overview}${footer ? `\n${footer}` : ""}\n\n✅ <b>Terkirim</b>`);
   } catch (e) {
     console.error("[telegram] submit failed", e);
     // Let the user retry with the same buttons.
     await supabase.from("telegram_pr_drafts").update({ status: "pending" }).eq("id", draftId).is("request_id", null);
-    await sendMessage(chatId, "Maaf, gagal mengirim request. Tekan ✅ Kirim lagi untuk mencoba ulang.");
+    await sendMessage(chatId, "Maaf, gagal mengirim request. Tekan ✅ Kirim lagi untuk mencoba ulang.", undefined, messageId);
   }
 }
 
@@ -414,12 +484,14 @@ async function createRequest(r: Requester, items: ParsedItem[]): Promise<string>
 type DistItem = { name: string; qty: number; unit: string };
 
 /**
- * Post the request to the Purchase Requests group and one message per supplier
- * group. Returns a short status line for the requester.
+ * Send one message per supplier group and build the per-supplier overview.
+ * The overview is posted to the Purchase Requests group unless the request
+ * came from that group (`originChatId`) — then the caller edits its own
+ * confirmation message into the overview instead.
  */
-export async function distributeRequest(requestId: string): Promise<string> {
+export async function distributeRequest(requestId: string, originChatId?: number): Promise<{ overview: string }> {
   const supabase = db();
-  const [{ data: req }, { data: settings }] = await Promise.all([
+  const [{ data: req }, prChat] = await Promise.all([
     supabase
       .from("purchase_requests")
       .select(
@@ -427,7 +499,7 @@ export async function distributeRequest(requestId: string): Promise<string> {
       )
       .eq("id", requestId)
       .single(),
-    supabase.from("telegram_settings").select("pr_chat_id").eq("id", 1).maybeSingle(),
+    prChatId(),
   ]);
   if (!req) throw new Error("Request not found");
 
@@ -458,14 +530,9 @@ export async function distributeRequest(requestId: string): Promise<string> {
   const list = (items: DistItem[]) => items.map((i) => `• ${esc(i.name)} — ${qtyText(i.qty, i.unit)}`).join("\n");
 
   // One message per supplier group.
-  const sent: string[] = [];
-  const noGroup: string[] = [];
   const failed: string[] = [];
   for (const g of bySupplier.values()) {
-    if (!g.chatId) {
-      noGroup.push(g.name);
-      continue;
-    }
+    if (!g.chatId) continue;
     const text = [
       `🛒 <b>Belanja untuk ${esc(g.name)}</b>`,
       `Dari: ${esc(requester)} · ${ref}`,
@@ -475,37 +542,28 @@ export async function distributeRequest(requestId: string): Promise<string> {
     ].join("\n");
     try {
       await sendMessage(Number(g.chatId), text);
-      sent.push(g.name);
     } catch (e) {
       console.error("[telegram] supplier group send failed", g.name, e);
       failed.push(g.name);
     }
   }
 
-  // Overview in the Purchase Requests group.
-  const prChatId = settings?.pr_chat_id ? Number(settings.pr_chat_id) : null;
-  if (prChatId) {
-    const blocks: string[] = [];
-    for (const g of bySupplier.values()) {
-      const tag = !g.chatId ? " ⚠️ <i>belum ada grup</i>" : failed.includes(g.name) ? " ⚠️ <i>gagal dikirim</i>" : " ✅";
-      blocks.push(`<b>${esc(g.name)}</b>${tag}\n${list(g.items)}`);
-    }
-    if (noSupplier.length) blocks.push(`<b>Belum ada supplier</b> ⚠️\n${list(noSupplier)}`);
-    const text = [
-      `📝 <b>Purchase request baru</b> · ${ref}`,
-      `Dari: ${esc(requester)}`,
-      "",
-      blocks.join("\n\n"),
-      ...(link ? ["", `<a href="${esc(link)}">Lihat di Machitori</a>`] : []),
-    ].join("\n");
-    await sendMessage(prChatId, text).catch((e) => console.error("[telegram] PR group send failed", e));
+  const blocks: string[] = [];
+  for (const g of bySupplier.values()) {
+    const tag = !g.chatId ? " ⚠️ <i>belum ada grup</i>" : failed.includes(g.name) ? " ⚠️ <i>gagal dikirim</i>" : " ✅";
+    blocks.push(`<b>${esc(g.name)}</b>${tag}\n${list(g.items)}`);
   }
+  if (noSupplier.length) blocks.push(`<b>Belum ada supplier</b> ⚠️\n${list(noSupplier)}`);
+  const overview = [
+    `📝 <b>Purchase request</b> · ${ref}`,
+    `Dari: ${esc(requester)}`,
+    "",
+    blocks.join("\n\n"),
+    ...(link ? ["", `<a href="${esc(link)}">Lihat di Machitori</a>`] : []),
+  ].join("\n");
 
-  const parts: string[] = [];
-  if (sent.length) parts.push(`Diteruskan ke: ${sent.map(esc).join(", ")}`);
-  if (noGroup.length) parts.push(`⚠️ Belum ada grup: ${noGroup.map(esc).join(", ")}`);
-  if (failed.length) parts.push(`⚠️ Gagal dikirim ke: ${failed.map(esc).join(", ")}`);
-  if (noSupplier.length) parts.push(`⚠️ ${noSupplier.length} barang belum punya supplier`);
-  if (!prChatId) parts.push("⚠️ Grup Purchase Requests belum diatur");
-  return parts.join("\n");
+  if (prChat && prChat !== originChatId) {
+    await sendMessage(prChat, overview).catch((e) => console.error("[telegram] PR group send failed", e));
+  }
+  return { overview };
 }

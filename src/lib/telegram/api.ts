@@ -45,13 +45,15 @@ export async function tg<T = unknown>(method: string, body: Record<string, unkno
   return json.result;
 }
 
-export function sendMessage(chatId: number, text: string, keyboard?: InlineKeyboard) {
+export function sendMessage(chatId: number, text: string, keyboard?: InlineKeyboard, replyTo?: number) {
   return tg<{ message_id: number }>("sendMessage", {
     chat_id: chatId,
     text,
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+    // Reply to the employee's message in the group; still send if it was deleted.
+    ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}),
   });
 }
 
