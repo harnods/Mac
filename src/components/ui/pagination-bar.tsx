@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { PageSizeMenu } from "@/components/ui/page-size-menu";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 export const DEFAULT_PAGE_SIZE = 25;
@@ -33,22 +28,10 @@ export function PaginationBar({ page, totalPages, pageSize, buildHref, buildSize
     <div className="flex items-center justify-between gap-2 py-2">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span className="hidden sm:inline">Rows per page</span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="tabular-nums">
-              {pageSize} <ChevronsUpDown className="size-3.5 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[4rem]">
-            {PAGE_SIZE_OPTIONS.map((s) => (
-              <DropdownMenuItem key={s} asChild>
-                <Link href={buildSizeHref(s)} className="tabular-nums cursor-pointer">
-                  {s}
-                </Link>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <PageSizeMenu
+          pageSize={pageSize}
+          options={PAGE_SIZE_OPTIONS.map((s) => ({ size: s, href: buildSizeHref(s) }))}
+        />
       </div>
 
       <div className="flex items-center gap-2">
