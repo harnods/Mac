@@ -1,5 +1,15 @@
 import type { NextConfig } from "next";
 
+// In dev, the app talks to the local Supabase stack (http://127.0.0.1:54321),
+// which the production CSP (*.supabase.co only) would block. Allow it in dev only.
+const isDev = process.env.NODE_ENV !== "production";
+const devSupabase = (() => {
+  if (!isDev || !process.env.NEXT_PUBLIC_SUPABASE_URL) return "";
+  const u = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  if (u.hostname.endsWith(".supabase.co")) return "";
+  return ` ${u.origin} ${u.origin.replace(/^http/, "ws")}`;
+})();
+
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -21,8 +31,8 @@ const securityHeaders = [
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.supabase.co",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://app.envoy.mekari.com https://envoy.mekari.com",
+      `img-src 'self' data: blob: https://*.supabase.co${devSupabase}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://app.envoy.mekari.com https://envoy.mekari.com${devSupabase}`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

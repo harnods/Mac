@@ -74,7 +74,19 @@ async function upsertUser({ email, role, fullName, isOwner = false }) {
   // Force role + full_name in profiles (the trigger only sets default 'staff' if metadata is missing).
   const { error: upErr } = await supabase
     .from("profiles")
-    .upsert({ id: userId, email, full_name: fullName, role, is_owner: isOwner }, { onConflict: "id" });
+    .upsert(
+      {
+        id: userId,
+        email,
+        full_name: fullName,
+        role,
+        is_owner: isOwner,
+        // App access (see migration 20260816130000): non-crew → back office, crew → crew app.
+        access_backoffice: role !== "crew",
+        access_crew: role === "crew",
+      },
+      { onConflict: "id" },
+    );
   if (upErr) throw upErr;
 
   // Create an employee record linked to this user (if one doesn't exist yet).

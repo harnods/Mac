@@ -12,7 +12,7 @@ DO $$
 DECLARE
   r record;
   col text;
-  notnull boolean;
+  col_notnull boolean;
 BEGIN
   FOR r IN
     SELECT c.conname, c.conrelid, c.conrelid::regclass::text AS tbl, c.conkey
@@ -22,11 +22,11 @@ BEGIN
       AND c.confdeltype <> 'n'                 -- not already SET NULL
       AND array_length(c.conkey, 1) = 1        -- single-column FKs only
   LOOP
-    SELECT a.attname, a.attnotnull INTO col, notnull
+    SELECT a.attname, a.attnotnull INTO col, col_notnull
     FROM pg_attribute a
     WHERE a.attrelid = r.conrelid AND a.attnum = r.conkey[1];
 
-    IF notnull THEN
+    IF col_notnull THEN
       EXECUTE format('ALTER TABLE %s ALTER COLUMN %I DROP NOT NULL', r.tbl, col);
     END IF;
 

@@ -32,7 +32,7 @@ echo "▶ Users…"
 echo "  syncing demo login users…"
 node scripts/seed-users.mjs | grep -E "email:|password:" || true
 
-echo "▶ Dev server on :$PORT…"
+echo "▶ Dev server on :${PORT}…"
 EXISTING=$(lsof -ti:$PORT 2>/dev/null || true)
 [ -n "$EXISTING" ] && { kill $EXISTING 2>/dev/null || true; sleep 1; }
 (npm run dev > /tmp/macdev.log 2>&1 &)
