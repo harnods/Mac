@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { permissionsForRole } from "@/lib/auth";
 import { P } from "@/lib/permissions";
 import { formatNum } from "@/lib/units";
+import { formatId } from "@/lib/format";
 import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 
@@ -66,8 +67,9 @@ function appUrl(path: string): string | null {
   return base ? `${base}${path}` : null;
 }
 
+/** Same short reference as the web app's ID column (e.g. "74E3-36A7"). */
 function shortRef(id: string): string {
-  return id.slice(0, 8).toUpperCase();
+  return formatId(id);
 }
 
 function qtyText(qty: number, unit: string): string {
@@ -429,7 +431,7 @@ async function handleCallback(cq: TgCallbackQuery) {
 
   await answerCallback(cq.id, "Mengirim…");
   try {
-    const requestId = await createRequest(r, items);
+    const requestId = await createRequest(r, items, ownerName);
     await supabase.from("telegram_pr_drafts").update({ request_id: requestId }).eq("id", draftId);
     const result = await distributeRequest(requestId, ownerName, chatId);
     revalidatePath("/purchasing/requests");
@@ -446,7 +448,8 @@ async function handleCallback(cq: TgCallbackQuery) {
 
 // ─── Create + distribute ─────────────────────────────────────────────────────
 
-async function createRequest(r: Requester, items: ParsedItem[]): Promise<string> {
+/** `telegramName` goes into the note so the web shows who sent it, even on a shared account. */
+async function createRequest(r: Requester, items: ParsedItem[], telegramName: string): Promise<string> {
   const supabase = db();
   const ids = items.map((i) => i.item_id);
 
@@ -459,7 +462,13 @@ async function createRequest(r: Requester, items: ParsedItem[]): Promise<string>
 
   const { data: req, error } = await supabase
     .from("purchase_requests")
-    .insert({ status: "pending", source: "telegram", note: "Dari Telegram", created_by: r.profileId, updated_by: r.profileId })
+    .insert({
+      status: "pending",
+      source: "telegram",
+      note: `Dari Telegram · ${telegramName}`,
+      created_by: r.profileId,
+      updated_by: r.profileId,
+    })
     .select("id")
     .single();
   if (error || !req) throw error ?? new Error("Failed to create request");
