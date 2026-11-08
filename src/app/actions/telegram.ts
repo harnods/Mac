@@ -31,7 +31,7 @@ function revalidate() {
 
 // ─── Account linking (any signed-in user) ────────────────────────────────────
 
-export async function createTelegramLink(): Promise<Result<{ url: string }>> {
+export async function createTelegramLink(): Promise<Result<{ url: string; username: string; command: string }>> {
   const profile = await getCurrentProfile();
   if (!profile) return { ok: false, error: "Not authenticated" };
   if (!telegramConfigured()) return { ok: false, error: "Telegram bot belum dikonfigurasi" };
@@ -47,7 +47,7 @@ export async function createTelegramLink(): Promise<Result<{ url: string }>> {
 
   try {
     const username = await botUsername();
-    return { ok: true, url: `https://t.me/${username}?start=${code}` };
+    return { ok: true, url: `https://t.me/${username}?start=${code}`, username, command: `/start ${code}` };
   } catch {
     return { ok: false, error: "Tidak bisa menghubungi Telegram" };
   }
