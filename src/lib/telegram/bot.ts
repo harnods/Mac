@@ -8,7 +8,7 @@ import { formatNum } from "@/lib/units";
 import { formatId } from "@/lib/format";
 import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
-import { STOCK_HELP, stockQuery, stockReply } from "./stock";
+import { STOCK_HELP, stockQuery, stockReply, type StockQuery } from "./stock";
 
 /*
  * Flow
@@ -189,17 +189,20 @@ async function canCheckStock(user: TgUser): Promise<true | { error: string }> {
   return ok ? true : { error: "Akun kamu belum punya izin melihat stok. Hubungi admin." };
 }
 
-async function handleStock(chatId: number, user: TgUser, query: string, replyTo?: number) {
+async function handleStock(chatId: number, user: TgUser, sq: StockQuery, replyTo?: number) {
   const allowed = await canCheckStock(user);
   if (allowed !== true) {
-    await sendMessage(chatId, allowed.error, undefined, replyTo);
+    if (sq.explicit) await sendMessage(chatId, allowed.error, undefined, replyTo);
     return;
   }
-  if (!query) {
-    await sendMessage(chatId, STOCK_HELP, undefined, replyTo);
+  if (!sq.query) {
+    if (sq.explicit) await sendMessage(chatId, STOCK_HELP, undefined, replyTo);
     return;
   }
-  await sendMessage(chatId, await stockReply(query), undefined, replyTo);
+  const reply = await stockReply(sq.query);
+  // A passing mention of "stock" in chat that matches nothing: stay quiet.
+  if (!sq.explicit && reply.found === 0) return;
+  await sendMessage(chatId, reply.text, undefined, replyTo);
 }
 
 function parseCommand(text: string): { cmd: string; args: string[] } | null {

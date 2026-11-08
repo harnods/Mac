@@ -16,10 +16,46 @@ type StockItem = { id: string; name: string; unit: string; on_hand: number; rese
 const MAX_PER_QUERY = 5;
 const MAX_QUERIES = 10;
 
-/** Returns the query part if `text` is a stock question, else null. */
-export function stockQuery(text: string): string | null {
-  const m = text.trim().match(/^\/?(?:cek\s+)?(?:stok|stock)(?:@\w+)?(?:\s+|$)([\s\S]*)$/i);
-  return m ? m[1].trim() : null;
+export type StockQuery = {
+  query: string;
+  /** Started with "stok"/"/stok" — always answer. Natural-language mentions only answer on a match. */
+  explicit: boolean;
+};
+
+// Filler words dropped from natural questions ("sisa berapa stock ayam ya?").
+const FILLER = new Set([
+  "sisa", "berapa", "brp", "masih", "ada", "cek", "check", "tolong", "dong", "ya", "yah", "kak", "min",
+  "kah", "nya", "untuk", "buat", "di", "gudang", "sekarang", "skrg", "lagi", "apa", "how", "much", "many",
+  "is", "the", "of", "left", "stok", "stock", "stoknya", "stocknya", "info", "lihat", "liat",
+]);
+
+/** Drop filler words but keep list separators: "sisa ayam, salmon ya?" → "ayam, salmon". */
+function stripFiller(t: string): string {
+  return t
+    .split(/([,\n;])/)
+    .map((part) =>
+      /[,\n;]/.test(part)
+        ? part
+        : part
+            .split(/\s+/)
+            .filter((w) => w && !FILLER.has(w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")))
+            .join(" "),
+    )
+    .join("")
+    .replace(/[?!.]+/g, " ")
+    .trim();
+}
+
+/** Detects a stock question and extracts the item part, else null. */
+export function stockQuery(text: string): StockQuery | null {
+  const t = text.replace(/@\w+/g, " ").trim();
+  // Messages with numbers are purchase requests ("stok almond habis, minta 2kg").
+  if (/\d/.test(t)) return null;
+  const explicit = t.match(/^\/?(?:cek\s+)?(?:stok|stock)(?:nya)?(?:\s+|$)([\s\S]*)$/i);
+  if (explicit) return { query: stripFiller(explicit[1]), explicit: true };
+  // Natural language: "sisa berapa stock ayam paha?" — stok/stock anywhere.
+  if (!/\b(?:stok|stock)(?:nya)?\b/i.test(t)) return null;
+  return { query: stripFiller(t), explicit: false };
 }
 
 function normalize(s: string): string {
@@ -103,14 +139,18 @@ function line(it: StockItem): string {
 
 export const STOCK_HELP = "Cek stok: <i>stok almond</i> atau <i>stok almond, ayam, susu</i>";
 
-/** Build the reply for a stock query (already permission-checked by the caller). */
-export async function stockReply(query: string): Promise<string> {
+/**
+ * Build the reply for a stock query (already permission-checked by the caller).
+ * `found` is the number of matched ingredients, so callers can stay quiet on
+ * natural-language mentions that matched nothing.
+ */
+export async function stockReply(query: string): Promise<{ text: string; found: number }> {
   const queries = query
     .split(/[,\n;]|\s+dan\s+/i)
     .map((q) => q.trim())
     .filter(Boolean)
     .slice(0, MAX_QUERIES);
-  if (queries.length === 0) return STOCK_HELP;
+  if (queries.length === 0) return { text: STOCK_HELP, found: 0 };
 
   const { data } = await createServiceClient()
     .from("items")
@@ -122,13 +162,15 @@ export async function stockReply(query: string): Promise<string> {
   const items = ((data ?? []) as StockItem[]).map((it) => ({ ...it, norm: normalize(it.name) }));
 
   const blocks: string[] = [];
+  let total = 0;
   for (const q of queries) {
     const found = match(items, q);
+    total += found.length;
     blocks.push(
       found.length > 0
         ? found.map(line).join("\n")
         : `- "${esc(q)}": <i>tidak ditemukan di daftar ingredient</i>`,
     );
   }
-  return ["📦 <b>Stok tersedia</b>", "", blocks.join("\n")].join("\n");
+  return { text: ["📦 <b>Stok tersedia</b>", "", blocks.join("\n")].join("\n"), found: total };
 }
