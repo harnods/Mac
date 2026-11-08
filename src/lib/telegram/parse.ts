@@ -1,13 +1,31 @@
 import "server-only";
 
-import { generateText, Output } from "ai";
+import Anthropic from "@anthropic-ai/sdk";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { compatibleUnits } from "@/lib/units";
 import type { UnitCode } from "@/lib/supabase/types";
 
-/** Fast, cheap model via Vercel AI Gateway — enough for matching short lists. */
-const MODEL = process.env.TELEGRAM_PARSE_MODEL?.trim() || "anthropic/claude-haiku-5.5";
+/**
+ * Model for matching free-text requests to the ingredient catalog. Uses the
+ * owner's own Anthropic API key (ANTHROPIC_API_KEY). Override with
+ * TELEGRAM_PARSE_MODEL (e.g. "claude-haiku-5-5" for lower cost).
+ */
+const MODEL = process.env.TELEGRAM_PARSE_MODEL?.trim() || "claude-opus-5-5";
+
+/** Models that accept server-side refusal fallbacks (`fallbacks: "default"`). */
+const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);
+
+let client: Anthropic | null = null;
+function anthropic(): Anthropic {
+  if (client) return client;
+  // Trim: keys pasted into a dashboard often carry a trailing newline.
+  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
+  client = new Anthropic({ apiKey });
+  return client;
+}
 
 export type ParsedItem = { item_id: string; name: string; qty: number; unit: string };
 export type Unmatched = { raw: string; reason: string };
@@ -25,7 +43,7 @@ async function loadCandidates(): Promise<Candidate[]> {
       .is("deleted_at", null)
       .order("name")
       .limit(5000),
-    supabase.from("item_unit_conversions").select("item_id, from_unit").limit(10000),
+    supabase.from("item_unit_conversions").select("item_id, from_unit").order("item_id").order("from_unit").limit(10000),
   ]);
   const convByItem = new Map<string, string[]>();
   for (const c of (convs ?? []) as { item_id: string; from_unit: string }[]) {
@@ -53,6 +71,16 @@ const outputSchema = z.object({
   ),
 });
 
+const INSTRUCTIONS = [
+  "You extract purchase request lines for a café's ingredient purchasing.",
+  "The user writes in Indonesian or English, often informally, one or many items, separated by commas, newlines or 'dan'.",
+  "For each requested item return one entry. Match it to the single best ingredient in the catalog by meaning",
+  "(synonyms, Indonesian/English names, typos, brand-less names). If nothing in the catalog is clearly the same thing, use index null.",
+  "Never invent catalog numbers. Do not merge different items. Ignore greetings, chit-chat and words like 'request' or 'tolong'.",
+  "Normalise units: kilo/kilogram→kg, gram/gr→g, liter/litre→l, mili/mililiter→ml, biji/buah/pcs/pc→pcs. Keep other units as written (e.g. ekor, pack, karton, box).",
+  "Decimal commas mean decimals (1,5 = 1.5).",
+].join(" ");
+
 /**
  * Turn a free-text purchase request ("almond 2kg, ayam 5 ekor") into catalog
  * ingredients. The model only proposes matches; every match is validated here
@@ -60,28 +88,39 @@ const outputSchema = z.object({
  */
 export async function parsePurchaseText(text: string): Promise<ParseResult> {
   const candidates = await loadCandidates();
+  // Stable, sorted catalog → identical prefix across requests → prompt cache hits.
   const catalog = candidates.map((c, i) => `#${i} ${c.name} [${c.units.join(", ")}]`).join("\n");
+  const withFallback = FALLBACK_MODELS.has(MODEL);
 
-  const { output } = await generateText({
+  const response = await anthropic().beta.messages.parse({
     model: MODEL,
-    output: Output.object({ schema: outputSchema }),
-    temperature: 0,
-    instructions: [
-      "You extract purchase request lines for a café's ingredient purchasing.",
-      "The user writes in Indonesian or English, often informally, one or many items, separated by commas, newlines or 'dan'.",
-      "For each requested item return one entry. Match it to the single best ingredient in the catalog by meaning",
-      "(synonyms, Indonesian/English names, typos, brand-less names). If nothing in the catalog is clearly the same thing, use index null.",
-      "Never invent catalog numbers. Do not merge different items. Ignore greetings and chit-chat.",
-      "Normalise units: kilo/kilogram→kg, gram/gr→g, liter/litre→l, mili/mililiter→ml, biji/buah/pcs/pc→pcs. Keep other units as written (e.g. ekor, pack, karton, box).",
-      "Decimal commas mean decimals (1,5 = 1.5).",
-    ].join(" "),
-    prompt: `Catalog (number, name, allowed units):\n${catalog}\n\nMessage:\n${text}`,
+    max_tokens: 16000,
+    ...(withFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+    system: [
+      { type: "text", text: INSTRUCTIONS },
+      {
+        type: "text",
+        text: `Catalog (number, name, allowed units):\n${catalog}`,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [{ role: "user", content: text }],
+    output_config: {
+      effort: "low", // simple matching task — keep it fast and cheap
+      format: betaZodOutputFormat(outputSchema),
+    },
   });
+
+  if (response.stop_reason === "refusal") {
+    throw new Error(`Claude declined the request (${response.stop_details?.category ?? "unknown"})`);
+  }
+  const output = response.parsed_output;
+  if (!output) throw new Error(`No structured output (stop_reason: ${response.stop_reason})`);
 
   const items: ParsedItem[] = [];
   const unmatched: Unmatched[] = [];
 
-  for (const line of output?.items ?? []) {
+  for (const line of output.items) {
     const raw = line.raw.trim() || "?";
     const cand = line.index != null ? candidates[line.index] : undefined;
     if (!cand) {
