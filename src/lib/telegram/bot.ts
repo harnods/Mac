@@ -341,14 +341,14 @@ async function handlePrGroupMessage(msg: TgMessage) {
   ]];
   await sendMessage(
     chatId,
-    `${draftText(r.name, parsed.items, parsed.unmatched)}\n\n${esc(displayName(user))}, kirim request ini?`,
+    `${draftText(displayName(user), parsed.items, parsed.unmatched)}\n\nKirim request ini?`,
     keyboard,
     msg.message_id,
   );
 }
 
-function itemsBlock(items: ParsedItem[]): string {
-  return items.map((it, i) => `${i + 1}. ${esc(it.name)} — ${qtyText(it.qty, it.unit)}`).join("\n");
+function itemsBlock(items: { name: string; qty: number; unit: string }[]): string {
+  return items.map((it) => `- ${esc(it.name)} - ${qtyText(it.qty, it.unit)}`).join("\n");
 }
 
 function unmatchedBlock(unmatched: Unmatched[]): string {
@@ -356,10 +356,13 @@ function unmatchedBlock(unmatched: Unmatched[]): string {
   return ["", "⚠️ <b>Tidak dimasukkan:</b>", ...unmatched.map((u) => `• "${esc(u.raw)}" — ${esc(u.reason)}`)].join("\n");
 }
 
+/** Group-facing layout (no supplier names): header, requester, item list. */
+function requestText(ref: string | null, requester: string, items: { name: string; qty: number; unit: string }[]): string {
+  return [`<b>Purchase Request${ref ? ` #${esc(ref)}` : ""}</b>`, `Dari: ${esc(requester)}`, "", itemsBlock(items)].join("\n");
+}
+
 function draftText(requester: string, items: ParsedItem[], unmatched: Unmatched[]): string {
-  return [`🛒 <b>Purchase request</b> dari ${esc(requester)}`, itemsBlock(items), unmatchedBlock(unmatched)]
-    .filter(Boolean)
-    .join("\n");
+  return [requestText(null, requester, items), unmatchedBlock(unmatched)].filter(Boolean).join("\n");
 }
 
 // ─── Confirm / cancel buttons ────────────────────────────────────────────────
@@ -376,7 +379,7 @@ async function handleCallback(cq: TgCallbackQuery) {
 
   const { data: draft } = await supabase
     .from("telegram_pr_drafts")
-    .select("id, telegram_user_id, status, items, unmatched, profile:profiles!profile_id(full_name, email)")
+    .select("id, telegram_user_id, status, items, unmatched")
     .eq("id", draftId)
     .maybeSingle();
   if (!draft) {
@@ -388,8 +391,8 @@ async function handleCallback(cq: TgCallbackQuery) {
     await answerCallback(cq.id, "Hanya pengirim request yang bisa menekan tombol ini.");
     return;
   }
-  const owner = draft.profile as unknown as { full_name: string | null; email: string } | null;
-  const ownerName = owner?.full_name || owner?.email?.split("@")[0] || displayName(cq.from);
+  // Only the requester can press, so cq.from is the requester's Telegram account.
+  const ownerName = displayName(cq.from);
   const items = draft.items as ParsedItem[];
   const unmatched = draft.unmatched as Unmatched[];
 
@@ -428,11 +431,11 @@ async function handleCallback(cq: TgCallbackQuery) {
   try {
     const requestId = await createRequest(r, items);
     await supabase.from("telegram_pr_drafts").update({ request_id: requestId }).eq("id", draftId);
-    const result = await distributeRequest(requestId, chatId);
+    const result = await distributeRequest(requestId, ownerName, chatId);
     revalidatePath("/purchasing/requests");
     // The confirmation message becomes the final summary (no duplicate post).
     const footer = unmatchedBlock(unmatched);
-    await editMessage(chatId, messageId, `${result.overview}${footer ? `\n${footer}` : ""}\n\n✅ <b>Terkirim</b>`);
+    await editMessage(chatId, messageId, `${result.overview}${footer ? `\n${footer}` : ""}\n\nTerkirim`);
   } catch (e) {
     console.error("[telegram] submit failed", e);
     // Let the user retry with the same buttons.
@@ -489,13 +492,17 @@ type DistItem = { name: string; qty: number; unit: string };
  * came from that group (`originChatId`) — then the caller edits its own
  * confirmation message into the overview instead.
  */
-export async function distributeRequest(requestId: string, originChatId?: number): Promise<{ overview: string }> {
+export async function distributeRequest(
+  requestId: string,
+  requesterName: string,
+  originChatId?: number,
+): Promise<{ overview: string }> {
   const supabase = db();
   const [{ data: req }, prChat] = await Promise.all([
     supabase
       .from("purchase_requests")
       .select(
-        "id, created_at, creator:profiles!created_by(full_name, email), purchase_request_items(qty, unit, item:items!item_id(name), supplier:suppliers!supplier_id(id, name, telegram_chat_id))",
+        "id, created_at, purchase_request_items(qty, unit, created_at, item:items!item_id(name), supplier:suppliers!supplier_id(id, name, telegram_chat_id))",
       )
       .eq("id", requestId)
       .single(),
@@ -503,8 +510,7 @@ export async function distributeRequest(requestId: string, originChatId?: number
   ]);
   if (!req) throw new Error("Request not found");
 
-  const creator = req.creator as unknown as { full_name: string | null; email: string } | null;
-  const requester = creator?.full_name || creator?.email?.split("@")[0] || "Karyawan";
+  const requester = requesterName;
   const lines = (req.purchase_request_items ?? []) as unknown as {
     qty: number;
     unit: string;
@@ -513,13 +519,11 @@ export async function distributeRequest(requestId: string, originChatId?: number
   }[];
 
   const bySupplier = new Map<string, { name: string; chatId: number | null; items: DistItem[] }>();
-  const noSupplier: DistItem[] = [];
+  const allItems: DistItem[] = [];
   for (const l of lines) {
     const it = { name: l.item?.name ?? "?", qty: Number(l.qty), unit: l.unit };
-    if (!l.supplier) {
-      noSupplier.push(it);
-      continue;
-    }
+    allItems.push(it);
+    if (!l.supplier) continue;
     const g = bySupplier.get(l.supplier.id) ?? { name: l.supplier.name, chatId: l.supplier.telegram_chat_id, items: [] };
     g.items.push(it);
     bySupplier.set(l.supplier.id, g);
@@ -530,7 +534,6 @@ export async function distributeRequest(requestId: string, originChatId?: number
   const list = (items: DistItem[]) => items.map((i) => `• ${esc(i.name)} — ${qtyText(i.qty, i.unit)}`).join("\n");
 
   // One message per supplier group.
-  const failed: string[] = [];
   for (const g of bySupplier.values()) {
     if (!g.chatId) continue;
     const text = [
@@ -544,23 +547,11 @@ export async function distributeRequest(requestId: string, originChatId?: number
       await sendMessage(Number(g.chatId), text);
     } catch (e) {
       console.error("[telegram] supplier group send failed", g.name, e);
-      failed.push(g.name);
     }
   }
 
-  const blocks: string[] = [];
-  for (const g of bySupplier.values()) {
-    const tag = !g.chatId ? " ⚠️ <i>belum ada grup</i>" : failed.includes(g.name) ? " ⚠️ <i>gagal dikirim</i>" : " ✅";
-    blocks.push(`<b>${esc(g.name)}</b>${tag}\n${list(g.items)}`);
-  }
-  if (noSupplier.length) blocks.push(`<b>Belum ada supplier</b> ⚠️\n${list(noSupplier)}`);
-  const overview = [
-    `📝 <b>Purchase request</b> · ${ref}`,
-    `Dari: ${esc(requester)}`,
-    "",
-    blocks.join("\n\n"),
-    ...(link ? ["", `<a href="${esc(link)}">Lihat di Machitori</a>`] : []),
-  ].join("\n");
+  // Purchase Requests group: requester + items only (no supplier names).
+  const overview = requestText(shortRef(requestId), requester, allItems);
 
   if (prChat && prChat !== originChatId) {
     await sendMessage(prChat, overview).catch((e) => console.error("[telegram] PR group send failed", e));
