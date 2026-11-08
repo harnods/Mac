@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { permissionsForRole } from "@/lib/auth";
 import { P } from "@/lib/permissions";
 import { formatNum } from "@/lib/units";
-import { answerCallback, editMessage, esc, sendMessage, sendTyping, type InlineKeyboard } from "./api";
+import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 
 // ─── Telegram update shapes (only the fields we use) ─────────────────────────
@@ -46,7 +46,7 @@ function db() {
 }
 
 function appUrl(path: string): string | null {
-  const base = process.env.APP_BASE_URL?.replace(/\/$/, "");
+  const base = telegramEnv().appBaseUrl;
   return base ? `${base}${path}` : null;
 }
 

@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { can, P } from "@/lib/permissions";
-import { botUsername, telegramConfigured, tg } from "@/lib/telegram/api";
+import { botUsername, telegramConfigured, telegramEnv, tg } from "@/lib/telegram/api";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -112,7 +112,7 @@ export type WebhookStatus = {
 };
 
 function expectedWebhookUrl(): string | null {
-  const base = process.env.APP_BASE_URL?.replace(/\/$/, "");
+  const base = telegramEnv().appBaseUrl;
   return base ? `${base}/api/telegram/webhook` : null;
 }
 
@@ -153,12 +153,16 @@ export async function registerWebhook(): Promise<Result> {
   if ("error" in auth) return { ok: false, error: auth.error };
   const url = expectedWebhookUrl();
   if (!url || !url.startsWith("https://")) return { ok: false, error: "APP_BASE_URL harus https:// (webhook butuh URL publik)" };
-  if (!process.env.TELEGRAM_WEBHOOK_SECRET) return { ok: false, error: "TELEGRAM_WEBHOOK_SECRET belum di-set" };
+  const { secret } = telegramEnv();
+  if (!secret) return { ok: false, error: "TELEGRAM_WEBHOOK_SECRET belum di-set" };
+  if (!/^[A-Za-z0-9_-]{1,256}$/.test(secret)) {
+    return { ok: false, error: "TELEGRAM_WEBHOOK_SECRET hanya boleh berisi huruf, angka, _ dan - (maks 256 karakter)" };
+  }
 
   try {
     await tg("setWebhook", {
       url,
-      secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
+      secret_token: secret,
       allowed_updates: ["message", "callback_query", "my_chat_member"],
       drop_pending_updates: false,
     });

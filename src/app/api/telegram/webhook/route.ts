@@ -1,10 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 import { handleUpdate, type TgUpdate } from "@/lib/telegram/bot";
+import { telegramEnv } from "@/lib/telegram/api";
 
 export const dynamic = "force-dynamic";
 
 function validSecret(header: string | null): boolean {
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  const { secret } = telegramEnv();
   if (!secret || !header) return false;
   const a = Buffer.from(header);
   const b = Buffer.from(secret);

@@ -7,7 +7,7 @@ import { compatibleUnits } from "@/lib/units";
 import type { UnitCode } from "@/lib/supabase/types";
 
 /** Fast, cheap model via Vercel AI Gateway — enough for matching short lists. */
-const MODEL = process.env.TELEGRAM_PARSE_MODEL || "anthropic/claude-haiku-5.5";
+const MODEL = process.env.TELEGRAM_PARSE_MODEL?.trim() || "anthropic/claude-haiku-5.5";
 
 export type ParsedItem = { item_id: string; name: string; qty: number; unit: string };
 export type Unmatched = { raw: string; reason: string };

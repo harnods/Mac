@@ -10,12 +10,27 @@ type TgResponse<T> = { ok: true; result: T } | { ok: false; description?: string
 
 export class TelegramError extends Error {}
 
+/**
+ * Telegram-related env vars, trimmed. Values pasted into a dashboard often carry
+ * a trailing newline (e.g. `openssl rand -hex 32 | pbcopy`), which Telegram
+ * rejects ("secret token contains illegal characters").
+ */
+export function telegramEnv() {
+  const clean = (v: string | undefined) => (v ?? "").trim() || undefined;
+  return {
+    token: clean(process.env.TELEGRAM_BOT_TOKEN),
+    secret: clean(process.env.TELEGRAM_WEBHOOK_SECRET),
+    username: clean(process.env.TELEGRAM_BOT_USERNAME)?.replace(/^@/, ""),
+    appBaseUrl: clean(process.env.APP_BASE_URL)?.replace(/\/+$/, ""),
+  };
+}
+
 export function telegramConfigured(): boolean {
-  return !!process.env.TELEGRAM_BOT_TOKEN;
+  return !!telegramEnv().token;
 }
 
 export async function tg<T = unknown>(method: string, body: Record<string, unknown>): Promise<T> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const { token } = telegramEnv();
   if (!token) throw new TelegramError("TELEGRAM_BOT_TOKEN is not set");
   const res = await fetch(`${API}/bot${token}/${method}`, {
     method: "POST",
@@ -62,7 +77,8 @@ export function sendTyping(chatId: number) {
 let cachedUsername: string | null = null;
 /** Bot username (for t.me deep links). Uses TELEGRAM_BOT_USERNAME when set. */
 export async function botUsername(): Promise<string> {
-  if (process.env.TELEGRAM_BOT_USERNAME) return process.env.TELEGRAM_BOT_USERNAME.replace(/^@/, "");
+  const { username } = telegramEnv();
+  if (username) return username;
   if (cachedUsername) return cachedUsername;
   const me = await tg<{ username: string }>("getMe", {});
   cachedUsername = me.username;
