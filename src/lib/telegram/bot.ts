@@ -8,6 +8,7 @@ import { formatNum } from "@/lib/units";
 import { formatId } from "@/lib/format";
 import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
+import { STOCK_HELP, stockQuery, stockReply } from "./stock";
 
 /*
  * Flow
@@ -52,6 +53,7 @@ const GROUP_HELP = [
   "Bot akan membalas dengan daftar barang + tombol ✅ Kirim / ❌ Batal (hanya pengirim yang bisa menekan).",
   "Setelah dikirim, barang otomatis diteruskan ke grup supplier masing-masing.",
   "",
+  STOCK_HELP,
   "/batal — batalkan request kamu yang belum dikirim",
 ].join("\n");
 
@@ -171,6 +173,35 @@ async function requesterFor(user: TgUser): Promise<Requester | { error: string }
   };
 }
 
+/** Stock lookups: any linked account that can see ingredients or purchasing. */
+async function canCheckStock(user: TgUser): Promise<true | { error: string }> {
+  const supabase = db();
+  const { data: acct } = await supabase
+    .from("telegram_accounts")
+    .select("profile_id")
+    .eq("telegram_user_id", user.id)
+    .maybeSingle();
+  if (!acct) return { error: LINK_HELP };
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", acct.profile_id).maybeSingle();
+  if (!profile) return { error: "Akun Machitori kamu tidak ditemukan." };
+  const permissions = await permissionsForRole(profile.role as string);
+  const ok = [P.INGREDIENTS_READ, P.PURCHASING_READ, P.PURCHASING_REQUEST].some((k) => permissions.includes(k));
+  return ok ? true : { error: "Akun kamu belum punya izin melihat stok. Hubungi admin." };
+}
+
+async function handleStock(chatId: number, user: TgUser, query: string, replyTo?: number) {
+  const allowed = await canCheckStock(user);
+  if (allowed !== true) {
+    await sendMessage(chatId, allowed.error, undefined, replyTo);
+    return;
+  }
+  if (!query) {
+    await sendMessage(chatId, STOCK_HELP, undefined, replyTo);
+    return;
+  }
+  await sendMessage(chatId, await stockReply(query), undefined, replyTo);
+}
+
 function parseCommand(text: string): { cmd: string; args: string[] } | null {
   if (!text.startsWith("/")) return null;
   const [command, ...args] = text.split(/\s+/);
@@ -187,6 +218,8 @@ async function handlePrivate(msg: TgMessage) {
   const command = parseCommand(text);
 
   if (command?.cmd === "/start" && command.args[0]) return linkAccount(chatId, user, command.args[0]);
+  const sq = stockQuery(text);
+  if (sq !== null) return handleStock(chatId, user, sq);
 
   const r = await requesterFor(user);
   if ("error" in r) {
@@ -245,6 +278,9 @@ async function handlePrGroupMessage(msg: TgMessage) {
   if (!user || user.is_bot) return;
   const text = (msg.text ?? "").replace(/@\w+bot\b/gi, "").trim();
   if (!text) return;
+
+  const sq = stockQuery(text);
+  if (sq !== null) return handleStock(chatId, user, sq, msg.message_id);
 
   const command = parseCommand(text);
   if (command) {
