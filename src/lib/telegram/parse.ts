@@ -1,31 +1,11 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
 import { compatibleUnits } from "@/lib/units";
 import type { UnitCode } from "@/lib/supabase/types";
-
-/**
- * Model for matching free-text requests to the ingredient catalog. Uses the
- * owner's own Anthropic API key (ANTHROPIC_API_KEY). Override with
- * TELEGRAM_PARSE_MODEL (e.g. "claude-haiku-5-5" for lower cost).
- */
-const MODEL = process.env.TELEGRAM_PARSE_MODEL?.trim() || "claude-opus-5-5";
-
-/** Models that accept server-side refusal fallbacks (`fallbacks: "default"`). */
-const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);
-
-let client: Anthropic | null = null;
-function anthropic(): Anthropic {
-  if (client) return client;
-  // Trim: keys pasted into a dashboard often carry a trailing newline.
-  const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  client = new Anthropic({ apiKey });
-  return client;
-}
+import { MODEL, anthropic, fallbackParams } from "./claude";
 
 export type ParsedItem = { item_id: string; name: string; qty: number; unit: string };
 export type Unmatched = { raw: string; reason: string };
@@ -90,12 +70,10 @@ export async function parsePurchaseText(text: string): Promise<ParseResult> {
   const candidates = await loadCandidates();
   // Stable, sorted catalog → identical prefix across requests → prompt cache hits.
   const catalog = candidates.map((c, i) => `#${i} ${c.name} [${c.units.join(", ")}]`).join("\n");
-  const withFallback = FALLBACK_MODELS.has(MODEL);
-
   const response = await anthropic().beta.messages.parse({
     model: MODEL,
     max_tokens: 16000,
-    ...(withFallback ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
+    ...fallbackParams(),
     system: [
       { type: "text", text: INSTRUCTIONS },
       {

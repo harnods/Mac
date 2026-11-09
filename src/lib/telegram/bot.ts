@@ -5,7 +5,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { P } from "@/lib/permissions";
 import { formatNum } from "@/lib/units";
 import { formatId } from "@/lib/format";
-import { answerCallback, editMessage, esc, sendMessage, sendPhoto, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
+import { answerCallback, botUsername, editMessage, esc, sendMessage, sendPhoto, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
+import { answerQuestion } from "./assistant";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 import { STOCK_HELP, stockQuery, stockReply, type StockQuery } from "./stock";
 import { linkedAccount } from "./account";
@@ -42,7 +43,9 @@ type TgMessage = {
   chat: TgChat;
   from?: TgUser;
   text?: string;
+  caption?: string;
   migrate_to_chat_id?: number;
+  reply_to_message?: { message_id: number; from?: TgUser; text?: string; caption?: string };
 };
 type TgCallbackQuery = { id: string; from: TgUser; data?: string; message?: TgMessage };
 type TgChatMemberUpdated = { chat: TgChat; new_chat_member: { status: string } };
@@ -237,6 +240,38 @@ async function handleStock(chatId: number, user: TgUser, sq: StockQuery, replyTo
   await sendMessage(chatId, reply.text, undefined, replyTo);
 }
 
+/** Ask Claude (recipes/stock Q&A). `context` = text of the message being replied to. */
+async function askAssistant(chatId: number, user: TgUser, question: string, context?: string, replyTo?: number) {
+  const acct = await linkedAccount(user.id);
+  if ("error" in acct) {
+    await sendMessage(chatId, acct.error, undefined, replyTo);
+    return;
+  }
+  await sendTyping(chatId);
+  let answer: string;
+  try {
+    answer = await answerQuestion(acct, user.id, question, context);
+  } catch (e) {
+    console.error("[telegram] assistant failed", e);
+    answer = "Maaf, gagal menjawab. Coba lagi sebentar lagi.";
+  }
+  // Plain-text answer → escape for HTML mode; Telegram caps messages at 4096 chars.
+  await sendMessage(chatId, esc(answer.length > 3900 ? `${answer.slice(0, 3900)}…` : answer), undefined, replyTo);
+}
+
+/** Is this group message addressed to the bot (reply to one of its messages, or @mention)? */
+async function addressedToBot(msg: TgMessage): Promise<boolean> {
+  let username: string;
+  try {
+    username = (await botUsername()).toLowerCase();
+  } catch {
+    return false;
+  }
+  const replied = msg.reply_to_message?.from;
+  if (replied?.is_bot && replied.username?.toLowerCase() === username) return true;
+  return (msg.text ?? "").toLowerCase().includes(`@${username}`);
+}
+
 function parseCommand(text: string): { cmd: string; args: string[] } | null {
   if (!text.startsWith("/")) return null;
   const [command, ...args] = text.split(/\s+/);
@@ -258,15 +293,19 @@ async function handlePrivate(msg: TgMessage) {
   const cmd = detectCommand(text);
   if (cmd) return handleCommand(cmd, chatId, user, false);
 
-  const r = await linkedAccount(user.id);
-  if ("error" in r) {
-    await sendMessage(chatId, r.error);
+  if (!text || text.startsWith("/")) {
+    const r = await linkedAccount(user.id);
+    await sendMessage(
+      chatId,
+      "error" in r
+        ? r.error
+        : `Halo ${esc(r.name)}! 👋\nPurchase request dibuat di grup <b>Purchase Requests</b> (bukan di sini).\n\n${GROUP_HELP}`,
+    );
     return;
   }
-  await sendMessage(
-    chatId,
-    `Halo ${esc(r.name)}! 👋\nPurchase request dibuat di grup <b>Purchase Requests</b> (bukan di sini).\n\n${GROUP_HELP}`,
-  );
+  // Anything else in DM is a question for the assistant.
+  const context = msg.reply_to_message?.text ?? msg.reply_to_message?.caption;
+  return askAssistant(chatId, user, text, context);
 }
 
 async function linkAccount(chatId: number, user: TgUser, code: string) {
@@ -320,6 +359,14 @@ async function handlePrGroupMessage(msg: TgMessage) {
   if (sq !== null) return handleStock(chatId, user, sq, msg.message_id);
   const cmd = detectCommand(text);
   if (cmd) return handleCommand(cmd, chatId, user, true, msg.message_id);
+
+  // Replying to / mentioning the bot with a question → assistant. A message with
+  // numbers that isn't phrased as a question is still treated as a request.
+  const isQuestion = /\?|\b(?:berapa|brp|apa|apakah|bisa|gimana|bagaimana|kenapa|mengapa|kapan|cukup|how|what|why)\b/i.test(text);
+  if ((isQuestion || !/\d/.test(text)) && (await addressedToBot(msg))) {
+    const context = msg.reply_to_message?.text ?? msg.reply_to_message?.caption;
+    return askAssistant(chatId, user, text, context, msg.message_id);
+  }
 
   const command = parseCommand(text);
   if (command) {
