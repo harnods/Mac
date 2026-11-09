@@ -26,6 +26,7 @@ const INSTRUCTIONS = [
   "Kalau satuan berat dan volume tercampur (misalnya hasil batch dalam g tapi pemakaian dalam ml), sebutkan asumsimu dengan jelas (untuk sirup/cairan berbasis air: 1 ml ≈ 1 g) dan beri catatan bahwa angka sebenarnya bisa sedikit berbeda.",
   "Kamu TIDAK punya akses dan TIDAK boleh membahas: gaji, payroll, slip gaji, benefit, tunjangan, bonus, data pribadi crew lain, maupun harga/biaya/HPP. Tolak dengan sopan dan arahkan ke aplikasi Machitori.",
   "Untuk absensi, jadwal, dan status request milik sendiri, arahkan penanya mengetik: absensi, jadwal, atau request saya.",
+  "Untuk 'kapan terakhir dicek/di-stock count', pakai last_stock_count. Untuk 'dipakai di produk/resep apa', pakai recipes_using.",
   "Format: teks biasa untuk Telegram. Jangan pakai Markdown (tanpa **, #, atau tabel). Boleh pakai daftar dengan tanda '-'.",
 ].join("\n");
 
@@ -101,6 +102,80 @@ function tools(account: LinkedAccount) {
       }),
     );
   }
+  if (canRecipes) {
+    list.push(
+      betaZodTool({
+        name: "recipes_using",
+        description: "Daftar resep (produk/menu dan WIP) yang memakai bahan tertentu, beserta takarannya per resep.",
+        inputSchema: z.object({ ingredient: z.string().describe("Nama bahan, misalnya 'whipped cream'") }),
+        run: async ({ ingredient }) => {
+          const all = await recipes();
+          const names = [...new Set(all.flatMap((r) => r.recipe_items.map((ri) => ri.item?.name ?? "")).filter(Boolean))];
+          const [match] = findByName(names, (n) => [n], ingredient, 1);
+          if (!match) return `Bahan "${ingredient}" tidak ditemukan di resep mana pun.`;
+          const using = all
+            .map((r) => ({ r, ri: r.recipe_items.find((x) => x.item?.name === match) }))
+            .filter((x) => x.ri)
+            .map((x) => ({ recipe: x.r.name, type: x.r.recipe_type, qty: Number(x.ri!.quantity), unit: x.ri!.unit }));
+          return JSON.stringify({ ingredient: match, used_in: using });
+        },
+      }),
+    );
+  }
+  const canCounts =
+    canStock || [P.STOCK_COUNTS_READ, P.DAILY_STOCK_COUNTS_READ].some((k) => account.permissions.includes(k));
+  if (canCounts) {
+    list.push(
+      betaZodTool({
+        name: "last_stock_count",
+        description:
+          "Kapan terakhir sebuah bahan dihitung (stock count harian dan stock count penuh), beserta jumlah hasil hitungnya. Tidak menyebut siapa yang menghitung.",
+        inputSchema: z.object({ item: z.string().describe("Nama bahan, misalnya 'whipped cream'") }),
+        run: async ({ item }) => {
+          const supabase = createServiceClient();
+          const { data: items } = await supabase
+            .from("items")
+            .select("id, name, unit")
+            .in("type", ["ingredient", "prep_item"])
+            .is("deleted_at", null)
+            .limit(5000);
+          const [it] = findByName((items ?? []) as { id: string; name: string; unit: string }[], (i) => [i.name], item, 1);
+          if (!it) return `Bahan "${item}" tidak ditemukan.`;
+          const [{ data: daily }, { data: full }] = await Promise.all([
+            supabase
+              .from("daily_stock_count_items")
+              .select("counted_qty, unit, count:daily_stock_counts!inner(count_date, status, completed_at)")
+              .eq("item_id", it.id)
+              .not("counted_qty", "is", null)
+              .limit(1000), // sorted by count date below
+            supabase
+              .from("stock_count_items")
+              .select("qty_counted, unit, count:stock_counts!inner(count_date, status, completed_at)")
+              .eq("item_id", it.id)
+              .not("qty_counted", "is", null)
+              .limit(1000),
+          ]);
+          type C = { count_date: string | null; status: string; completed_at: string | null };
+          const latest = <T extends { count: C | C[] | null }>(rows: T[]) =>
+            rows
+              .map((r) => ({ r, c: (Array.isArray(r.count) ? r.count[0] : r.count) as C | null }))
+              .filter((x) => x.c)
+              .sort((a, b) => String(b.c!.count_date ?? b.c!.completed_at ?? "").localeCompare(String(a.c!.count_date ?? a.c!.completed_at ?? "")))[0];
+          const d = latest((daily ?? []) as unknown as { counted_qty: number; unit: string; count: C }[]);
+          const f = latest((full ?? []) as unknown as { qty_counted: number; unit: string; count: C }[]);
+          return JSON.stringify({
+            item: it.name,
+            daily_stock_count: d
+              ? { date: d.c!.count_date, status: d.c!.status, counted: Number(d.r.counted_qty), unit: d.r.unit }
+              : null,
+            full_stock_count: f
+              ? { date: f.c!.count_date ?? f.c!.completed_at, status: f.c!.status, counted: Number(f.r.qty_counted), unit: f.r.unit }
+              : null,
+          });
+        },
+      }),
+    );
+  }
   if (canStock) {
     list.push(
       betaZodTool({
@@ -155,11 +230,18 @@ async function overLimit(telegramUserId: number): Promise<boolean> {
  * replied to (e.g. a recipe the bot sent), so "ube syrup ini" makes sense.
  * Returns plain text (caller escapes it for Telegram HTML).
  */
+export const SKIP = "SKIP";
+
+const SKIP_RULE =
+  "Pesan ini dikirim di grup staf tanpa menyebut bot. Kalau pesan ini BUKAN pertanyaan yang bisa kamu bantu (obrolan antar staf, sapaan, pertanyaan untuk orang lain, atau tidak terkait resep/bahan/stok/purchase request), balas persis dengan satu kata: SKIP";
+
 export async function answerQuestion(
   account: LinkedAccount,
   telegramUserId: number,
   question: string,
   context?: string,
+  /** Unaddressed group message: let Claude decline with SKIP so chatter gets no reply. */
+  allowSkip = false,
 ): Promise<string> {
   const toolList = tools(account);
   if (toolList.length === 0) return "Akun kamu belum punya izin melihat resep atau stok. Hubungi admin.";
@@ -175,7 +257,7 @@ export async function answerQuestion(
     max_iterations: 8,
     ...fallbackParams(),
     output_config: { effort: "medium" },
-    system: [{ type: "text", text: INSTRUCTIONS }],
+    system: [{ type: "text", text: allowSkip ? `${INSTRUCTIONS}\n${SKIP_RULE}` : INSTRUCTIONS }],
     tools: toolList,
     messages: [{ role: "user", content: prompt }],
   });

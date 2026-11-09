@@ -4,10 +4,10 @@ import Anthropic from "@anthropic-ai/sdk";
 
 /**
  * Claude API access for the Telegram bot, using the owner's own key
- * (ANTHROPIC_API_KEY). Model override: TELEGRAM_PARSE_MODEL
- * (e.g. "claude-haiku-5-5" for lower cost).
+ * (ANTHROPIC_API_KEY). Default Claude Sonnet 5.5; override with
+ * TELEGRAM_PARSE_MODEL (e.g. "claude-opus-5-5" or "claude-haiku-5-5").
  */
-export const MODEL = process.env.TELEGRAM_PARSE_MODEL?.trim() || "claude-opus-5-5";
+export const MODEL = process.env.TELEGRAM_PARSE_MODEL?.trim() || "claude-sonnet-5-5";
 
 /** Models that accept server-side refusal fallbacks (`fallbacks: "default"`). */
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);

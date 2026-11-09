@@ -6,7 +6,7 @@ import { P } from "@/lib/permissions";
 import { formatNum } from "@/lib/units";
 import { formatId } from "@/lib/format";
 import { answerCallback, botUsername, editMessage, esc, sendMessage, sendPhoto, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
-import { answerQuestion } from "./assistant";
+import { SKIP, answerQuestion } from "./assistant";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 import { STOCK_HELP, stockQuery, stockReply, type StockQuery } from "./stock";
 import { linkedAccount } from "./account";
@@ -241,20 +241,29 @@ async function handleStock(chatId: number, user: TgUser, sq: StockQuery, replyTo
 }
 
 /** Ask Claude (recipes/stock Q&A). `context` = text of the message being replied to. */
-async function askAssistant(chatId: number, user: TgUser, question: string, context?: string, replyTo?: number) {
+async function askAssistant(
+  chatId: number,
+  user: TgUser,
+  question: string,
+  context?: string,
+  replyTo?: number,
+  /** Unaddressed group message: stay silent on errors/unlinked users and let Claude SKIP chatter. */
+  unaddressed = false,
+) {
   const acct = await linkedAccount(user.id);
   if ("error" in acct) {
-    await sendMessage(chatId, acct.error, undefined, replyTo);
+    if (!unaddressed) await sendMessage(chatId, acct.error, undefined, replyTo);
     return;
   }
   await sendTyping(chatId);
   let answer: string;
   try {
-    answer = await answerQuestion(acct, user.id, question, context);
+    answer = await answerQuestion(acct, user.id, question, context, unaddressed);
   } catch (e) {
     console.error("[telegram] assistant failed", e);
     answer = "Maaf, gagal menjawab. Coba lagi sebentar lagi.";
   }
+  if (unaddressed && answer.trim().replace(/[^A-Z]/g, "") === SKIP) return;
   // Plain-text answer → escape for HTML mode; Telegram caps messages at 4096 chars.
   await sendMessage(chatId, esc(answer.length > 3900 ? `${answer.slice(0, 3900)}…` : answer), undefined, replyTo);
 }
@@ -355,17 +364,37 @@ async function handlePrGroupMessage(msg: TgMessage) {
   const text = (msg.text ?? "").replace(/@\w+bot\b/gi, "").trim();
   if (!text) return;
 
+  const isQuestion = /\?|\b(?:berapa|brp|apa|apakah|bisa|gimana|bagaimana|kenapa|mengapa|kapan|cukup|dipakai|pakai|how|what|why|when)\b/i.test(text);
+  const context = msg.reply_to_message?.text ?? msg.reply_to_message?.caption;
+  const addressed = await addressedToBot(msg);
+  // A reply to another person (not the bot) is a conversation between staff.
+  const replyToHuman = !!msg.reply_to_message && !addressed;
+
   const sq = stockQuery(text);
-  if (sq !== null) return handleStock(chatId, user, sq, msg.message_id);
+  if (sq !== null) {
+    // "sisa stock almond?" → direct lookup. A question that isn't a plain lookup
+    // ("kapan terakhir di cek stock whipped cream") goes to the assistant.
+    if (sq.explicit || !isQuestion) return handleStock(chatId, user, sq, msg.message_id);
+    const direct = sq.query ? await stockReply(sq.query) : null;
+    if (direct && direct.found > 0 && !/\b(?:kapan|terakhir|dicek|di cek|hitung|count)\b/i.test(text)) {
+      return handleStock(chatId, user, sq, msg.message_id);
+    }
+    if (!replyToHuman) return askAssistant(chatId, user, text, context, msg.message_id, !addressed);
+    return;
+  }
   const cmd = detectCommand(text);
   if (cmd) return handleCommand(cmd, chatId, user, true, msg.message_id);
 
-  // Replying to / mentioning the bot with a question → assistant. A message with
-  // numbers that isn't phrased as a question is still treated as a request.
-  const isQuestion = /\?|\b(?:berapa|brp|apa|apakah|bisa|gimana|bagaimana|kenapa|mengapa|kapan|cukup|how|what|why)\b/i.test(text);
-  if ((isQuestion || !/\d/.test(text)) && (await addressedToBot(msg))) {
-    const context = msg.reply_to_message?.text ?? msg.reply_to_message?.caption;
+  // Questions → assistant: when addressed to the bot, or phrased as a question
+  // and not a reply to another person (Claude answers SKIP for staff chatter).
+  // A message with numbers that isn't a question is still a purchase request.
+  if (addressed && (isQuestion || !/\d/.test(text))) {
     return askAssistant(chatId, user, text, context, msg.message_id);
+  }
+  // With numbers, only clear question words count ("almond 2kg bisa ya" stays a request).
+  const strongQuestion = /\?|\b(?:berapa|brp|kapan|apakah|gimana|bagaimana|kenapa|mengapa)\b/i.test(text);
+  if (!replyToHuman && (/\d/.test(text) ? strongQuestion : isQuestion)) {
+    return askAssistant(chatId, user, text, context, msg.message_id, true);
   }
 
   const command = parseCommand(text);
