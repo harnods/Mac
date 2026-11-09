@@ -87,17 +87,18 @@ type RecipeRow = {
   yield_qty: number;
   unit: string | null;
   station: string | null;
-  product: { name: string } | null;
+  product: { name: string; image_url: string | null } | null;
   recipe_items: { quantity: number; unit: string; item: { name: string } | null }[];
 };
 
-export async function recipeReply(account: LinkedAccount, query: string): Promise<string> {
-  if (!account.permissions.includes(P.RECIPES_READ)) return "Akun kamu belum punya izin melihat resep. Hubungi admin.";
-  if (!query) return "Contoh: <i>resep latte</i>";
+/** Recipe text, plus the linked product's photo URL when it has one. */
+export async function recipeReply(account: LinkedAccount, query: string): Promise<{ text: string; photoUrl?: string }> {
+  if (!account.permissions.includes(P.RECIPES_READ)) return { text: "Akun kamu belum punya izin melihat resep. Hubungi admin." };
+  if (!query) return { text: "Contoh: <i>resep latte</i>" };
 
   const { data } = await createServiceClient()
     .from("recipes")
-    .select("id, name, yield_qty, unit, station, product:items!product_id(name), recipe_items(quantity, unit, item:items!item_id(name))")
+    .select("id, name, yield_qty, unit, station, product:items!product_id(name, image_url), recipe_items(quantity, unit, item:items!item_id(name))")
     .order("name")
     .limit(2000);
   // Same bar/kitchen scoping as the web app.
@@ -107,19 +108,20 @@ export async function recipeReply(account: LinkedAccount, query: string): Promis
   );
 
   const found = findByName(recipes, (r) => [r.name, r.product?.name ?? ""], query, 4);
-  if (found.length === 0) return `Resep "${esc(query)}" tidak ditemukan.`;
+  if (found.length === 0) return { text: `Resep "${esc(query)}" tidak ditemukan.` };
 
   const [r, ...others] = found;
   const lines = r.recipe_items
     .map((ri) => `- ${esc(ri.item?.name ?? "?")} - ${qty(Number(ri.quantity), ri.unit)}`)
     .join("\n");
-  return [
+  const text = [
     `🍳 <b>Resep: ${esc(r.name)}</b>${r.station ? ` <i>(${esc(r.station)})</i>` : ""}`,
     `Hasil: ${qty(Number(r.yield_qty), r.unit ?? "porsi")}`,
     "",
     lines || "<i>Belum ada bahan.</i>",
     ...(others.length ? ["", `Mungkin maksudnya: ${others.map((o) => esc(o.name)).join(", ")}`] : []),
   ].join("\n");
+  return { text, photoUrl: r.product?.image_url ?? undefined };
 }
 
 // ─── Personal data (always sent by DM) ───────────────────────────────────────

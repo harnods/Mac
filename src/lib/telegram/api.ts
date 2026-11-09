@@ -57,6 +57,16 @@ export function sendMessage(chatId: number, text: string, keyboard?: InlineKeybo
   });
 }
 
+/** Send a photo by public URL, optionally with an HTML caption (max 1024 chars). */
+export function sendPhoto(chatId: number, photoUrl: string, caption?: string, replyTo?: number) {
+  return tg<{ message_id: number }>("sendPhoto", {
+    chat_id: chatId,
+    photo: photoUrl,
+    ...(caption ? { caption, parse_mode: "HTML" } : {}),
+    ...(replyTo ? { reply_parameters: { message_id: replyTo, allow_sending_without_reply: true } } : {}),
+  });
+}
+
 export function editMessage(chatId: number, messageId: number, text: string, keyboard?: InlineKeyboard) {
   return tg("editMessageText", {
     chat_id: chatId,

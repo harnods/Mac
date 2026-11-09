@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { P } from "@/lib/permissions";
 import { formatNum } from "@/lib/units";
 import { formatId } from "@/lib/format";
-import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
+import { answerCallback, editMessage, esc, sendMessage, sendPhoto, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 import { STOCK_HELP, stockQuery, stockReply, type StockQuery } from "./stock";
 import { linkedAccount } from "./account";
@@ -185,7 +185,19 @@ async function handleCommand(cmd: Command, chatId: number, user: TgUser, inGroup
   }
 
   if (cmd.kind === "recipe") {
-    await sendMessage(chatId, await recipeReply(acct, cmd.query), undefined, replyTo);
+    const recipe = await recipeReply(acct, cmd.query);
+    if (recipe.photoUrl) {
+      // Telegram captions are capped at 1024 visible characters.
+      const fitsCaption = recipe.text.replace(/<[^>]+>/g, "").length <= 1000;
+      try {
+        await sendPhoto(chatId, recipe.photoUrl, fitsCaption ? recipe.text : undefined, replyTo);
+        if (!fitsCaption) await sendMessage(chatId, recipe.text, undefined, replyTo);
+        return;
+      } catch (e) {
+        console.error("[telegram] recipe photo failed", e); // fall back to text only
+      }
+    }
+    await sendMessage(chatId, recipe.text, undefined, replyTo);
     return;
   }
 
