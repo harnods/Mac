@@ -2,13 +2,23 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import { permissionsForRole } from "@/lib/auth";
 import { P } from "@/lib/permissions";
 import { formatNum } from "@/lib/units";
 import { formatId } from "@/lib/format";
 import { answerCallback, editMessage, esc, sendMessage, sendTyping, telegramEnv, type InlineKeyboard } from "./api";
 import { parsePurchaseText, type ParsedItem, type Unmatched } from "./parse";
 import { STOCK_HELP, stockQuery, stockReply, type StockQuery } from "./stock";
+import { linkedAccount } from "./account";
+import {
+  HELP,
+  attendanceReply,
+  blockedText,
+  detectCommand,
+  myRequestsReply,
+  recipeReply,
+  scheduleReply,
+  type Command,
+} from "./commands";
 
 /*
  * Flow
@@ -46,19 +56,7 @@ export type TgUpdate = {
 const MAX_TEXT = 2000;
 const MAX_PARSES_PER_HOUR = 30;
 
-const GROUP_HELP = [
-  "Tulis daftar belanja di grup ini dalam satu pesan, contoh:",
-  "<i>almond 2 kg, ayam 5 kg, susu UHT 3 karton</i>",
-  "",
-  "Bot akan membalas dengan daftar barang + tombol ✅ Kirim / ❌ Batal (hanya pengirim yang bisa menekan).",
-  "Setelah dikirim, barang otomatis diteruskan ke grup supplier masing-masing.",
-  "",
-  STOCK_HELP,
-  "/batal — batalkan request kamu yang belum dikirim",
-].join("\n");
-
-const LINK_HELP =
-  "Akun Telegram kamu belum terhubung ke Machitori.\nBuka Machitori → <b>Profile</b> → <b>Hubungkan Telegram</b>, lalu tekan Start di chat bot.";
+const GROUP_HELP = HELP;
 
 function db() {
   return createServiceClient();
@@ -150,43 +148,65 @@ async function migrateChat(oldId: number, newId: number, chat: TgChat) {
 type Requester = { profileId: string; name: string };
 
 async function requesterFor(user: TgUser): Promise<Requester | { error: string }> {
-  const supabase = db();
-  const { data: acct } = await supabase
-    .from("telegram_accounts")
-    .select("profile_id")
-    .eq("telegram_user_id", user.id)
-    .maybeSingle();
-  if (!acct) return { error: LINK_HELP };
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, role, full_name, email")
-    .eq("id", acct.profile_id)
-    .maybeSingle();
-  if (!profile) return { error: "Akun Machitori kamu tidak ditemukan." };
-  const permissions = await permissionsForRole(profile.role as string);
-  if (!permissions.includes(P.PURCHASING_REQUEST)) {
+  const acct = await linkedAccount(user.id);
+  if ("error" in acct) return acct;
+  if (!acct.permissions.includes(P.PURCHASING_REQUEST)) {
     return { error: "Akun kamu belum punya izin membuat purchase request. Hubungi admin." };
   }
-  return {
-    profileId: profile.id as string,
-    name: (profile.full_name as string | null) || String(profile.email ?? "").split("@")[0] || "Karyawan",
-  };
+  return { profileId: acct.profileId, name: acct.name };
 }
 
 /** Stock lookups: any linked account that can see ingredients or purchasing. */
 async function canCheckStock(user: TgUser): Promise<true | { error: string }> {
-  const supabase = db();
-  const { data: acct } = await supabase
-    .from("telegram_accounts")
-    .select("profile_id")
-    .eq("telegram_user_id", user.id)
-    .maybeSingle();
-  if (!acct) return { error: LINK_HELP };
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", acct.profile_id).maybeSingle();
-  if (!profile) return { error: "Akun Machitori kamu tidak ditemukan." };
-  const permissions = await permissionsForRole(profile.role as string);
-  const ok = [P.INGREDIENTS_READ, P.PURCHASING_READ, P.PURCHASING_REQUEST].some((k) => permissions.includes(k));
+  const acct = await linkedAccount(user.id);
+  if ("error" in acct) return acct;
+  const ok = [P.INGREDIENTS_READ, P.PURCHASING_READ, P.PURCHASING_REQUEST].some((k) => acct.permissions.includes(k));
   return ok ? true : { error: "Akun kamu belum punya izin melihat stok. Hubungi admin." };
+}
+
+/**
+ * Help, recipes, own attendance/schedule/requests, and refusals for payroll or
+ * crew data. Personal data always goes to the user's DM, never the group.
+ */
+async function handleCommand(cmd: Command, chatId: number, user: TgUser, inGroup: boolean, replyTo?: number) {
+  if (cmd.kind === "help") {
+    await sendMessage(chatId, HELP, undefined, replyTo);
+    return;
+  }
+  if (cmd.kind === "blocked") {
+    await sendMessage(chatId, blockedText(cmd.topic), undefined, replyTo);
+    return;
+  }
+
+  const acct = await linkedAccount(user.id);
+  if ("error" in acct) {
+    await sendMessage(chatId, acct.error, undefined, replyTo);
+    return;
+  }
+
+  if (cmd.kind === "recipe") {
+    await sendMessage(chatId, await recipeReply(acct, cmd.query), undefined, replyTo);
+    return;
+  }
+
+  const text =
+    cmd.kind === "attendance"
+      ? await attendanceReply(acct)
+      : cmd.kind === "schedule"
+        ? await scheduleReply(acct)
+        : await myRequestsReply(acct);
+
+  if (!inGroup) {
+    await sendMessage(chatId, text);
+    return;
+  }
+  // Personal data: DM the user (their private chat id is their user id).
+  try {
+    await sendMessage(user.id, text);
+    await sendMessage(chatId, "📩 Cek DM ya", undefined, replyTo);
+  } catch {
+    await sendMessage(chatId, "Saya belum bisa kirim DM ke kamu. Buka chat dengan bot ini dan tekan Start dulu, lalu coba lagi.", undefined, replyTo);
+  }
 }
 
 async function handleStock(chatId: number, user: TgUser, sq: StockQuery, replyTo?: number) {
@@ -223,15 +243,17 @@ async function handlePrivate(msg: TgMessage) {
   if (command?.cmd === "/start" && command.args[0]) return linkAccount(chatId, user, command.args[0]);
   const sq = stockQuery(text);
   if (sq !== null) return handleStock(chatId, user, sq);
+  const cmd = detectCommand(text);
+  if (cmd) return handleCommand(cmd, chatId, user, false);
 
-  const r = await requesterFor(user);
+  const r = await linkedAccount(user.id);
   if ("error" in r) {
     await sendMessage(chatId, r.error);
     return;
   }
   await sendMessage(
     chatId,
-    `Halo ${esc(r.name)}! 👋\nAkun kamu sudah terhubung.\n\nBuat purchase request di grup <b>Purchase Requests</b> (bukan di sini).\n\n${GROUP_HELP}`,
+    `Halo ${esc(r.name)}! 👋\nPurchase request dibuat di grup <b>Purchase Requests</b> (bukan di sini).\n\n${GROUP_HELP}`,
   );
 }
 
@@ -284,10 +306,12 @@ async function handlePrGroupMessage(msg: TgMessage) {
 
   const sq = stockQuery(text);
   if (sq !== null) return handleStock(chatId, user, sq, msg.message_id);
+  const cmd = detectCommand(text);
+  if (cmd) return handleCommand(cmd, chatId, user, true, msg.message_id);
 
   const command = parseCommand(text);
   if (command) {
-    if (command.cmd === "/help" || command.cmd === "/bantuan" || command.cmd === "/start") {
+    if (command.cmd === "/start") {
       await sendMessage(chatId, GROUP_HELP, undefined, msg.message_id);
     } else if (command.cmd === "/batal" || command.cmd === "/cancel") {
       const { data } = await db()
